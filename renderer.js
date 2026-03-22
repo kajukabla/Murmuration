@@ -2,8 +2,9 @@
 
 const SAMPLE_COUNT = 4;
 const HDR_FORMAT = 'rgba16float';
-// Camera uniform: mat4x4f(64) + gradient_id(4) + color_source(4) + pad(8) = 80 bytes
-const UNIFORM_SIZE = 80;
+// Camera uniform: mat4x4f(64) + gradient_id(4) + color_source(4) + gain(4) + auto_range(4)
+//                 + auto_min(4) + auto_max(4) + pad(8) = 96 bytes
+const UNIFORM_SIZE = 96;
 
 export async function createRenderer(device, context, simulation) {
   context.configure({
@@ -62,12 +63,12 @@ export async function createRenderer(device, context, simulation) {
   const uniformData = new ArrayBuffer(UNIFORM_SIZE);
 
   return {
-    /** viewProj: Float32Array(16), gradientId: u32, colorSource: u32, gain: f32 */
-    render(encoder, viewProj, gradientId = 0, colorSource = 0, gain = 0.5) {
-      // Pack: mat4x4f + 2 u32s + 1 f32 + pad
+    render(encoder, viewProj, gradientId = 0, colorSource = 0, gain = 0.5, autoRange = false, autoMin = 0, autoMax = 1) {
       new Float32Array(uniformData, 0, 16).set(viewProj);
       new Uint32Array(uniformData, 64, 2).set([gradientId, colorSource]);
       new Float32Array(uniformData, 72, 1).set([gain]);
+      new Uint32Array(uniformData, 76, 1).set([autoRange ? 1 : 0]);
+      new Float32Array(uniformData, 80, 2).set([autoMin, autoMax]);
       device.queue.writeBuffer(uniformBuf, 0, new Uint8Array(uniformData));
 
       const curBuf = simulation.currentBuffer();

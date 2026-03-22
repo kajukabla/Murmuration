@@ -5,7 +5,11 @@ struct CameraUniforms {
   gradient_id: u32,
   color_source: u32,
   gain: f32,
+  auto_range: u32,   // 0=off, 1=on
+  auto_min: f32,
+  auto_max: f32,
   _pad0: u32,
+  _pad1: u32,
 }
 
 struct Boid {
@@ -255,8 +259,15 @@ fn vs_main(
   let ndotl = abs(dot(rotated_normal, light_dir));
   let lighting = 0.3 + 0.7 * ndotl;
 
-  // Color: map data source through gain + colormap
-  let raw = get_color_raw(boid, iid, camera.color_source);
+  // Color: map data source through auto-range + gain + colormap
+  var raw = get_color_raw(boid, iid, camera.color_source);
+  // Auto-range: normalize to [0,1] based on smoothed min/max
+  if (camera.auto_range > 0u) {
+    let range = camera.auto_max - camera.auto_min;
+    if (range > 0.0001) {
+      raw = (raw - camera.auto_min) / range;
+    }
+  }
   let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
   let t = clamp(raw / gainMul, 0.0, 1.0);
   let base = colormap(t, camera.gradient_id);

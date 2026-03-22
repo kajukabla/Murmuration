@@ -122,6 +122,13 @@
       <input type="range" id="gain-slider" min="0.0" max="1.0" step="0.01" value="0.5" style="flex:1; height:4px; accent-color:#668cff;">
       <span class="val" id="gain-val">0.50</span>
     </div>
+    <div class="param-row">
+      <label>Auto-Range</label>
+      <label style="flex:1; color:#aab; font-size:12px; cursor:pointer;">
+        <input type="checkbox" id="auto-range-cb" style="accent-color:#668cff; margin-right:4px;">
+        Normalize to data range
+      </label>
+    </div>
     <div class="section-label">Physics</div>
     <div id="sliders"></div>
   </div></div>
@@ -361,6 +368,12 @@ gainSlider.addEventListener('input', () => {
   gainVal.textContent = currentParams.gain.toFixed(2);
 });
 
+// Auto-range checkbox
+const autoRangeCb = document.getElementById('auto-range-cb');
+autoRangeCb.addEventListener('change', () => {
+  simulation.autoRange = autoRangeCb.checked;
+});
+
 // Gradient + Color Source dropdowns
 const gradientSelect = document.getElementById('gradient-select');
 const colorSourceSelect = document.getElementById('color-source-select');
@@ -499,8 +512,12 @@ function frame() {
   for (let s = 0; s < simSteps; s++) {
     simulation.update(encoder);
   }
-  renderer.render(encoder, vp, currentParams.gradientId ?? 0, currentParams.colorSource ?? 0, currentParams.gain ?? 0.5);
+  const ar = autoRangeCb.checked;
+  renderer.render(encoder, vp, currentParams.gradientId ?? 0, currentParams.colorSource ?? 0,
+    currentParams.gain ?? 0.5, ar, simulation.autoMin, simulation.autoMax);
   device.queue.submit([encoder.finish()]);
+  // Async readback of auto-range stats (non-blocking)
+  if (ar) simulation.readStats();
 
   requestAnimationFrame(frame);
 }
