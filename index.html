@@ -505,7 +505,11 @@ function frame() {
   const vp = mat4Mul(proj, view);
 
   const encoder = device.createCommandEncoder();
-  simulation.update(encoder);
+  // Run multiple sim steps per frame for true speed control
+  const simSteps = Math.max(1, Math.round(currentParams.simSpeed ?? 1));
+  for (let s = 0; s < simSteps; s++) {
+    simulation.update(encoder);
+  }
   renderer.render(encoder, vp, currentParams.gradientId ?? 0, currentParams.colorSource ?? 0);
   device.queue.submit([encoder.finish()]);
 
