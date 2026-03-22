@@ -93,15 +93,34 @@ fn vs_main(
 
   var out: VsOut;
   out.pos = camera.view_proj * vec4f(world, 1.0);
-  out.lighting = 0.5 + ndotl * 1.0;
+  out.lighting = 0.45 + ndotl * 0.8;
 
-  // HDR color: blue-purple palette with values > 1.0 for bright highlights
+  // Viridis-inspired palette: map velocity direction to [0,1] then sample viridis
+  // Viridis goes: dark purple → blue → teal → green → yellow
   let d = fwd;
-  out.color = vec3f(
-    0.5 + d.x * 0.35 + d.y * 0.15,
-    0.55 + d.y * 0.25 + d.z * 0.15,
-    1.1 + d.z * 0.25 - d.x * 0.15,
-  );
+  let t = clamp(d.x * 0.3 + d.y * 0.4 + d.z * 0.3 + 0.5, 0.0, 1.0);
+
+  // Piecewise viridis approximation (5 stops)
+  let c0 = vec3f(0.267, 0.004, 0.329);  // dark purple (t=0)
+  let c1 = vec3f(0.282, 0.140, 0.458);  // blue-purple (t=0.25)
+  let c2 = vec3f(0.127, 0.566, 0.551);  // teal (t=0.5)
+  let c3 = vec3f(0.544, 0.774, 0.247);  // green (t=0.75)
+  let c4 = vec3f(0.993, 0.906, 0.144);  // yellow (t=1) — bloom candidate
+
+  var base: vec3f;
+  if (t < 0.25) {
+    base = mix(c0, c1, t / 0.25);
+  } else if (t < 0.5) {
+    base = mix(c1, c2, (t - 0.25) / 0.25);
+  } else if (t < 0.75) {
+    base = mix(c2, c3, (t - 0.5) / 0.25);
+  } else {
+    base = mix(c3, c4, (t - 0.75) / 0.25);
+  }
+
+  // HDR bloom: push bright yellows/greens slightly above 1.0 for HDR glow
+  let bloom = smoothstep(0.7, 1.0, t) * 0.3;
+  out.color = base + vec3f(bloom * 0.5, bloom * 0.3, 0.0);
 
   return out;
 }

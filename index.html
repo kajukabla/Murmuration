@@ -390,19 +390,49 @@ function mat4Mul(a, b) {
 }
 
 // ============================================================
-// FPS + Main loop
+// FPS + Main loop + Benchmark reporting
 // ============================================================
 const frameTimes = [];
 let lastTime = performance.now();
 const hud = document.getElementById('hud');
+let benchFrame = 0, benchDone = false;
 
 function frame() {
   const now = performance.now();
-  frameTimes.push(now - lastTime);
+  const dt = now - lastTime;
   lastTime = now;
-  if (frameTimes.length > 120) frameTimes.shift();
-  const avgMs = frameTimes.reduce((a,b) => a+b, 0) / frameTimes.length;
+  benchFrame++;
+  if (benchFrame > 30) frameTimes.push(dt);
+  if (frameTimes.length > 200) frameTimes.shift();
+
+  const display = frameTimes.length ? frameTimes : [16.6];
+  const avgMs = display.reduce((a,b) => a+b, 0) / display.length;
   hud.textContent = `${NUM_BOIDS.toLocaleString()} boids | ${(1000/avgMs).toFixed(0)} fps | ${avgMs.toFixed(1)} ms`;
+
+  if (benchmarkBoids && frameTimes.length >= 120 && !benchDone) {
+    benchDone = true;
+    const sorted = [...frameTimes].sort((a,b) => a - b);
+    const avg = sorted.reduce((a,b) => a+b, 0) / sorted.length;
+    const p99 = sorted[Math.floor(sorted.length * 0.99)];
+    fetch('/api/bench_result', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ num_boids: NUM_BOIDS, frames: sorted.length,
+        avg_ms: +avg.toFixed(2), p99_ms: +p99.toFixed(2),
+        min_ms: +sorted[0].toFixed(2), max_ms: +sorted[sorted.length-1].toFixed(2) }),
+    }).catch(() => {});
+    hud.textContent += ' | BENCHMARK COMPLETE';
+  }
+
+  if (!benchmarkBoids && benchFrame % 600 === 0) {
+    fetch('results.tsv', { cache: 'no-store' }).then(r => r.text()).then(tsv => {
+      const lines = tsv.trim().split('\n').slice(1);
+      const kept = lines.filter(l => l.includes('kept'));
+      if (kept.length) {
+        const best = parseInt(kept[kept.length - 1].split('\t')[1]);
+        if (best > 0 && best !== NUM_BOIDS) location.reload();
+      }
+    }).catch(() => {});
+  }
 
   const eye = [
     distance * Math.cos(elevation) * Math.sin(azimuth),
