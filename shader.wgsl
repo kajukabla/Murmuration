@@ -210,21 +210,57 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
-  let vel_dir = normalize(new_vel);
-  var old_heading = boid.heading;
-  let h_len = length(old_heading);
-  if (h_len < 0.5) { old_heading = vel_dir; }
-  else { old_heading = old_heading / h_len; }
-  boids_dst[i].heading = normalize(mix(old_heading, vel_dir, 0.08));
+  // Heading: use final_dir directly (already normalized, saves 2 normalize+length+mix)
+  boids_dst[i].heading = final_dir;
 
-  boids_dst[i].speed = length(new_vel);
+  boids_dst[i].speed = final_speed;
   boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = dir_change_val;
   // Approximate alignment: dot of velocity directions (cheap, no extra normalize)
   let vel_d2 = dot(boid.vel, boid.vel);
   let avg_d2 = dot(avg_vel, avg_vel);
   boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), 0.0, vel_d2 < 0.001 || avg_d2 < 0.001);
-  boids_dst[i].sep_pressure = length(sep);
+  boids_dst[i].sep_pressure = dot(sep, sep);
   let vol = params.visual_range * params.visual_range * params.visual_range;
   boids_dst[i].density = clamp(f32(n_align) / max(vol * 0.01, 1.0), 0.0, 1.0);
+}
+
+// === Auto-range: compute min/max of selected color source metric ===
+// Uses separate bind group: @group(1) for stats buffer
+@group(1) @binding(0) var<storage, read_write> stats: array<atomic<u32>, 2>;
+
+fn get_metric(boid: Boid, source: u32) -> f32 {
+  switch (source) {
+    case 0u: { return dot(normalize(boid.heading + vec3f(0.0001, 0.0, 0.0)), vec3f(0.3, 0.4, 0.3)) + 0.5; }
+    case 1u: { return boid.speed; }
+    case 2u: { return boid.dir_change; }
+    case 3u: { return boid.neighbor_count; }
+    case 4u: { return (boid.pos.y + 50.0) / 100.0; }
+    case 5u: { return length(boid.pos) / 50.0; }
+    case 6u: { return boid.flock_alignment * 0.5 + 0.5; }
+    case 7u: { return boid.sep_pressure; }
+    case 8u: { return boid.density; }
+    case 9u: { return 0.5; } // Boid ID is static, no range needed
+    default: { return 0.5; }
+  }
+}
+
+@compute @workgroup_size(64)
+fn clear_stats(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x == 0u) {
+    // Init min to large positive, max to 0 (as bitcast u32)
+    atomicStore(&stats[0], bitcast<u32>(1e10));
+    atomicStore(&stats[1], 0u);
+  }
+}
+
+@compute @workgroup_size(64)
+fn compute_stats(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  let val = get_metric(boids_src[i], params.color_source);
+  let val_bits = bitcast<u32>(val);
+  // Atomic min: smaller float = smaller u32 for positive floats
+  atomicMin(&stats[0], val_bits);
+  atomicMax(&stats[1], val_bits);
 }

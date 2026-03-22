@@ -159,7 +159,45 @@ export async function createSimulation(device, {
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
 
+  // --- Auto-range stats ---
+  const statsBuf = device.createBuffer({
+    label: 'stats',
+    size: 8, // 2 × u32 (min, max as bitcast f32)
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
+  const statsReadBuf = device.createBuffer({
+    label: 'stats-read',
+    size: 8,
+    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+  });
+
+  // Stats uses group(0) for params+boids and group(1) for stats buffer
+  const statsBGL = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+    ],
+  });
+  const statsBG = device.createBindGroup({
+    layout: statsBGL,
+    entries: [{ binding: 0, resource: { buffer: statsBuf } }],
+  });
+
+  const statsPipeLayout = device.createPipelineLayout({
+    bindGroupLayouts: [bgl, statsBGL],
+  });
+  const clearStatsPipe = device.createComputePipeline({
+    layout: statsPipeLayout,
+    compute: { module, entryPoint: 'clear_stats' },
+  });
+  const computeStatsPipe = device.createComputePipeline({
+    layout: statsPipeLayout,
+    compute: { module, entryPoint: 'compute_stats' },
+  });
+
   let step = 0;
+  let autoRangeEnabled = false;
+  let statsReading = false;
+  let smoothMin = 0, smoothMax = 1;
 
   return {
     numBoids,
@@ -167,6 +205,10 @@ export async function createSimulation(device, {
     boidB,
     setParams: writeParams,
     applySizeRandomness,
+
+    set autoRange(v) { autoRangeEnabled = v; },
+    get autoMin() { return smoothMin; },
+    get autoMax() { return smoothMax; },
 
     update(encoder) {
       const bg = step % 2 === 0 ? bgA : bgB;
@@ -184,7 +226,46 @@ export async function createSimulation(device, {
         p.dispatchWorkgroups(wg);
         p.end();
       }
+
+      // Auto-range stats pass (after flock so metrics are fresh)
+      if (autoRangeEnabled) {
+        // Clear stats
+        const c = encoder.beginComputePass();
+        c.setPipeline(clearStatsPipe);
+        c.setBindGroup(0, bg);
+        c.setBindGroup(1, statsBG);
+        c.dispatchWorkgroups(1);
+        c.end();
+        // Compute min/max
+        const s = encoder.beginComputePass();
+        s.setPipeline(computeStatsPipe);
+        s.setBindGroup(0, bg);
+        s.setBindGroup(1, statsBG);
+        s.dispatchWorkgroups(boidWG);
+        s.end();
+        // Copy to readback buffer
+        encoder.copyBufferToBuffer(statsBuf, 0, statsReadBuf, 0, 8);
+      }
+
       step++;
+    },
+
+    /** Call after queue.submit + onSubmittedWorkDone to read back stats */
+    async readStats() {
+      if (!autoRangeEnabled || statsReading) return;
+      statsReading = true;
+      try {
+        await statsReadBuf.mapAsync(GPUMapMode.READ);
+        const data = new Float32Array(statsReadBuf.getMappedRange().slice(0));
+        statsReadBuf.unmap();
+        const rawMin = data[0], rawMax = data[1];
+        if (isFinite(rawMin) && isFinite(rawMax)) {
+          const alpha = 0.02;
+          smoothMin = smoothMin * (1 - alpha) + rawMin * alpha;
+          smoothMax = smoothMax * (1 - alpha) + rawMax * alpha;
+        }
+      } catch {}
+      statsReading = false;
     },
 
     currentBuffer() {
