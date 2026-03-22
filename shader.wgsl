@@ -162,8 +162,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             n_align++;
 
             if (d2 < params.separation_dist_sq) {
-              let d = sqrt(d2);
-              sep += (diff / d) * (1.0 - d / params.separation_dist);
+              // Quadratic falloff avoids sqrt: strength ∝ (1 - d²/sep²)
+              sep += diff * (1.0 - d2 / params.separation_dist_sq);
               n_sep++;
             }
           }
