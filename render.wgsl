@@ -317,17 +317,14 @@ fn vs_billboard(
 ) -> BillboardOut {
   let boid = boids[iid];
 
-  // Heading direction in world space
   var fwd = boid.heading;
   let fwd_len = length(fwd);
   if (fwd_len < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); }
   else { fwd = fwd / fwd_len; }
 
-  // Project boid position and a point along heading to clip space
   let clip_center = camera.view_proj * vec4f(boid.pos, 1.0);
   let clip_ahead = camera.view_proj * vec4f(boid.pos + fwd, 1.0);
 
-  // Screen-space direction (NDC)
   let ndc_center = clip_center.xy / clip_center.w;
   let ndc_ahead = clip_ahead.xy / clip_ahead.w;
   var screen_dir = ndc_ahead - ndc_center;
@@ -335,17 +332,13 @@ fn vs_billboard(
   if (screen_len < 0.0001) { screen_dir = vec2f(1.0, 0.0); }
   else { screen_dir = screen_dir / screen_len; }
 
-  // Perpendicular direction in screen space
   let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
 
-  // Sprite size in NDC (scale by size_factor, stretch along velocity)
   let base_size = 0.004 * boid.size_factor;
   let stretch = 1.0 + clamp(boid.speed * 0.15, 0.0, 3.0);
   let half_long = base_size * stretch;
   let half_short = base_size * 0.4;
 
-  // 6 vertices for 2 triangles (quad)
-  // UV: x along heading (-1 to 1), y perpendicular (-1 to 1)
   var local_uv: vec2f;
   switch (vid) {
     case 0u { local_uv = vec2f(-1.0, -1.0); }
@@ -366,7 +359,6 @@ fn vs_billboard(
   out.pos.y += offset_ndc.y * clip_center.w;
   out.uv = local_uv;
 
-  // Color: same colormap logic as tetrahedron mode
   let raw = get_color_raw(boid, iid, camera.color_source);
   var t: f32;
   if (camera.auto_range > 0u) {
@@ -391,7 +383,6 @@ fn vs_billboard(
 
 @fragment
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
-  // Elliptical soft falloff
   let dist = length(in.uv * vec2f(1.0, camera.falloff));
   let alpha = smoothstep(1.0, 0.3, dist);
   return vec4f(in.color * alpha, alpha);

@@ -59,21 +59,25 @@ export async function createRenderer(device, context, simulation) {
   });
 
   // Billboard pipeline (no MSAA, no depth, additive blend)
-  const billboardPipeline = device.createRenderPipeline({
-    layout: pipelineLayout,
-    vertex: { module: renderModule, entryPoint: 'vs_billboard' },
-    fragment: {
-      module: renderModule, entryPoint: 'fs_billboard',
-      targets: [{
-        format: HDR_FORMAT,
-        blend: {
-          color: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
-          alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
-        },
-      }],
-    },
-    primitive: { topology: 'triangle-list' },
-  });
+  // Created lazily — only if the shader has the entry points
+  let billboardPipeline = null;
+  if (renderCode.includes('fn vs_billboard')) {
+    billboardPipeline = device.createRenderPipeline({
+      layout: pipelineLayout,
+      vertex: { module: renderModule, entryPoint: 'vs_billboard' },
+      fragment: {
+        module: renderModule, entryPoint: 'fs_billboard',
+        targets: [{
+          format: HDR_FORMAT,
+          blend: {
+            color: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+            alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+          },
+        }],
+      },
+      primitive: { topology: 'triangle-list' },
+    });
+  }
 
   let { msaaTex, depthTex } = createMSAATargets(device, context.canvas);
   const uniformData = new ArrayBuffer(UNIFORM_SIZE);
@@ -122,7 +126,7 @@ export async function createRenderer(device, context, simulation) {
         pass.setBindGroup(0, bg);
         pass.draw(12, numBoids);
         pass.end();
-      } else {
+      } else if (billboardPipeline) {
         // Billboard mode (additive, no MSAA)
         const pass = encoder.beginRenderPass({
           colorAttachments: [{
