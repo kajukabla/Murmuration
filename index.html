@@ -129,6 +129,16 @@
         Normalize to data range
       </label>
     </div>
+    <div class="param-row">
+      <label>Brightness</label>
+      <input type="range" id="brightness-slider" min="0.1" max="5.0" step="0.05" value="1.0" style="flex:1; height:4px; accent-color:#668cff;">
+      <span class="val" id="brightness-val">1.00</span>
+    </div>
+    <div class="param-row">
+      <label>Sphere Radius</label>
+      <input type="range" id="sphere-radius-slider" min="20" max="300" step="5" value="100" style="flex:1; height:4px; accent-color:#668cff;">
+      <span class="val" id="sphere-radius-val">100</span>
+    </div>
     <div class="section-label">Rendering</div>
     <div class="param-row">
       <label>Render Mode</label>
@@ -199,31 +209,31 @@ const WORLD_SIZE = 100;
 // ============================================================
 const BUILTIN_PRESETS = {
   'Murmuration': {
-    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.3,
+    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.3, sphereRadius: 100,
     visualRange: 5.0, separationDist: 1.5, alignFactor: 0.08,
     cohesionFactor: 0.006, separationFactor: 0.5,
     maxSpeed: 8.0, minSpeed: 2.5, turnFactor: 0.5, smoothing: 0.04,
   },
   'Boids Classic': {
-    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.3,
+    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.3, sphereRadius: 100,
     visualRange: 3.0, separationDist: 1.2, alignFactor: 0.04,
     cohesionFactor: 0.003, separationFactor: 0.4,
     maxSpeed: 6.0, minSpeed: 1.5, turnFactor: 0.35, smoothing: 0.08,
   },
   'Swarm': {
-    simSpeed: 1.0, sizeRandomness: 0.3, dragFactor: 0.5,
+    simSpeed: 1.0, sizeRandomness: 0.3, dragFactor: 0.5, sphereRadius: 100,
     visualRange: 4.0, separationDist: 0.8, alignFactor: 0.01,
     cohesionFactor: 0.02, separationFactor: 0.3,
     maxSpeed: 5.0, minSpeed: 0.5, turnFactor: 0.4, smoothing: 0.15,
   },
   'Predator Evasion': {
-    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.3,
+    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.3, sphereRadius: 100,
     visualRange: 6.0, separationDist: 3.0, alignFactor: 0.03,
     cohesionFactor: 0.008, separationFactor: 1.5,
     maxSpeed: 12.0, minSpeed: 3.0, turnFactor: 0.6, smoothing: 0.06,
   },
   'Lazy Drift': {
-    simSpeed: 0.7, sizeRandomness: 0.5, dragFactor: 0.6,
+    simSpeed: 0.7, sizeRandomness: 0.5, dragFactor: 0.6, sphereRadius: 100,
     visualRange: 7.0, separationDist: 2.0, alignFactor: 0.06,
     cohesionFactor: 0.002, separationFactor: 0.2,
     maxSpeed: 3.0, minSpeed: 0.3, turnFactor: 0.15, smoothing: 0.02,
@@ -421,6 +431,25 @@ autoRangeCb.addEventListener('change', () => {
   simulation.autoRange = autoRangeCb.checked;
 });
 
+// Brightness slider
+const brightnessSlider = document.getElementById('brightness-slider');
+const brightnessVal = document.getElementById('brightness-val');
+let brightness = 1.0;
+brightnessSlider.addEventListener('input', () => {
+  brightness = parseFloat(brightnessSlider.value);
+  brightnessVal.textContent = brightness.toFixed(2);
+});
+
+// Sphere radius slider
+const sphereRadiusSlider = document.getElementById('sphere-radius-slider');
+const sphereRadiusVal = document.getElementById('sphere-radius-val');
+currentParams.sphereRadius = 100;
+sphereRadiusSlider.addEventListener('input', () => {
+  currentParams.sphereRadius = parseFloat(sphereRadiusSlider.value);
+  sphereRadiusVal.textContent = currentParams.sphereRadius.toFixed(0);
+  simulation.setParams(currentParams);
+});
+
 // Rendering controls
 const renderModeSelect = document.getElementById('render-mode-select');
 const falloffSlider = document.getElementById('falloff-slider');
@@ -616,7 +645,8 @@ function frame() {
     colorSource: currentParams.colorSource ?? 0,
     gain: currentParams.gain ?? 0.5,
     autoRange: ar, autoMin: simulation.autoMin, autoMax: simulation.autoMax,
-    falloff, renderMode, bloomEnabled, bloomThreshold, bloomIntensity,
+    falloff, brightness, sphereRadius: currentParams.sphereRadius ?? 100,
+    renderMode, bloomEnabled, bloomThreshold, bloomIntensity,
     numBoids: NUM_BOIDS, sim: simulation,
   });
   device.queue.submit([encoder.finish()]);

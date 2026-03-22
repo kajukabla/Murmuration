@@ -2,7 +2,7 @@
 
 const SAMPLE_COUNT = 4;
 const HDR_FORMAT = 'rgba16float';
-const UNIFORM_SIZE = 96;
+const UNIFORM_SIZE = 112; // 96 + brightness(4) + sphere_radius(4) + 3 pads(12)
 
 export async function createRenderer(device, context, simulation) {
   context.configure({
@@ -100,7 +100,8 @@ export async function createRenderer(device, context, simulation) {
       const {
         gradientId = 0, colorSource = 0, gain = 0.5,
         autoRange = false, autoMin = 0, autoMax = 1,
-        falloff = 1.0, renderMode = 0,
+        falloff = 1.0, brightness = 1.0, sphereRadius = 100,
+        renderMode = 0,
         numBoids = simulation.numBoids, sim = simulation,
       } = opts;
 
@@ -111,6 +112,8 @@ export async function createRenderer(device, context, simulation) {
       new Uint32Array(uniformData, 76, 1).set([autoRange ? 1 : 0]);
       new Float32Array(uniformData, 80, 2).set([autoMin, autoMax]);
       new Float32Array(uniformData, 88, 1).set([falloff]);
+      new Float32Array(uniformData, 92, 1).set([brightness]);
+      new Float32Array(uniformData, 96, 1).set([sphereRadius]);
       device.queue.writeBuffer(uniformBuf, 0, new Uint8Array(uniformData));
 
       const curBuf = sim.currentBuffer();

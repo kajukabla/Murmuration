@@ -45,6 +45,7 @@ export async function createSimulation(device, {
     f[19] = p.dragFactor ?? 0.3;
     u[20] = p.gradientId ?? 0;
     u[21] = p.colorSource ?? 0;
+    f[22] = p.sphereRadius ?? 100.0;
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
   }
 
@@ -64,9 +65,16 @@ export async function createSimulation(device, {
     const o = i * BOID_FLOATS;
     const r = worldSize * 0.35;
     // pos
-    initData[o]     = (Math.random() - 0.5) * 2 * r;
-    initData[o + 1] = (Math.random() - 0.5) * 2 * r;
-    initData[o + 2] = (Math.random() - 0.5) * 2 * r;
+    // Spawn inside sphere using rejection sampling
+    let px, py, pz;
+    do {
+      px = (Math.random() - 0.5) * 2;
+      py = (Math.random() - 0.5) * 2;
+      pz = (Math.random() - 0.5) * 2;
+    } while (px*px + py*py + pz*pz > 1);
+    initData[o]     = px * r;
+    initData[o + 1] = py * r;
+    initData[o + 2] = pz * r;
     // size_factor (default 1.0, randomized via sizeRandomness param)
     initData[o + 3] = 1.0;
     // vel

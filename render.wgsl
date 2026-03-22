@@ -9,7 +9,11 @@ struct CameraUniforms {
   auto_min: f32,
   auto_max: f32,
   falloff: f32,
+  brightness: f32,
+  sphere_radius: f32,
   _pad0: u32,
+  _pad1: u32,
+  _pad2: u32,
 }
 
 struct Boid {
@@ -299,7 +303,7 @@ fn vs_main(
 // ---------------------------------------------------------------------------
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-  return vec4f(in.color * in.lighting, 1.0);
+  return vec4f(in.color * in.lighting * camera.brightness, 1.0);
 }
 
 // ===========================================================================
@@ -387,6 +391,6 @@ fn vs_billboard(
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
   let dist = length(in.uv * vec2f(1.0, camera.falloff));
   let alpha = smoothstep(1.0, 0.3, dist);
-  return vec4f(in.color * alpha, alpha);
+  return vec4f(in.color * alpha * camera.brightness, alpha);
 }
 // CACHE BUST 1774222319

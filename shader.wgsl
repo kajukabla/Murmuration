@@ -23,8 +23,8 @@ struct SimParams {
   drag_factor: f32,
   gradient_id: u32,
   color_source: u32,
+  sphere_radius: f32,
   _pad0: u32,
-  _pad1: u32,
 }
 
 struct Boid {
@@ -181,12 +181,15 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep * params.separation_factor;
   }
 
-  let margin = params.world_size * 0.4;
-  let inv_soft = 1.0 / (params.world_size * 0.1);
-  let btf = params.turn_factor;
-  let low_push = max(vec3f(0.0), (-margin - boid.pos) * inv_soft);
-  let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
-  new_vel += btf * (low_push - high_push);
+  // Spherical boundary steering
+  let dist_from_center = length(boid.pos);
+  let r = params.sphere_radius;
+  let soft_zone = r * 0.15; // steering ramps up in outer 15%
+  if (dist_from_center > r - soft_zone && dist_from_center > 0.001) {
+    let penetration = (dist_from_center - (r - soft_zone)) / soft_zone;
+    let push = -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
+    new_vel += push;
+  }
 
   let old_speed = length(boid.vel);
   var old_dir = boid.vel;
