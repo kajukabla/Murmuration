@@ -161,11 +161,11 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             }
           }
         }
-        if (n_align >= 16u) { break; }
+        if (n_align >= 12u) { break; }
       }
-      if (n_align >= 16u) { break; }
+      if (n_align >= 12u) { break; }
     }
-    if (n_align >= 16u) { break; }
+    if (n_align >= 12u) { break; }
   }
 
   var new_vel = boid.vel;
