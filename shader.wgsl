@@ -205,7 +205,10 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   else { desired_dir = old_dir; }
 
   let cos_angle = clamp(dot(old_dir, desired_dir), -1.0, 1.0);
-  let angle = acos(cos_angle);
+  // Fast acos approximation (max error ~0.017 rad)
+  let ax = abs(cos_angle);
+  let acos_pos = ((-0.0187293 * ax + 0.0742610) * ax - 0.2121144) * ax + 1.5707288;
+  let angle = select(acos_pos, 3.14159265 - acos_pos, cos_angle < 0.0) * sqrt(1.0 - ax);
 
   var final_dir: vec3f;
   if (angle > params.smoothing && angle > 0.001) {
