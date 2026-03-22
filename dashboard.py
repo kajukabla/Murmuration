@@ -90,12 +90,24 @@ HTML = """<!DOCTYPE html>
   </div>
 </div>
 
+<div class="two-col">
+  <div class="chart-container">
+    <div class="chart-title">Experiment Log</div>
+    <div style="max-height: 280px; overflow-y: auto;">
+    <table>
+      <thead><tr><th>#</th><th>Max Boids</th><th>Description</th><th>Result</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+    </div>
+  </div>
+  <div class="chart-container">
+    <div class="chart-title">Git Activity (live)</div>
+    <div id="gitLog" style="max-height: 280px; overflow-y: auto; font: 12px/1.6 monospace; color: #99a;"></div>
+  </div>
+</div>
 <div class="chart-container">
-  <div class="chart-title">Experiment Log</div>
-  <table>
-    <thead><tr><th>#</th><th>Max Boids</th><th>Description</th><th>Result</th></tr></thead>
-    <tbody id="logBody"></tbody>
-  </table>
+  <div class="chart-title">Agent Log (tail)</div>
+  <pre id="agentLog" style="max-height: 200px; overflow-y: auto; font: 11px/1.5 monospace; color: #889; white-space: pre-wrap; margin: 0;"></pre>
 </div>
 
 <div id="last-update"></div>
@@ -226,6 +238,20 @@ async function refresh() {
         xFmt: v => v.toFixed(0) + 'k', yFmt: v => v.toFixed(0) + 'ms',
         threshold: 16.6, thresholdLabel: '60 FPS', yMin: 0 }
     );
+
+    // Git log
+    const gitDiv = document.getElementById('gitLog');
+    if (gitDiv) {
+      gitDiv.innerHTML = (data.git_log || []).map(g => {
+        const isExp = g.msg.startsWith('experiment:');
+        const color = isExp ? '#8af' : '#556';
+        return `<div style="color:${color}"><span style="color:#445">${g.hash}</span> ${g.msg}</div>`;
+      }).join('');
+    }
+
+    // Agent log
+    const agentLog = document.getElementById('agentLog');
+    if (agentLog) agentLog.textContent = data.agent_log || '(buffered — output appears when agent completes)';
 
     // Update agent status
     updateAgentUI(data.agent_running);
@@ -374,10 +400,38 @@ def get_data():
 
     best = max((e['max_boids'] for e in experiments), default=0)
 
+    # Git log
+    git_log = []
+    try:
+        result = subprocess.run(
+            ['git', 'log', '--oneline', '-20', '--no-decorate'],
+            capture_output=True, text=True, timeout=5,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        if result.returncode == 0:
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split(' ', 1)
+                    git_log.append({'hash': parts[0], 'msg': parts[1] if len(parts) > 1 else ''})
+    except Exception:
+        pass
+
+    # Agent log tail
+    agent_log_tail = ''
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'agent.log')
+    try:
+        with open(log_path) as f:
+            lines = f.readlines()
+            agent_log_tail = ''.join(lines[-30:])
+    except Exception:
+        pass
+
     return {
         'best': best,
         'experiments': experiments,
         'probes': probes,
+        'git_log': git_log,
+        'agent_log': agent_log_tail,
     }
 
 

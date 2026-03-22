@@ -12,7 +12,7 @@ Current baseline: **170,000 boids**.
 5. Run: `python3 evaluate.py`
 6. Parse the last line of stdout for `max_boids: NNNNN`
 7. If max_boids **>** previous best → **KEEP** the commit, append to `results.tsv`
-8. If max_boids **≤** previous best → `git reset --hard HEAD~1`, append to `results.tsv`
+8. If max_boids **≤** previous best → `git revert --no-edit HEAD`, append to `results.tsv`
 9. **REPEAT.** Do NOT pause to ask the human. Loop until interrupted.
 
 ## What You Can Edit
@@ -23,7 +23,16 @@ Current baseline: **170,000 boids**.
 - `benchmark.ts` — locked evaluation harness
 - `evaluate.py` — locked metric extraction
 - `render.wgsl`, `renderer.js`, `index.html` — rendering/UI
+- `dashboard.py`, `serve.py` — infrastructure
 - `program.md` — only humans edit this
+
+## CRITICAL: git reset scope
+When reverting a failed experiment, ONLY reset the files you changed:
+```
+git checkout HEAD -- shader.wgsl simulation.js
+```
+Do NOT use `git reset --hard HEAD~1` as it reverts ALL files including locked ones.
+Instead: `git revert --no-edit HEAD` or selectively checkout the files you modified.
 
 ## Results Tracking
 After each experiment, append ONE line to `results.tsv`:

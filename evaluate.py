@@ -29,13 +29,24 @@ HI = 500   # 500,000 boids
 
 
 def navigate_chrome(url: str):
-    """Tell the frontmost Chrome tab to navigate to a URL (macOS)."""
+    """Navigate a Chrome tab to a URL WITHOUT stealing focus (macOS)."""
     script = f'''
     tell application "Google Chrome"
         if (count of windows) > 0 then
-            set URL of active tab of front window to "{url}"
-        else
-            open location "{url}"
+            set found to false
+            repeat with w in windows
+                repeat with t in tabs of w
+                    if URL of t starts with "http://localhost:8080" then
+                        set URL of t to "{url}"
+                        set found to true
+                        exit repeat
+                    end if
+                end repeat
+                if found then exit repeat
+            end repeat
+            if not found then
+                set URL of active tab of front window to "{url}"
+            end if
         end if
     end tell
     '''
