@@ -221,8 +221,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let avg_d2 = dot(avg_vel, avg_vel);
   boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), 0.0, vel_d2 < 0.001 || avg_d2 < 0.001);
   boids_dst[i].sep_pressure = dot(sep, sep);
-  let vol = params.visual_range * params.visual_range * params.visual_range;
-  boids_dst[i].density = clamp(f32(n_align) / max(vol * 0.01, 1.0), 0.0, 1.0);
+  boids_dst[i].density = f32(n_align) * 0.0625;  // n/16, normalized to neighbor cap
 }
 
 // === Auto-range: compute min/max of selected color source metric ===
