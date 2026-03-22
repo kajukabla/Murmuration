@@ -136,34 +136,41 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let lo = max(mg - vec3i(1), vec3i(0));
   let hi = min(mg + vec3i(1), vec3i(gs - 1));
 
+  // Precompute neighbor cell indices into flat array to avoid triple-loop branch overhead
+  let gs2 = params.grid_size * params.grid_size;
+  var neighbor_cells: array<u32, 27>;
+  var num_nc = 0u;
   for (var nz = lo.z; nz <= hi.z; nz++) {
-    let zoff = u32(nz) * params.grid_size * params.grid_size;
+    let zoff = u32(nz) * gs2;
     for (var ny = lo.y; ny <= hi.y; ny++) {
       let yzoff = u32(ny) * params.grid_size + zoff;
       for (var nx = lo.x; nx <= hi.x; nx++) {
-        let nc = u32(nx) + yzoff;
-        let start = cell_offsets[nc];
-        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
-        if (start >= end_val) { continue; }
-        for (var j = start; j < end_val; j++) {
-          let other_idx = sorted_indices[j];
-          if (other_idx == i) { continue; }
-          let other_pos = boids_src[other_idx].pos;
-          let diff = boid.pos - other_pos;
-          let d2 = dot(diff, diff);
-          if (d2 < params.visual_range_sq && d2 > 0.0001) {
-            ali += boids_src[other_idx].vel;
-            coh += other_pos;
-            n_align++;
-            if (d2 < params.separation_dist_sq) {
-              sep += diff * (1.0 - d2 / params.separation_dist_sq);
-              n_sep++;
-            }
-          }
-        }
-        if (n_align >= 10u) { break; }
+        neighbor_cells[num_nc] = u32(nx) + yzoff;
+        num_nc++;
       }
-      if (n_align >= 10u) { break; }
+    }
+  }
+
+  for (var ci = 0u; ci < num_nc; ci++) {
+    let nc = neighbor_cells[ci];
+    let start = cell_offsets[nc];
+    let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+    if (start >= end_val) { continue; }
+    for (var j = start; j < end_val; j++) {
+      let other_idx = sorted_indices[j];
+      if (other_idx == i) { continue; }
+      let other_pos = boids_src[other_idx].pos;
+      let diff = boid.pos - other_pos;
+      let d2 = dot(diff, diff);
+      if (d2 < params.visual_range_sq && d2 > 0.0001) {
+        ali += boids_src[other_idx].vel;
+        coh += other_pos;
+        n_align++;
+        if (d2 < params.separation_dist_sq) {
+          sep += diff * (1.0 - d2 / params.separation_dist_sq);
+          n_sep++;
+        }
+      }
     }
     if (n_align >= 10u) { break; }
   }
