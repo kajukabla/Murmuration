@@ -211,8 +211,7 @@ export async function createSimulation(device, {
     get autoMin() { return smoothMin; },
     get autoMax() { return smoothMax; },
 
-    /** Run one sim step. Set lastStep=true on the final step of the frame. */
-    update(encoder, lastStep = true) {
+    update(encoder) {
       const bg = step % 2 === 0 ? bgA : bgB;
       const passes = [
         [clearPipe,   gridWG],
@@ -229,20 +228,23 @@ export async function createSimulation(device, {
         p.end();
       }
 
-      // Only compute stats on the last step of the frame (avoids races with multi-step)
-      if (autoRangeEnabled && lastStep && !statsReading) {
+      // Auto-range stats pass (after flock so metrics are fresh)
+      if (autoRangeEnabled) {
+        // Clear stats
         const c = encoder.beginComputePass();
         c.setPipeline(clearStatsPipe);
         c.setBindGroup(0, bg);
         c.setBindGroup(1, statsBG);
         c.dispatchWorkgroups(1);
         c.end();
+        // Compute min/max
         const s = encoder.beginComputePass();
         s.setPipeline(computeStatsPipe);
         s.setBindGroup(0, bg);
         s.setBindGroup(1, statsBG);
         s.dispatchWorkgroups(boidWG);
         s.end();
+        // Copy to readback buffer
         encoder.copyBufferToBuffer(statsBuf, 0, statsReadBuf, 0, 8);
       }
 
