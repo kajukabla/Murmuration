@@ -168,7 +168,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             }
           }
         }
-        if (n_align >= 32u) { done = true; }
+        if (n_align >= 16u) { done = true; }
       }
     }
   }
