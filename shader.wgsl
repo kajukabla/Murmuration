@@ -131,19 +131,26 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   var n_align = 0u;
   var n_sep   = 0u;
 
-  let gs = i32(params.grid_size);
+  // Hoist hot-loop uniform reads into registers
+  let vr_sq = params.visual_range_sq;
+  let sd_sq = params.separation_dist_sq;
+  let num_boids = params.num_boids;
+  let grid_cells = params.grid_cells;
+  let grid_size = params.grid_size;
+
+  let gs = i32(grid_size);
   let mg = vec3i(my_grid);
   let lo = max(mg - vec3i(1), vec3i(0));
   let hi = min(mg + vec3i(1), vec3i(gs - 1));
 
   for (var nz = lo.z; nz <= hi.z; nz++) {
-    let zoff = u32(nz) * params.grid_size * params.grid_size;
+    let zoff = u32(nz) * grid_size * grid_size;
     for (var ny = lo.y; ny <= hi.y; ny++) {
-      let yzoff = u32(ny) * params.grid_size + zoff;
+      let yzoff = u32(ny) * grid_size + zoff;
       for (var nx = lo.x; nx <= hi.x; nx++) {
         let nc = u32(nx) + yzoff;
         let start = cell_offsets[nc];
-        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+        let end_val = select(cell_offsets[nc + 1u], num_boids, nc + 1u >= grid_cells);
         if (start >= end_val) { continue; }
         for (var j = start; j < end_val; j++) {
           let other_idx = sorted_indices[j];
@@ -151,12 +158,12 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
           let other_pos = boids_src[other_idx].pos;
           let diff = boid.pos - other_pos;
           let d2 = dot(diff, diff);
-          if (d2 < params.visual_range_sq && d2 > 0.0001) {
+          if (d2 < vr_sq && d2 > 0.0001) {
             ali += boids_src[other_idx].vel;
             coh += other_pos;
             n_align++;
-            if (d2 < params.separation_dist_sq) {
-              sep += diff * (1.0 - d2 / params.separation_dist_sq);
+            if (d2 < sd_sq) {
+              sep += diff * (1.0 - d2 / sd_sq);
               n_sep++;
             }
           }
