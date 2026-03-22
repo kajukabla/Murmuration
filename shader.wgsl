@@ -150,8 +150,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 
         for (var j = start; j < end_val; j++) {
           let other_idx = sorted_indices[j];
-          if (other_idx == i) { continue; }
-
           let other = boids_src[other_idx];
           let diff = boid.pos - other.pos;
           let d2 = dot(diff, diff);
@@ -162,7 +160,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             n_align++;
 
             if (d2 < params.separation_dist_sq) {
-              // Quadratic falloff avoids sqrt: strength ∝ (1 - d²/sep²)
               sep += diff * (1.0 - d2 / params.separation_dist_sq);
               n_sep++;
             }
