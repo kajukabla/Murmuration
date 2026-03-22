@@ -131,20 +131,17 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   var n_align = 0u;
   var n_sep   = 0u;
 
-  var done = false;
-  for (var dz = -1i; dz <= 1i; dz++) {
-    if (done) { break; }
-    let nz = i32(my_grid.z) + dz;
-    if (nz < 0i || nz >= i32(params.grid_size)) { continue; }
-    for (var dy = -1i; dy <= 1i; dy++) {
-      if (done) { break; }
-      let ny = i32(my_grid.y) + dy;
-      if (ny < 0i || ny >= i32(params.grid_size)) { continue; }
-      for (var dx = -1i; dx <= 1i; dx++) {
-        if (done) { break; }
-        let nx = i32(my_grid.x) + dx;
-        if (nx < 0i || nx >= i32(params.grid_size)) { continue; }
-        let nc = u32(nx) + u32(ny) * params.grid_size + u32(nz) * params.grid_size * params.grid_size;
+  let gs = i32(params.grid_size);
+  let mg = vec3i(my_grid);
+  let lo = max(mg - vec3i(1), vec3i(0));
+  let hi = min(mg + vec3i(1), vec3i(gs - 1));
+
+  for (var nz = lo.z; nz <= hi.z; nz++) {
+    let zoff = u32(nz) * params.grid_size * params.grid_size;
+    for (var ny = lo.y; ny <= hi.y; ny++) {
+      let yzoff = u32(ny) * params.grid_size + zoff;
+      for (var nx = lo.x; nx <= hi.x; nx++) {
+        let nc = u32(nx) + yzoff;
         let start = cell_offsets[nc];
         let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
         if (start >= end_val) { continue; }
@@ -164,9 +161,11 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             }
           }
         }
-        if (n_align >= 16u) { done = true; }
+        if (n_align >= 16u) { break; }
       }
+      if (n_align >= 16u) { break; }
     }
+    if (n_align >= 16u) { break; }
   }
 
   var new_vel = boid.vel;
