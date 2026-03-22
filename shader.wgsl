@@ -140,8 +140,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
         if (nx < 0i || nx >= i32(params.grid_size)) { continue; }
 
         let nc = u32(nx) + u32(ny) * params.grid_size + u32(nz) * params.grid_size * params.grid_size;
-        let start = cell_offsets[nc];
         let count = atomicLoad(&cell_counts[nc]);
+        if (count == 0u) { continue; }
+        let start = cell_offsets[nc];
 
         for (var j = start; j < start + count; j++) {
           let other_idx = sorted_indices[j];
