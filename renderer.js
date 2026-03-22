@@ -79,6 +79,15 @@ export async function createRenderer(device, context, simulation) {
     });
   }
 
+  // Log GPU errors
+  device.addEventListener('uncapturederror', e => {
+    console.error('GPU ERROR:', e.error.message);
+    fetch('/api/bench_result', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gpu_error: e.error.message }),
+    }).catch(() => {});
+  });
+
   let { msaaTex, depthTex } = createMSAATargets(device, context.canvas);
   const uniformData = new ArrayBuffer(UNIFORM_SIZE);
 

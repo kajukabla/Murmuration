@@ -193,7 +193,7 @@ fn vs_main(
   let boid = boid_buf.boids[iid];
 
   // Scale factor
-  let s = 0.25 * boid.size_factor;
+  let s = 5.0;
 
   // Tetrahedron vertices in local space (nose points along +Z)
   let nose  = vec3f( 0.0,  0.0,  1.5) * s;
@@ -389,3 +389,4 @@ fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
   let alpha = smoothstep(1.0, 0.3, dist);
   return vec4f(in.color * alpha, alpha);
 }
+// CACHE BUST 1774222319
