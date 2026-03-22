@@ -136,60 +136,36 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let lo = max(mg - vec3i(1), vec3i(0));
   let hi = min(mg + vec3i(1), vec3i(gs - 1));
 
-  // Process own cell first (most neighbors are here, hit cap faster)
-  let my_nc = cell_index(my_grid);
-  let my_start = cell_offsets[my_nc];
-  let my_end = select(cell_offsets[my_nc + 1u], params.num_boids, my_nc + 1u >= params.grid_cells);
-  for (var j = my_start; j < my_end; j++) {
-    let other_idx = sorted_indices[j];
-    if (other_idx == i) { continue; }
-    let other_pos = boids_src[other_idx].pos;
-    let diff = boid.pos - other_pos;
-    let d2 = dot(diff, diff);
-    if (d2 < params.visual_range_sq && d2 > 0.0001) {
-      ali += boids_src[other_idx].vel;
-      coh += other_pos;
-      n_align++;
-      if (d2 < params.separation_dist_sq) {
-        sep += diff * (1.0 - d2 / params.separation_dist_sq);
-        n_sep++;
-      }
-    }
-  }
-
-  // Then remaining 26 neighbor cells
-  if (n_align < 10u) {
-    for (var nz = lo.z; nz <= hi.z; nz++) {
-      let zoff = u32(nz) * params.grid_size * params.grid_size;
-      for (var ny = lo.y; ny <= hi.y; ny++) {
-        let yzoff = u32(ny) * params.grid_size + zoff;
-        for (var nx = lo.x; nx <= hi.x; nx++) {
-          let nc = u32(nx) + yzoff;
-          if (nc == my_nc) { continue; }  // already processed
-          let start = cell_offsets[nc];
-          let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
-          if (start >= end_val) { continue; }
-          for (var j = start; j < end_val; j++) {
-            let other_idx = sorted_indices[j];
-            let other_pos = boids_src[other_idx].pos;
-            let diff = boid.pos - other_pos;
-            let d2 = dot(diff, diff);
-            if (d2 < params.visual_range_sq && d2 > 0.0001) {
-              ali += boids_src[other_idx].vel;
-              coh += other_pos;
-              n_align++;
-              if (d2 < params.separation_dist_sq) {
-                sep += diff * (1.0 - d2 / params.separation_dist_sq);
-                n_sep++;
-              }
+  for (var nz = lo.z; nz <= hi.z; nz++) {
+    let zoff = u32(nz) * params.grid_size * params.grid_size;
+    for (var ny = lo.y; ny <= hi.y; ny++) {
+      let yzoff = u32(ny) * params.grid_size + zoff;
+      for (var nx = lo.x; nx <= hi.x; nx++) {
+        let nc = u32(nx) + yzoff;
+        let start = cell_offsets[nc];
+        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+        if (start >= end_val) { continue; }
+        for (var j = start; j < end_val; j++) {
+          let other_idx = sorted_indices[j];
+          if (other_idx == i) { continue; }
+          let other_pos = boids_src[other_idx].pos;
+          let diff = boid.pos - other_pos;
+          let d2 = dot(diff, diff);
+          if (d2 < params.visual_range_sq && d2 > 0.0001) {
+            ali += boids_src[other_idx].vel;
+            coh += other_pos;
+            n_align++;
+            if (d2 < params.separation_dist_sq) {
+              sep += diff * (1.0 - d2 / params.separation_dist_sq);
+              n_sep++;
             }
           }
-          if (n_align >= 10u) { break; }
         }
         if (n_align >= 10u) { break; }
       }
       if (n_align >= 10u) { break; }
     }
+    if (n_align >= 10u) { break; }
   }
 
   var new_vel = boid.vel;
