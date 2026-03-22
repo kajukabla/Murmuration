@@ -482,7 +482,8 @@ function frame() {
     hud.textContent += ' | BENCHMARK COMPLETE';
   }
 
-  if (!benchmarkBoids && benchFrame % 600 === 0) {
+  // Auto-reload disabled — only enable when agent is actively running
+  if (false && !benchmarkBoids && benchFrame % 600 === 0) {
     fetch('results.tsv', { cache: 'no-store' }).then(r => r.text()).then(tsv => {
       const lines = tsv.trim().split('\n').slice(1);
       const kept = lines.filter(l => l.includes('kept'));
