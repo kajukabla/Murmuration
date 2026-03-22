@@ -317,7 +317,7 @@ fn vs_billboard(
   @builtin(vertex_index) vid: u32,
   @builtin(instance_index) iid: u32,
 ) -> BillboardOut {
-  let boid = boids[iid];
+  let boid = boid_buf.boids[iid];
 
   var fwd = boid.heading;
   let fwd_len = length(fwd);
