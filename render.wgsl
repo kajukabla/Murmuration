@@ -261,15 +261,21 @@ fn vs_main(
 
   // Color: map data source through auto-range + gain + colormap
   var raw = get_color_raw(boid, iid, camera.color_source);
-  // Auto-range: normalize to [0,1] based on smoothed min/max
+  var t: f32;
   if (camera.auto_range > 0u) {
+    // Auto-range: normalize to [0,1], then apply gentle contrast curve
     let range = camera.auto_max - camera.auto_min;
     if (range > 0.0001) {
       raw = (raw - camera.auto_min) / range;
     }
+    // Gentle power curve for contrast: gain 0.5=linear, <0.5=compress, >0.5=expand
+    let gamma = pow(3.0, (0.5 - camera.gain) * 3.0);
+    t = clamp(pow(clamp(raw, 0.0, 1.0), gamma), 0.0, 1.0);
+  } else {
+    // No auto-range: full logarithmic gain as divisor
+    let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
+    t = clamp(raw / gainMul, 0.0, 1.0);
   }
-  let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
-  let t = clamp(raw / gainMul, 0.0, 1.0);
   let base = colormap(t, camera.gradient_id);
 
   // HDR bloom boost
