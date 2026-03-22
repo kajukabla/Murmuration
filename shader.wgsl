@@ -211,9 +211,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   new_vel = final_dir * final_speed;
 
   let dir_change_val = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
-  let effective_dt = params.dt;
 
-  boids_dst[i].pos = boid.pos + new_vel * effective_dt;
+  boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
