@@ -67,14 +67,39 @@ fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
   atomicAdd(&cell_counts[cell], 1u);
 }
 
-// --- Pass 3: Exclusive prefix sum over cell counts ---
-@compute @workgroup_size(1)
-fn prefix_sum() {
-  var running = 0u;
-  for (var i = 0u; i < params.grid_cells; i++) {
+// --- Pass 3: Parallel exclusive prefix sum over cell counts ---
+const SCAN_WG: u32 = 256u;
+var<workgroup> scan_sums: array<u32, 256>;
+
+@compute @workgroup_size(256)
+fn prefix_sum(@builtin(local_invocation_id) lid: vec3u) {
+  let tid = lid.x;
+  let chunk = (params.grid_cells + SCAN_WG - 1u) / SCAN_WG;
+  let start = tid * chunk;
+  let end = min(start + chunk, params.grid_cells);
+
+  // Phase 1: Each thread scans its chunk sequentially
+  var local_total = 0u;
+  for (var i = start; i < end; i++) {
     let count = atomicLoad(&cell_counts[i]);
-    cell_offsets[i] = running;
-    running += count;
+    cell_offsets[i] = local_total;
+    local_total += count;
+  }
+  scan_sums[tid] = local_total;
+  workgroupBarrier();
+
+  // Phase 2: Hillis-Steele inclusive scan on per-thread totals
+  for (var stride = 1u; stride < SCAN_WG; stride *= 2u) {
+    let val = select(0u, scan_sums[tid - stride], tid >= stride);
+    workgroupBarrier();
+    scan_sums[tid] += val;
+    workgroupBarrier();
+  }
+
+  // Phase 3: Add exclusive prefix to each cell offset in chunk
+  let prefix = select(0u, scan_sums[tid - 1u], tid > 0u);
+  for (var i = start; i < end; i++) {
+    cell_offsets[i] += prefix;
   }
 }
 
