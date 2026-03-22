@@ -128,14 +128,18 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   var n_align = 0u;
   var n_sep   = 0u;
 
-  // Iterate 27 neighboring cells
+  // Iterate 27 neighboring cells (cap at 32 neighbors for bounded cost)
+  var done = false;
   for (var dz = -1i; dz <= 1i; dz++) {
+    if (done) { break; }
     let nz = i32(my_grid.z) + dz;
     if (nz < 0i || nz >= i32(params.grid_size)) { continue; }
     for (var dy = -1i; dy <= 1i; dy++) {
+      if (done) { break; }
       let ny = i32(my_grid.y) + dy;
       if (ny < 0i || ny >= i32(params.grid_size)) { continue; }
       for (var dx = -1i; dx <= 1i; dx++) {
+        if (done) { break; }
         let nx = i32(my_grid.x) + dx;
         if (nx < 0i || nx >= i32(params.grid_size)) { continue; }
 
@@ -158,13 +162,13 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             n_align++;
 
             if (d2 < params.separation_dist_sq) {
-              // Smooth linear falloff instead of explosive 1/d^2
               let d = sqrt(d2);
               sep += (diff / d) * (1.0 - d / params.separation_dist);
               n_sep++;
             }
           }
         }
+        if (n_align >= 32u) { done = true; }
       }
     }
   }
