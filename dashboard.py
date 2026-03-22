@@ -303,14 +303,17 @@ def start_agent():
         return True
     work_dir = os.path.dirname(os.path.abspath(__file__))
     log_path = os.path.join(work_dir, 'agent.log')
+    # Clear log for fresh run
+    open(log_path, 'w').close()
     log_file = open(log_path, 'a')
-    # Use shell=True so PATH is resolved from the user's environment
-    cmd = 'claude --print --dangerously-skip-permissions "Read program.md and begin the optimization loop. Do not stop or ask questions."'
+    # Use --output-format stream-json for live streaming output
+    cmd = 'claude --output-format stream-json --dangerously-skip-permissions "Read program.md and begin the optimization loop. Do not stop or ask questions."'
     agent_proc = subprocess.Popen(
         cmd, shell=True,
-        stdout=log_file, stderr=log_file,
+        stdout=log_file, stderr=subprocess.STDOUT,
         cwd=work_dir,
         env={**os.environ, 'PATH': os.environ.get('PATH', '') + ':/usr/local/bin'},
+        bufsize=0,  # unbuffered
     )
     return True
 
@@ -416,15 +419,38 @@ def get_data():
     except Exception:
         pass
 
-    # Agent log tail
-    agent_log_tail = ''
+    # Agent log tail — parse stream-json for readable messages
+    agent_log_lines = []
     log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'agent.log')
     try:
         with open(log_path) as f:
-            lines = f.readlines()
-            agent_log_tail = ''.join(lines[-30:])
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    msg_type = obj.get('type', '')
+                    if msg_type == 'assistant' and 'message' in obj:
+                        # Extract text content from assistant messages
+                        for block in obj['message'].get('content', []):
+                            if isinstance(block, dict) and block.get('type') == 'text':
+                                agent_log_lines.append(f"[THINKING] {block['text'][:200]}")
+                            elif isinstance(block, dict) and block.get('type') == 'tool_use':
+                                name = block.get('name', '?')
+                                inp = str(block.get('input', ''))[:150]
+                                agent_log_lines.append(f"[TOOL] {name}: {inp}")
+                    elif msg_type == 'result' and 'result' in obj:
+                        text = obj['result'].get('text', '')[:200] if isinstance(obj['result'], dict) else str(obj['result'])[:200]
+                        if text:
+                            agent_log_lines.append(f"[RESULT] {text}")
+                except json.JSONDecodeError:
+                    # Not JSON, just show raw line
+                    if len(line) < 300:
+                        agent_log_lines.append(line)
     except Exception:
         pass
+    agent_log_tail = '\n'.join(agent_log_lines[-50:])
 
     return {
         'best': best,
