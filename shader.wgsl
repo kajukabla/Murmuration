@@ -187,16 +187,13 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep * params.separation_factor;
   }
 
-  // Smooth boundary steering — proportional to penetration depth
+  // Smooth boundary steering — vectorized
   let margin = params.world_size * 0.4;
   let inv_soft = 1.0 / (params.world_size * 0.1);
   let tf = params.turn_factor;
-  new_vel.x += tf * max(0.0, (-margin - boid.pos.x) * inv_soft);
-  new_vel.x -= tf * max(0.0, (boid.pos.x - margin) * inv_soft);
-  new_vel.y += tf * max(0.0, (-margin - boid.pos.y) * inv_soft);
-  new_vel.y -= tf * max(0.0, (boid.pos.y - margin) * inv_soft);
-  new_vel.z += tf * max(0.0, (-margin - boid.pos.z) * inv_soft);
-  new_vel.z -= tf * max(0.0, (boid.pos.z - margin) * inv_soft);
+  let low_push = max(vec3f(0.0), (-margin - boid.pos) * inv_soft);
+  let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
+  new_vel += tf * (low_push - high_push);
 
   // === Simplified turn-rate limiter (slerp via lerp+normalize) ===
   let old_speed = length(boid.vel);
