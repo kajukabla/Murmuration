@@ -1,0 +1,9 @@
+experiment	max_boids	description	result
+0	170000	baseline	kept
+1	269000	parallel prefix sum (Hillis-Steele, 256 threads)	kept
+2	273000	fast acos approximation in turn-rate limiter	kept
+3	265000	workgroup size 64 -> 256 for all compute passes	reverted
+4	250000	use inverseSqrt instead of sqrt in separation force	reverted
+5	234000	workgroup size 64 -> 128 for all compute passes	reverted
+5	235000	gridSize 32 -> 24	reverted
+6	388000	gridSize 32 -> 48 (sparser cells)	kept
