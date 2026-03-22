@@ -92,7 +92,10 @@ export async function createSimulation(device, {
       const sf = 1.0 + (Math.random() - 0.5) * 2 * randomness;
       initData[i * BOID_FLOATS + 3] = Math.max(0.3, Math.min(2.0, sf));
     }
+    // Write size_factor to both ping-pong buffers
+    // (only the size_factor field at offset 3 per boid matters, but writing full buffer is simpler)
     device.queue.writeBuffer(boidA, 0, initData);
+    device.queue.writeBuffer(boidB, 0, initData);
   }
 
   const makeBoidBuf = (label, data) => {

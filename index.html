@@ -235,6 +235,7 @@ addEventListener('resize', () => { resize(); renderer.resize(); });
 // ============================================================
 let currentParams = { ...BUILTIN_PRESETS['Murmuration'] };
 simulation.setParams(currentParams);
+simulation.applySizeRandomness(currentParams.sizeRandomness ?? 0);
 
 // ============================================================
 // UI: Sliders
@@ -263,6 +264,7 @@ for (const [key, label, min, max, step] of SLIDER_DEFS) {
     currentParams[key] = v;
     val.textContent = fmtVal(v, step);
     simulation.setParams(currentParams);
+    if (key === 'sizeRandomness') simulation.applySizeRandomness(v);
   });
 
   row.append(lbl, input, val);
@@ -329,6 +331,7 @@ function applyPreset(name) {
   if (!params) return;
   currentParams = { ...params };
   simulation.setParams(currentParams);
+  simulation.applySizeRandomness(currentParams.sizeRandomness ?? 0);
   syncSliders();
 }
 
