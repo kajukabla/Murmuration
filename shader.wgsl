@@ -221,11 +221,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
 
-  // Smoothly track visual heading toward velocity direction (decoupled from physics)
-  let vel_dir = normalize(new_vel);
-  var old_heading = boid.heading;
-  let h_len = length(old_heading);
-  if (h_len < 0.5) { old_heading = vel_dir; } // init case
-  else { old_heading = old_heading / h_len; }
-  boids_dst[i].heading = normalize(mix(old_heading, vel_dir, 0.08));
+  // Visual heading = velocity direction (skip smooth tracking)
+  boids_dst[i].heading = normalize(new_vel);
 }
