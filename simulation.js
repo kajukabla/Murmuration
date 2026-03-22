@@ -6,7 +6,7 @@ const PARAMS_SIZE = 80; // 17 fields × 4 bytes = 68, rounded to 80 (16-byte ali
 export async function createSimulation(device, {
   numBoids = 5000,
   worldSize = 100.0,
-  gridSize = 48,
+  gridSize = 64,
 } = {}) {
   const GRID_CELLS = gridSize ** 3;
   const cellSize = worldSize / gridSize;
