@@ -220,11 +220,11 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   else { old_heading = old_heading / h_len; }
   boids_dst[i].heading = normalize(mix(old_heading, vel_dir, 0.08));
 
-  boids_dst[i].speed = final_speed;
+  boids_dst[i].speed = length(new_vel);
   boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = dir_change_val;
   boids_dst[i].flock_alignment = alignment_metric;
-  boids_dst[i].sep_pressure = dot(sep, sep);  // squared magnitude (avoids sqrt)
+  boids_dst[i].sep_pressure = length(sep);
   let vol = params.visual_range * params.visual_range * params.visual_range;
   boids_dst[i].density = clamp(f32(n_align) / max(vol * 0.01, 1.0), 0.0, 1.0);
 }
