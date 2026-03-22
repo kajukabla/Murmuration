@@ -11,7 +11,7 @@
 const args = parseArgs(Deno.args);
 const NUM_BOIDS = args.boids ?? 5000;
 const NUM_FRAMES = args.frames ?? 120;
-const WARMUP_FRAMES = 20;
+const WARMUP_FRAMES = 300; // boids need ~200-300 frames to form dense clusters (steady state)
 
 // --- Read simulation constants from simulation.js ---
 const simCode = await Deno.readTextFile("simulation.js");
