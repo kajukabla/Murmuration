@@ -188,12 +188,16 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep * params.separation_factor;
   }
 
+  // Boundary steering (skip when well inside)
   let margin = params.world_size * 0.4;
-  let inv_soft = 1.0 / (params.world_size * 0.1);
-  let btf = params.turn_factor;
-  let low_push = max(vec3f(0.0), (-margin - boid.pos) * inv_soft);
-  let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
-  new_vel += btf * (low_push - high_push);
+  let abs_pos = abs(boid.pos);
+  if (abs_pos.x > margin || abs_pos.y > margin || abs_pos.z > margin) {
+    let inv_soft = 1.0 / (params.world_size * 0.1);
+    let btf = params.turn_factor;
+    let low_push = max(vec3f(0.0), (-margin - boid.pos) * inv_soft);
+    let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
+    new_vel += btf * (low_push - high_push);
+  }
 
   let old_speed = length(boid.vel);
   var old_dir = boid.vel;
