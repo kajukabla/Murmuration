@@ -195,21 +195,16 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
   new_vel += tf * (low_push - high_push);
 
-  // === Simplified turn-rate limiter (slerp via lerp+normalize) ===
-  let old_speed = length(boid.vel);
-  var old_dir = boid.vel;
-  if (old_speed > 0.001) { old_dir = old_dir / old_speed; }
-  else { old_dir = vec3f(1.0, 0.0, 0.0); }
-
-  let desired_speed = length(new_vel);
-  var desired_dir = new_vel;
-  if (desired_speed > 0.001) { desired_dir = desired_dir / desired_speed; }
-  else { desired_dir = old_dir; }
+  // === Simplified turn-rate limiter (inverseSqrt fast path) ===
+  let old_d2 = dot(boid.vel, boid.vel);
+  let new_d2 = dot(new_vel, new_vel);
+  var old_dir = select(vec3f(1.0, 0.0, 0.0), boid.vel * inverseSqrt(old_d2), old_d2 > 0.000001);
+  var desired_dir = select(old_dir, new_vel * inverseSqrt(new_d2), new_d2 > 0.000001);
 
   // Use smoothing directly as lerp factor (skip acos entirely)
   let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
 
-  var final_speed = mix(old_speed, desired_speed, 0.15);
+  var final_speed = mix(sqrt(old_d2), sqrt(new_d2), 0.15);
   final_speed = clamp(final_speed, params.min_speed, params.max_speed);
 
   new_vel = final_dir * final_speed;
