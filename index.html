@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3D Murmuration</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #000; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #hud {
+    position: fixed; top: 12px; left: 16px;
+    color: #aac; font: 14px/1.4 monospace;
+    pointer-events: none; text-shadow: 0 1px 3px #000;
+  }
+  #error {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #f88; font: 18px/1.6 system-ui; text-align: center; padding: 2em;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<script type="module">
+import { createSimulation } from './simulation.js';
+import { createRenderer }   from './renderer.js';
+
+const NUM_BOIDS  = 5000;
+const WORLD_SIZE = 100;
+
+// ---------- WebGPU init ----------
+if (!navigator.gpu) { showError('WebGPU not supported. Use Chrome 113+ or Edge 113+.'); throw ''; }
+const adapter = await navigator.gpu.requestAdapter();
+if (!adapter) { showError('No WebGPU adapter found.'); throw ''; }
+const device = await adapter.requestDevice();
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('webgpu');
+
+// ---------- Resize ----------
+function resize() {
+  const dpr = devicePixelRatio;
+  canvas.width  = Math.floor(innerWidth * dpr);
+  canvas.height = Math.floor(innerHeight * dpr);
+}
+resize();
+addEventListener('resize', () => { resize(); renderer?.resize(); });
+
+// ---------- Simulation + Renderer ----------
+const simulation = await createSimulation(device, { numBoids: NUM_BOIDS, worldSize: WORLD_SIZE });
+const renderer   = await createRenderer(device, ctx, simulation);
+
+// ---------- Orbit camera ----------
+let azimuth   = 0.5;
+let elevation = 0.35;
+let distance  = 140;
+
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  let lastX = e.clientX, lastY = e.clientY;
+  const move = (ev) => {
+    azimuth   -= (ev.clientX - lastX) * 0.005;
+    elevation  = Math.max(-1.5, Math.min(1.5, elevation + (ev.clientY - lastY) * 0.005));
+    lastX = ev.clientX; lastY = ev.clientY;
+  };
+  const up = () => { canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); };
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', up);
+});
+canvas.addEventListener('wheel', (e) => {
+  distance = Math.max(20, Math.min(400, distance * (1 + e.deltaY * 0.001)));
+  e.preventDefault();
+}, { passive: false });
+
+// ---------- Matrix helpers ----------
+function perspective(fov, aspect, near, far) {
+  const f = 1 / Math.tan(fov / 2);
+  const nf = 1 / (near - far);
+  return new Float32Array([
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
+    0, 0, (far + near) * nf, -1,
+    0, 0, 2 * far * near * nf, 0,
+  ]);
+}
+
+function lookAt(eye, target, up) {
+  const zx = eye[0]-target[0], zy = eye[1]-target[1], zz = eye[2]-target[2];
+  let len = 1 / Math.hypot(zx, zy, zz);
+  const z0=zx*len, z1=zy*len, z2=zz*len;
+  const x0 = up[1]*z2 - up[2]*z1, x1 = up[2]*z0 - up[0]*z2, x2 = up[0]*z1 - up[1]*z0;
+  len = Math.hypot(x0,x1,x2); const rl = len ? 1/len : 0;
+  const r0=x0*rl, r1=x1*rl, r2=x2*rl;
+  const u0=z1*r2-z2*r1, u1=z2*r0-z0*r2, u2=z0*r1-z1*r0;
+  return new Float32Array([
+    r0, u0, z0, 0,
+    r1, u1, z1, 0,
+    r2, u2, z2, 0,
+    -(r0*eye[0]+r1*eye[1]+r2*eye[2]),
+    -(u0*eye[0]+u1*eye[1]+u2*eye[2]),
+    -(z0*eye[0]+z1*eye[1]+z2*eye[2]),
+    1,
+  ]);
+}
+
+function mat4Mul(a, b) {
+  const o = new Float32Array(16);
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++)
+      o[j*4+i] = a[i]*b[j*4] + a[4+i]*b[j*4+1] + a[8+i]*b[j*4+2] + a[12+i]*b[j*4+3];
+  return o;
+}
+
+function mat4Inv(m) {
+  const o = new Float32Array(16);
+  const a=m[0],b=m[1],c=m[2],d=m[3],e=m[4],f=m[5],g=m[6],h=m[7];
+  const i=m[8],j=m[9],k=m[10],l=m[11],M=m[12],n=m[13],p=m[14],q=m[15];
+  const A=a*f-b*e, B=a*g-c*e, C=a*h-d*e, D=b*g-c*f;
+  const E=b*h-d*f, F=c*h-d*g, G=i*n-j*M, H=i*p-k*M;
+  const I=i*q-l*M, J=j*p-k*n, K=j*q-l*n, L=k*q-l*p;
+  const det = A*L - B*K + C*J + D*I - E*H + F*G;
+  if (Math.abs(det) < 1e-10) return o;
+  const id = 1/det;
+  o[0]  = ( f*L - g*K + h*J)*id;
+  o[1]  = (-b*L + c*K - d*J)*id;
+  o[2]  = ( n*F - p*E + q*D)*id;
+  o[3]  = (-j*F + k*E - l*D)*id;
+  o[4]  = (-e*L + g*I - h*H)*id;
+  o[5]  = ( a*L - c*I + d*H)*id;
+  o[6]  = (-M*F + p*C - q*B)*id;
+  o[7]  = ( i*F - k*C + l*B)*id;
+  o[8]  = ( e*K - f*I + h*G)*id;
+  o[9]  = (-a*K + b*I - d*G)*id;
+  o[10] = ( M*E - n*C + q*A)*id;
+  o[11] = (-i*E + j*C - l*A)*id;
+  o[12] = (-e*J + f*H - g*G)*id;
+  o[13] = ( a*J - b*H + c*G)*id;
+  o[14] = (-M*D + n*B - p*A)*id;
+  o[15] = ( i*D - j*B + k*A)*id;
+  return o;
+}
+
+// ---------- FPS tracking ----------
+const frameTimes = [];
+let lastTime = performance.now();
+const hud = document.getElementById('hud');
+
+// ---------- Main loop ----------
+function frame() {
+  const now = performance.now();
+  frameTimes.push(now - lastTime);
+  lastTime = now;
+  if (frameTimes.length > 120) frameTimes.shift();
+  const avgMs = frameTimes.reduce((a,b) => a+b, 0) / frameTimes.length;
+  hud.textContent = `${NUM_BOIDS.toLocaleString()} boids | ${(1000/avgMs).toFixed(0)} fps | ${avgMs.toFixed(1)} ms`;
+
+  // Camera
+  const eye = [
+    distance * Math.cos(elevation) * Math.sin(azimuth),
+    distance * Math.sin(elevation),
+    distance * Math.cos(elevation) * Math.cos(azimuth),
+  ];
+  const aspect = canvas.width / canvas.height;
+  const proj = perspective(Math.PI / 3, aspect, 1.0, 600);
+  const view = lookAt(eye, [0,0,0], [0,1,0]);
+  const vp = mat4Mul(proj, view);
+
+  const encoder = device.createCommandEncoder();
+  simulation.update(encoder);
+  renderer.render(encoder, vp);
+  device.queue.submit([encoder.finish()]);
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function showError(msg) {
+  document.getElementById('hud').remove();
+  const d = document.createElement('div'); d.id = 'error'; d.textContent = msg;
+  document.body.appendChild(d);
+}
+</script>
+</body>
+</html>

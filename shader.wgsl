@@ -1,0 +1,179 @@
+// === 3D Flocking Compute Shader with Spatial Hashing ===
+
+struct SimParams {
+  num_boids: u32,
+  grid_size: u32,
+  grid_cells: u32,
+  world_size: f32,
+  cell_size: f32,
+  visual_range: f32,
+  visual_range_sq: f32,
+  separation_dist: f32,
+  separation_dist_sq: f32,
+  align_factor: f32,
+  cohesion_factor: f32,
+  separation_factor: f32,
+  max_speed: f32,
+  min_speed: f32,
+  dt: f32,
+  turn_factor: f32,
+}
+
+struct Boid {
+  pos: vec3f,
+  vel: vec3f,
+}
+
+@group(0) @binding(0) var<uniform> params: SimParams;
+@group(0) @binding(1) var<storage, read_write> boids_src: array<Boid>;
+@group(0) @binding(2) var<storage, read_write> boids_dst: array<Boid>;
+@group(0) @binding(3) var<storage, read_write> cell_counts: array<atomic<u32>>;
+@group(0) @binding(4) var<storage, read_write> cell_offsets: array<u32>;
+@group(0) @binding(5) var<storage, read_write> boid_cells: array<u32>;
+@group(0) @binding(6) var<storage, read_write> sorted_indices: array<u32>;
+@group(0) @binding(7) var<storage, read_write> scatter_counters: array<atomic<u32>>;
+
+fn get_cell(pos: vec3f) -> vec3u {
+  let half = params.world_size * 0.5;
+  return vec3u(clamp(
+    vec3i(floor((pos + vec3f(half)) / params.cell_size)),
+    vec3i(0),
+    vec3i(i32(params.grid_size) - 1)
+  ));
+}
+
+fn cell_index(c: vec3u) -> u32 {
+  return c.x + c.y * params.grid_size + c.z * params.grid_size * params.grid_size;
+}
+
+// --- Pass 1: Clear grid counters ---
+@compute @workgroup_size(64)
+fn clear_grid(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.grid_cells) { return; }
+  atomicStore(&cell_counts[i], 0u);
+  atomicStore(&scatter_counters[i], 0u);
+}
+
+// --- Pass 2: Assign each boid to a cell and count ---
+@compute @workgroup_size(64)
+fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  let cell = cell_index(get_cell(boids_src[i].pos));
+  boid_cells[i] = cell;
+  atomicAdd(&cell_counts[cell], 1u);
+}
+
+// --- Pass 3: Exclusive prefix sum over cell counts ---
+@compute @workgroup_size(1)
+fn prefix_sum() {
+  var running = 0u;
+  for (var i = 0u; i < params.grid_cells; i++) {
+    let count = atomicLoad(&cell_counts[i]);
+    cell_offsets[i] = running;
+    running += count;
+  }
+}
+
+// --- Pass 4: Scatter boid indices into sorted order ---
+@compute @workgroup_size(64)
+fn scatter(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  let cell = boid_cells[i];
+  let local_offset = atomicAdd(&scatter_counters[cell], 1u);
+  sorted_indices[cell_offsets[cell] + local_offset] = i;
+}
+
+// --- Pass 5: Flocking with spatial hash neighbor lookup ---
+@compute @workgroup_size(64)
+fn flock(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+
+  let boid = boids_src[i];
+  let my_grid = get_cell(boid.pos);
+
+  var sep = vec3f(0.0);
+  var ali = vec3f(0.0);
+  var coh = vec3f(0.0);
+  var n_align = 0u;
+  var n_sep   = 0u;
+
+  // Iterate 27 neighboring cells
+  for (var dz = -1i; dz <= 1i; dz++) {
+    let nz = i32(my_grid.z) + dz;
+    if (nz < 0i || nz >= i32(params.grid_size)) { continue; }
+    for (var dy = -1i; dy <= 1i; dy++) {
+      let ny = i32(my_grid.y) + dy;
+      if (ny < 0i || ny >= i32(params.grid_size)) { continue; }
+      for (var dx = -1i; dx <= 1i; dx++) {
+        let nx = i32(my_grid.x) + dx;
+        if (nx < 0i || nx >= i32(params.grid_size)) { continue; }
+
+        let nc = u32(nx) + u32(ny) * params.grid_size + u32(nz) * params.grid_size * params.grid_size;
+        let start = cell_offsets[nc];
+        let count = atomicLoad(&cell_counts[nc]);
+
+        for (var j = start; j < start + count; j++) {
+          let other_idx = sorted_indices[j];
+          if (other_idx == i) { continue; }
+
+          let other = boids_src[other_idx];
+          let diff = boid.pos - other.pos;
+          let d2 = dot(diff, diff);
+
+          if (d2 < params.visual_range_sq && d2 > 0.0001) {
+            ali += other.vel;
+            coh += other.pos;
+            n_align++;
+
+            if (d2 < params.separation_dist_sq) {
+              sep += diff / d2;
+              n_sep++;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  var new_vel = boid.vel;
+
+  if (n_align > 0u) {
+    let nf = f32(n_align);
+    let avg_vel = ali / nf;
+    let avg_pos = coh / nf;
+    new_vel += (avg_vel - boid.vel) * params.align_factor;
+    new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
+  }
+
+  if (n_sep > 0u) {
+    new_vel += sep * params.separation_factor;
+  }
+
+  // Soft boundary steering
+  let margin = params.world_size * 0.4;
+  let tf = params.turn_factor;
+  if (boid.pos.x < -margin) { new_vel.x += tf; }
+  if (boid.pos.x >  margin) { new_vel.x -= tf; }
+  if (boid.pos.y < -margin) { new_vel.y += tf; }
+  if (boid.pos.y >  margin) { new_vel.y -= tf; }
+  if (boid.pos.z < -margin) { new_vel.z += tf; }
+  if (boid.pos.z >  margin) { new_vel.z -= tf; }
+
+  // Smooth direction changes (lerp toward desired velocity)
+  new_vel = mix(boid.vel, new_vel, 0.12);
+
+  // Clamp speed
+  let speed = length(new_vel);
+  if (speed > params.max_speed) {
+    new_vel = normalize(new_vel) * params.max_speed;
+  } else if (speed < params.min_speed && speed > 0.0001) {
+    new_vel = normalize(new_vel) * params.min_speed;
+  }
+
+  boids_dst[i].pos = boid.pos + new_vel * params.dt;
+  boids_dst[i].vel = new_vel;
+}
