@@ -235,8 +235,10 @@ fn vs_main(
     default { face_normal = vec3f(0.0, 1.0, 0.0); }
   }
 
-  // Build orientation matrix from boid heading
-  let fwd = normalize(boid.heading);
+  // Build orientation matrix from boid heading (guard against zero)
+  var fwd = boid.heading;
+  let h_len = length(fwd);
+  if (h_len < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); } else { fwd = fwd / h_len; }
 
   // Smooth up-vector blend to avoid gimbal lock near vertical
   let world_up = vec3f(0.0, 1.0, 0.0);
