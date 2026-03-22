@@ -129,6 +129,41 @@
         Normalize to data range
       </label>
     </div>
+    <div class="section-label">Rendering</div>
+    <div class="param-row">
+      <label>Render Mode</label>
+      <select id="render-mode-select" style="flex:1; padding:3px 6px; font-size:12px; background:rgba(30,30,60,0.9); color:#bbd; border:1px solid rgba(100,100,160,0.3); border-radius:4px;">
+        <option value="0">Tetrahedron</option>
+        <option value="1">Billboard (Additive)</option>
+      </select>
+    </div>
+    <div class="param-row">
+      <label>Falloff</label>
+      <input type="range" id="falloff-slider" min="0.1" max="3.0" step="0.05" value="1.0" style="flex:1; height:4px; accent-color:#668cff;">
+      <span class="val" id="falloff-val">1.00</span>
+    </div>
+    <div class="param-row">
+      <label>Particle Count</label>
+      <input type="range" id="particle-count-slider" min="3" max="6.3" step="0.01" value="3.7" style="flex:1; height:4px; accent-color:#668cff;">
+      <span class="val" id="particle-count-val">5,000</span>
+    </div>
+    <div class="param-row">
+      <label>Bloom</label>
+      <label style="flex:1; color:#aab; font-size:12px; cursor:pointer;">
+        <input type="checkbox" id="bloom-cb" style="accent-color:#668cff; margin-right:4px;">
+        Enable bloom
+      </label>
+    </div>
+    <div class="param-row">
+      <label>Bloom Thresh</label>
+      <input type="range" id="bloom-threshold-slider" min="0.1" max="2.0" step="0.05" value="0.8" style="flex:1; height:4px; accent-color:#668cff;">
+      <span class="val" id="bloom-threshold-val">0.80</span>
+    </div>
+    <div class="param-row">
+      <label>Bloom Intensity</label>
+      <input type="range" id="bloom-intensity-slider" min="0.0" max="3.0" step="0.05" value="0.5" style="flex:1; height:4px; accent-color:#668cff;">
+      <span class="val" id="bloom-intensity-val">0.50</span>
+    </div>
     <div class="section-label">Physics</div>
     <div id="sliders"></div>
   </div></div>
@@ -226,7 +261,7 @@ function resize() {
 }
 resize();
 
-const simulation = await createSimulation(device, { numBoids: NUM_BOIDS, worldSize: WORLD_SIZE });
+let simulation = await createSimulation(device, { numBoids: NUM_BOIDS, worldSize: WORLD_SIZE });
 const renderer   = await createRenderer(device, ctx, simulation);
 addEventListener('resize', () => { resize(); renderer.resize(); });
 
@@ -377,6 +412,58 @@ autoRangeCb.addEventListener('change', () => {
   simulation.autoRange = autoRangeCb.checked;
 });
 
+// Rendering controls
+const renderModeSelect = document.getElementById('render-mode-select');
+const falloffSlider = document.getElementById('falloff-slider');
+const falloffVal = document.getElementById('falloff-val');
+const particleCountSlider = document.getElementById('particle-count-slider');
+const particleCountVal = document.getElementById('particle-count-val');
+const bloomCb = document.getElementById('bloom-cb');
+const bloomThreshSlider = document.getElementById('bloom-threshold-slider');
+const bloomThreshVal = document.getElementById('bloom-threshold-val');
+const bloomIntensitySlider = document.getElementById('bloom-intensity-slider');
+const bloomIntensityVal = document.getElementById('bloom-intensity-val');
+
+let renderMode = 0;
+let falloff = 1.0;
+let bloomEnabled = false;
+let bloomThreshold = 0.8;
+let bloomIntensity = 0.5;
+
+renderModeSelect.addEventListener('change', () => { renderMode = parseInt(renderModeSelect.value); });
+falloffSlider.addEventListener('input', () => {
+  falloff = parseFloat(falloffSlider.value);
+  falloffVal.textContent = falloff.toFixed(2);
+});
+
+// Particle count (logarithmic slider: 10^3 to 10^6.3)
+let particleCountTimeout = null;
+particleCountSlider.value = Math.log10(NUM_BOIDS);
+particleCountVal.textContent = NUM_BOIDS.toLocaleString();
+particleCountSlider.addEventListener('input', () => {
+  const count = Math.round(Math.pow(10, parseFloat(particleCountSlider.value)));
+  particleCountVal.textContent = count.toLocaleString();
+  clearTimeout(particleCountTimeout);
+  particleCountTimeout = setTimeout(async () => {
+    NUM_BOIDS = count;
+    simulation = await createSimulation(device, { numBoids: count, worldSize: WORLD_SIZE });
+    simulation.setParams(currentParams);
+    simulation.applySizeRandomness(currentParams.sizeRandomness ?? 0);
+    simulation.autoRange = autoRangeCb.checked;
+    renderer.rebindSimulation(simulation);
+  }, 500);
+});
+
+bloomCb.addEventListener('change', () => { bloomEnabled = bloomCb.checked; });
+bloomThreshSlider.addEventListener('input', () => {
+  bloomThreshold = parseFloat(bloomThreshSlider.value);
+  bloomThreshVal.textContent = bloomThreshold.toFixed(2);
+});
+bloomIntensitySlider.addEventListener('input', () => {
+  bloomIntensity = parseFloat(bloomIntensitySlider.value);
+  bloomIntensityVal.textContent = bloomIntensity.toFixed(2);
+});
+
 // Gradient + Color Source dropdowns
 const gradientSelect = document.getElementById('gradient-select');
 const colorSourceSelect = document.getElementById('color-source-select');
@@ -515,10 +602,15 @@ function frame() {
     simulation.update(encoder, s === simSteps - 1); // stats only on last step
   }
   const ar = autoRangeCb.checked;
-  renderer.render(encoder, vp, currentParams.gradientId ?? 0, currentParams.colorSource ?? 0,
-    currentParams.gain ?? 0.5, ar, simulation.autoMin, simulation.autoMax);
+  renderer.render(encoder, vp, {
+    gradientId: currentParams.gradientId ?? 0,
+    colorSource: currentParams.colorSource ?? 0,
+    gain: currentParams.gain ?? 0.5,
+    autoRange: ar, autoMin: simulation.autoMin, autoMax: simulation.autoMax,
+    falloff, renderMode, bloomEnabled, bloomThreshold, bloomIntensity,
+    numBoids: NUM_BOIDS, sim: simulation,
+  });
   device.queue.submit([encoder.finish()]);
-  // Async readback of auto-range stats (non-blocking)
   if (ar) simulation.readStats();
 
   requestAnimationFrame(frame);
