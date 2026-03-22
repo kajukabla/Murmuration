@@ -68,10 +68,10 @@ fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // --- Pass 3: Parallel exclusive prefix sum over cell counts ---
-const SCAN_WG: u32 = 128u;
-var<workgroup> scan_sums: array<u32, 128>;
+const SCAN_WG: u32 = 256u;
+var<workgroup> scan_sums: array<u32, 256>;
 
-@compute @workgroup_size(128)
+@compute @workgroup_size(256)
 fn prefix_sum(@builtin(local_invocation_id) lid: vec3u) {
   let tid = lid.x;
   let chunk = (params.grid_cells + SCAN_WG - 1u) / SCAN_WG;
