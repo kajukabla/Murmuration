@@ -144,11 +144,11 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
         if (nx < 0i || nx >= i32(params.grid_size)) { continue; }
 
         let nc = u32(nx) + u32(ny) * params.grid_size + u32(nz) * params.grid_size * params.grid_size;
-        let count = atomicLoad(&cell_counts[nc]);
-        if (count == 0u) { continue; }
         let start = cell_offsets[nc];
+        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+        if (start >= end_val) { continue; }
 
-        for (var j = start; j < start + count; j++) {
+        for (var j = start; j < end_val; j++) {
           let other_idx = sorted_indices[j];
           if (other_idx == i) { continue; }
 
