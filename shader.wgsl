@@ -17,11 +17,13 @@ struct SimParams {
   min_speed: f32,
   dt: f32,
   turn_factor: f32,
+  smoothing: f32,
 }
 
 struct Boid {
   pos: vec3f,
   vel: vec3f,
+  heading: vec3f,
 }
 
 @group(0) @binding(0) var<uniform> params: SimParams;
@@ -130,7 +132,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             n_align++;
 
             if (d2 < params.separation_dist_sq) {
-              sep += diff / d2;
+              // Smooth linear falloff instead of explosive 1/d^2
+              let d = sqrt(d2);
+              sep += (diff / d) * (1.0 - d / params.separation_dist);
               n_sep++;
             }
           }
@@ -153,27 +157,53 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep * params.separation_factor;
   }
 
-  // Soft boundary steering
+  // Smooth boundary steering — proportional to penetration depth
   let margin = params.world_size * 0.4;
+  let inv_soft = 1.0 / (params.world_size * 0.1);
   let tf = params.turn_factor;
-  if (boid.pos.x < -margin) { new_vel.x += tf; }
-  if (boid.pos.x >  margin) { new_vel.x -= tf; }
-  if (boid.pos.y < -margin) { new_vel.y += tf; }
-  if (boid.pos.y >  margin) { new_vel.y -= tf; }
-  if (boid.pos.z < -margin) { new_vel.z += tf; }
-  if (boid.pos.z >  margin) { new_vel.z -= tf; }
+  new_vel.x += tf * max(0.0, (-margin - boid.pos.x) * inv_soft);
+  new_vel.x -= tf * max(0.0, (boid.pos.x - margin) * inv_soft);
+  new_vel.y += tf * max(0.0, (-margin - boid.pos.y) * inv_soft);
+  new_vel.y -= tf * max(0.0, (boid.pos.y - margin) * inv_soft);
+  new_vel.z += tf * max(0.0, (-margin - boid.pos.z) * inv_soft);
+  new_vel.z -= tf * max(0.0, (boid.pos.z - margin) * inv_soft);
 
-  // Smooth direction changes (lerp toward desired velocity)
-  new_vel = mix(boid.vel, new_vel, 0.12);
+  // === Angular turn-rate limiter ===
+  let old_speed = length(boid.vel);
+  var old_dir = boid.vel;
+  if (old_speed > 0.001) { old_dir = old_dir / old_speed; }
+  else { old_dir = vec3f(1.0, 0.0, 0.0); }
 
-  // Clamp speed
-  let speed = length(new_vel);
-  if (speed > params.max_speed) {
-    new_vel = normalize(new_vel) * params.max_speed;
-  } else if (speed < params.min_speed && speed > 0.0001) {
-    new_vel = normalize(new_vel) * params.min_speed;
+  let desired_speed = length(new_vel);
+  var desired_dir = new_vel;
+  if (desired_speed > 0.001) { desired_dir = desired_dir / desired_speed; }
+  else { desired_dir = old_dir; }
+
+  let cos_angle = clamp(dot(old_dir, desired_dir), -1.0, 1.0);
+  let angle = acos(cos_angle);
+
+  var final_dir: vec3f;
+  if (angle > params.smoothing && angle > 0.001) {
+    let t = params.smoothing / angle;
+    final_dir = normalize(mix(old_dir, desired_dir, t));
+  } else {
+    final_dir = desired_dir;
   }
 
+  var final_speed = mix(old_speed, desired_speed, 0.15);
+  final_speed = clamp(final_speed, params.min_speed, params.max_speed);
+
+  new_vel = final_dir * final_speed;
+
+  // Update position and velocity
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
+
+  // Smoothly track visual heading toward velocity direction (decoupled from physics)
+  let vel_dir = normalize(new_vel);
+  var old_heading = boid.heading;
+  let h_len = length(old_heading);
+  if (h_len < 0.5) { old_heading = vel_dir; } // init case
+  else { old_heading = old_heading / h_len; }
+  boids_dst[i].heading = normalize(mix(old_heading, vel_dir, 0.08));
 }

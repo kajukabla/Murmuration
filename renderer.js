@@ -46,7 +46,7 @@ export async function createRenderer(device, context, simulation) {
     layout: device.createPipelineLayout({ bindGroupLayouts: [bgl] }),
     vertex:   { module, entryPoint: 'vs_main' },
     fragment: { module, entryPoint: 'fs_main', targets: [{ format: HDR_FORMAT }] },
-    primitive: { topology: 'triangle-list', cullMode: 'back' },
+    primitive: { topology: 'triangle-list' },
     depthStencil: {
       format: 'depth24plus',
       depthWriteEnabled: true,

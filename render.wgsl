@@ -8,6 +8,7 @@ struct CameraUniforms {
 struct Boid {
   pos: vec3f,
   vel: vec3f,
+  heading: vec3f,
 }
 
 @group(0) @binding(0) var<uniform> camera: CameraUniforms;
@@ -26,14 +27,21 @@ fn vs_main(
 ) -> VsOut {
   let boid = boids[iid];
 
-  // Build local frame from velocity
-  var fwd = boid.vel;
+  // Build local frame from smoothed heading (decoupled from velocity)
+  var fwd = boid.heading;
   let spd = length(fwd);
-  if (spd < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); } else { fwd = fwd / spd; }
+  if (spd < 0.5) { fwd = normalize(boid.vel); } else { fwd = fwd / spd; }
+  let fwd_len = length(fwd);
+  if (fwd_len < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); } else { fwd = fwd / fwd_len; }
 
-  var up = vec3f(0.0, 1.0, 0.0);
-  if (abs(dot(fwd, up)) > 0.99) { up = vec3f(0.0, 0.0, 1.0); }
-  let right = normalize(cross(fwd, up));
+  // Smooth up-vector: blend from Y-up to Z-up as fwd approaches vertical
+  var ref_up = vec3f(0.0, 1.0, 0.0);
+  let dot_y = abs(fwd.y);
+  if (dot_y > 0.9) {
+    let t = smoothstep(0.9, 0.99, dot_y);
+    ref_up = normalize(mix(vec3f(0.0, 1.0, 0.0), vec3f(0.0, 0.0, 1.0), t));
+  }
+  let right = normalize(cross(fwd, ref_up));
   let real_up = normalize(cross(right, fwd));
 
   let s = 0.25;

@@ -1,10 +1,11 @@
 // === WebGPU Compute Simulation (Spatial-Hash Flocking) ===
 
 const WORKGROUP_SIZE = 64;
+const PARAMS_SIZE = 80; // 17 fields × 4 bytes = 68, rounded to 80 (16-byte align)
 
 export async function createSimulation(device, {
   numBoids = 5000,
-  worldSize = 50.0,
+  worldSize = 100.0,
   gridSize = 32,
 } = {}) {
   const GRID_CELLS = gridSize ** 3;
@@ -15,46 +16,64 @@ export async function createSimulation(device, {
   const module = device.createShaderModule({ code });
 
   // --- Params uniform ---
-  const paramsData = new ArrayBuffer(64);
+  const paramsData = new ArrayBuffer(PARAMS_SIZE);
   const u = new Uint32Array(paramsData);
   const f = new Float32Array(paramsData);
-  u[0]  = numBoids;          // num_boids
-  u[1]  = gridSize;          // grid_size
-  u[2]  = GRID_CELLS;        // grid_cells
-  f[3]  = worldSize;         // world_size
-  f[4]  = cellSize;          // cell_size
-  f[5]  = 3.0;               // visual_range
-  f[6]  = 9.0;               // visual_range_sq
-  f[7]  = 1.2;               // separation_dist
-  f[8]  = 1.44;              // separation_dist_sq
-  f[9]  = 0.04;              // align_factor
-  f[10] = 0.003;             // cohesion_factor
-  f[11] = 0.4;               // separation_factor
-  f[12] = 6.0;               // max_speed
-  f[13] = 1.5;               // min_speed
-  f[14] = 0.016;             // dt
-  f[15] = 0.35;              // turn_factor
+
+  // Fixed fields (never change at runtime)
+  u[0]  = numBoids;
+  u[1]  = gridSize;
+  u[2]  = GRID_CELLS;
+  f[3]  = worldSize;
+  f[4]  = cellSize;
+  f[14] = 0.016;  // dt
+
+  function writeParams(p) {
+    f[5]  = p.visualRange;
+    f[6]  = p.visualRange * p.visualRange;
+    f[7]  = p.separationDist;
+    f[8]  = p.separationDist * p.separationDist;
+    f[9]  = p.alignFactor;
+    f[10] = p.cohesionFactor;
+    f[11] = p.separationFactor;
+    f[12] = p.maxSpeed;
+    f[13] = p.minSpeed;
+    f[15] = p.turnFactor;
+    f[16] = p.smoothing;
+    device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+  }
 
   const paramsBuffer = device.createBuffer({
-    size: 64,
+    size: PARAMS_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 
   // --- Boid buffers (ping-pong) ---
-  const boidBytes = numBoids * 32; // Boid struct = 32 bytes (vec3f + pad + vec3f + pad)
-  const initData = new Float32Array(numBoids * 8);
+  // Boid struct: pos(vec3f+pad) + vel(vec3f+pad) + heading(vec3f+pad) = 48 bytes = 12 floats
+  const boidBytes = numBoids * 48;
+  const initData = new Float32Array(numBoids * 12);
   for (let i = 0; i < numBoids; i++) {
-    const o = i * 8;
+    const o = i * 12;
     const r = worldSize * 0.35;
+    // pos
     initData[o]     = (Math.random() - 0.5) * 2 * r;
     initData[o + 1] = (Math.random() - 0.5) * 2 * r;
     initData[o + 2] = (Math.random() - 0.5) * 2 * r;
     // [o+3] padding
-    initData[o + 4] = (Math.random() - 0.5) * 4;
-    initData[o + 5] = (Math.random() - 0.5) * 4;
-    initData[o + 6] = (Math.random() - 0.5) * 4;
+    // vel
+    const vx = (Math.random() - 0.5) * 4;
+    const vy = (Math.random() - 0.5) * 4;
+    const vz = (Math.random() - 0.5) * 4;
+    initData[o + 4] = vx;
+    initData[o + 5] = vy;
+    initData[o + 6] = vz;
     // [o+7] padding
+    // heading = normalize(vel)
+    const vlen = Math.hypot(vx, vy, vz) || 1;
+    initData[o + 8]  = vx / vlen;
+    initData[o + 9]  = vy / vlen;
+    initData[o + 10] = vz / vlen;
+    // [o+11] padding
   }
 
   const makeBoidBuf = (label, data) => {
@@ -81,7 +100,7 @@ export async function createSimulation(device, {
   const sortedIndices   = makeGridBuf('sorted-idx', numBoids);
   const scatterCounters = makeGridBuf('scatter-ctr', GRID_CELLS);
 
-  // --- Bind group layout (shared by all 5 compute pipelines) ---
+  // --- Bind group layout ---
   const bgl = device.createBindGroupLayout({
     entries: Array.from({ length: 8 }, (_, i) => ({
       binding: i,
@@ -91,7 +110,6 @@ export async function createSimulation(device, {
   });
   const pipeLayout = device.createPipelineLayout({ bindGroupLayouts: [bgl] });
 
-  // --- Two bind groups for ping-pong ---
   const makeBG = (src, dst) => device.createBindGroup({
     layout: bgl,
     entries: [
@@ -129,7 +147,9 @@ export async function createSimulation(device, {
     boidA,
     boidB,
 
-    /** Encode all 5 compute passes into the command encoder. */
+    /** Update tunable params at runtime. */
+    setParams: writeParams,
+
     update(encoder) {
       const bg = step % 2 === 0 ? bgA : bgB;
       const passes = [
@@ -149,10 +169,7 @@ export async function createSimulation(device, {
       step++;
     },
 
-    /** Return the buffer that holds the latest computed boid state. */
     currentBuffer() {
-      // After step N completes, dst of that step has the result.
-      // step 0 (even): src=A dst=B → result in B, step is now 1 → odd → return B ✓
       return step % 2 === 1 ? boidB : boidA;
     },
   };
