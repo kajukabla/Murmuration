@@ -393,21 +393,6 @@ canvas.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 // ============================================================
-// Auto-reload when agent finds improvements
-// ============================================================
-setInterval(async () => {
-  try {
-    const tsv = await (await fetch('results.tsv', { cache: 'no-store' })).text();
-    const lines = tsv.trim().split('\n').slice(1);
-    const kept = lines.filter(l => l.includes('kept'));
-    if (kept.length) {
-      const best = parseInt(kept[kept.length - 1].split('\t')[1]);
-      if (best > 0 && best !== NUM_BOIDS) location.reload();
-    }
-  } catch {}
-}, 10000);
-
-// ============================================================
 // Matrix helpers
 // ============================================================
 function perspective(fov, aspect, near, far) {
@@ -482,17 +467,7 @@ function frame() {
     hud.textContent += ' | BENCHMARK COMPLETE';
   }
 
-  // Auto-reload disabled — only enable when agent is actively running
-  if (false && !benchmarkBoids && benchFrame % 600 === 0) {
-    fetch('results.tsv', { cache: 'no-store' }).then(r => r.text()).then(tsv => {
-      const lines = tsv.trim().split('\n').slice(1);
-      const kept = lines.filter(l => l.includes('kept'));
-      if (kept.length) {
-        const best = parseInt(kept[kept.length - 1].split('\t')[1]);
-        if (best > 0 && best !== NUM_BOIDS) location.reload();
-      }
-    }).catch(() => {});
-  }
+
 
   const eye = [
     distance * Math.cos(elevation) * Math.sin(azimuth),
