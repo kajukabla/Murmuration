@@ -188,15 +188,21 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
   new_vel += btf * (low_push - high_push);
 
-  // Simplified speed clamping (no turn-rate limiter)
-  var final_speed = length(new_vel);
-  let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
-  let clamped_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
-  let final_dir = select(new_vel / final_speed, vec3f(1.0, 0.0, 0.0), final_speed < 0.001);
-  new_vel = final_dir * clamped_speed;
-  final_speed = clamped_speed;
+  let old_speed = length(boid.vel);
+  var old_dir = boid.vel;
+  if (old_speed > 0.001) { old_dir = old_dir / old_speed; }
+  else { old_dir = vec3f(1.0, 0.0, 0.0); }
+  let desired_speed = length(new_vel);
+  var desired_dir = new_vel;
+  if (desired_speed > 0.001) { desired_dir = desired_dir / desired_speed; }
+  else { desired_dir = old_dir; }
+  let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
 
-  let old_dir = select(normalize(boid.vel), vec3f(1.0, 0.0, 0.0), dot(boid.vel, boid.vel) < 0.000001);
+  let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
+  var final_speed = mix(old_speed, desired_speed, 0.15);
+  final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
+  new_vel = final_dir * final_speed;
+
   let dir_change_val = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
   let effective_dt = params.dt;
 
