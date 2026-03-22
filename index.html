@@ -95,17 +95,22 @@
 import { createSimulation } from './simulation.js';
 import { createRenderer }   from './renderer.js';
 
-// Read current best boid count from results.tsv (updated by autoresearch agent)
-let NUM_BOIDS = 5000;
-try {
-  const tsv = await (await fetch('results.tsv')).text();
-  const lines = tsv.trim().split('\n').slice(1);
-  const kept = lines.filter(l => l.includes('kept'));
-  if (kept.length) {
-    const best = parseInt(kept[kept.length - 1].split('\t')[1]);
-    if (best > 0) NUM_BOIDS = Math.min(best, 500000);
-  }
-} catch { /* fallback to 5000 */ }
+// Benchmark mode: ?boids=N runs a measured benchmark
+const urlParams = new URLSearchParams(location.search);
+const benchmarkBoids = urlParams.get('boids') ? parseInt(urlParams.get('boids')) : null;
+
+let NUM_BOIDS = benchmarkBoids || 5000;
+if (!benchmarkBoids) {
+  try {
+    const tsv = await (await fetch('results.tsv')).text();
+    const lines = tsv.trim().split('\n').slice(1);
+    const kept = lines.filter(l => l.includes('kept'));
+    if (kept.length) {
+      const best = parseInt(kept[kept.length - 1].split('\t')[1]);
+      if (best > 0) NUM_BOIDS = Math.min(best, 500000);
+    }
+  } catch {}
+}
 const WORLD_SIZE = 100;
 
 // ============================================================
