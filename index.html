@@ -170,6 +170,20 @@
 </div>
 
 <script type="module">
+// Capture errors and post to server for debugging
+window.addEventListener('error', e => {
+  fetch('/api/bench_result', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ error: e.message, file: e.filename, line: e.lineno }),
+  }).catch(() => {});
+});
+window.addEventListener('unhandledrejection', e => {
+  fetch('/api/bench_result', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ error: String(e.reason) }),
+  }).catch(() => {});
+});
+
 import { createSimulation } from './simulation.js';
 import { createRenderer }   from './renderer.js';
 
@@ -177,18 +191,7 @@ import { createRenderer }   from './renderer.js';
 const urlParams = new URLSearchParams(location.search);
 const benchmarkBoids = urlParams.get('boids') ? parseInt(urlParams.get('boids')) : null;
 
-let NUM_BOIDS = benchmarkBoids || 5000;
-if (!benchmarkBoids) {
-  try {
-    const tsv = await (await fetch('results.tsv')).text();
-    const lines = tsv.trim().split('\n').slice(1);
-    const kept = lines.filter(l => l.includes('kept'));
-    if (kept.length) {
-      const best = parseInt(kept[kept.length - 1].split('\t')[1]);
-      if (best > 0) NUM_BOIDS = Math.min(best, 500000);
-    }
-  } catch {}
-}
+let NUM_BOIDS = benchmarkBoids || 50000;
 const WORLD_SIZE = 100;
 
 // ============================================================
@@ -261,8 +264,14 @@ function resize() {
 }
 resize();
 
-let simulation = await createSimulation(device, { numBoids: NUM_BOIDS, worldSize: WORLD_SIZE });
-const renderer   = await createRenderer(device, ctx, simulation);
+let simulation, renderer;
+try {
+  simulation = await createSimulation(device, { numBoids: NUM_BOIDS, worldSize: WORLD_SIZE });
+  renderer = await createRenderer(device, ctx, simulation);
+} catch(e) {
+  showError('Init failed: ' + e.message);
+  throw e;
+}
 addEventListener('resize', () => { resize(); renderer.resize(); });
 
 // ============================================================
