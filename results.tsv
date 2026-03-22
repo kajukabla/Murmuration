@@ -33,3 +33,8 @@ experiment	max_boids	description	result
 30	2097000	gridSize 80 -> 88	reverted
 31	2097000	split neighbor access (pos first, vel when in-range)	kept
 32	2097000	neighbor cap 10 -> 8	reverted
+33	2097000	eliminate turn-rate limiter	reverted
+34	2097000	process own cell first in neighbor search	reverted
+35	2097000	inline effective_dt	kept
+36	2097000	skip boundary steering for interior boids	reverted
+37	0	flat neighbor cell iteration (per-thread array killed occupancy)	reverted
