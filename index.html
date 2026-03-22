@@ -117,6 +117,11 @@
         <option value="9">Boid ID</option>
       </select>
     </div>
+    <div class="param-row">
+      <label>Gain</label>
+      <input type="range" id="gain-slider" min="0.0" max="1.0" step="0.01" value="0.5" style="flex:1; height:4px; accent-color:#668cff;">
+      <span class="val" id="gain-val">0.50</span>
+    </div>
     <div class="section-label">Physics</div>
     <div id="sliders"></div>
   </div></div>
@@ -347,6 +352,15 @@ document.getElementById('preset-del').addEventListener('click', () => {
 populatePresetDropdown();
 presetSelect.value = 'Swarm';
 
+// Gain slider
+const gainSlider = document.getElementById('gain-slider');
+const gainVal = document.getElementById('gain-val');
+currentParams.gain = 0.5;
+gainSlider.addEventListener('input', () => {
+  currentParams.gain = parseFloat(gainSlider.value);
+  gainVal.textContent = currentParams.gain.toFixed(2);
+});
+
 // Gradient + Color Source dropdowns
 const gradientSelect = document.getElementById('gradient-select');
 const colorSourceSelect = document.getElementById('color-source-select');
@@ -485,7 +499,7 @@ function frame() {
   for (let s = 0; s < simSteps; s++) {
     simulation.update(encoder);
   }
-  renderer.render(encoder, vp, currentParams.gradientId ?? 0, currentParams.colorSource ?? 0);
+  renderer.render(encoder, vp, currentParams.gradientId ?? 0, currentParams.colorSource ?? 0, currentParams.gain ?? 0.5);
   device.queue.submit([encoder.finish()]);
 
   requestAnimationFrame(frame);

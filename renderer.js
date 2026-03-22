@@ -62,11 +62,12 @@ export async function createRenderer(device, context, simulation) {
   const uniformData = new ArrayBuffer(UNIFORM_SIZE);
 
   return {
-    /** viewProj: Float32Array(16), gradientId: u32, colorSource: u32 */
-    render(encoder, viewProj, gradientId = 0, colorSource = 0) {
-      // Pack: mat4x4f + 2 u32s
+    /** viewProj: Float32Array(16), gradientId: u32, colorSource: u32, gain: f32 */
+    render(encoder, viewProj, gradientId = 0, colorSource = 0, gain = 0.5) {
+      // Pack: mat4x4f + 2 u32s + 1 f32 + pad
       new Float32Array(uniformData, 0, 16).set(viewProj);
       new Uint32Array(uniformData, 64, 2).set([gradientId, colorSource]);
+      new Float32Array(uniformData, 72, 1).set([gain]);
       device.queue.writeBuffer(uniformBuf, 0, new Uint8Array(uniformData));
 
       const curBuf = simulation.currentBuffer();

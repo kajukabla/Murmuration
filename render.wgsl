@@ -4,8 +4,8 @@ struct CameraUniforms {
   view_proj: mat4x4f,
   gradient_id: u32,
   color_source: u32,
+  gain: f32,
   _pad0: u32,
-  _pad1: u32,
 }
 
 struct Boid {
@@ -160,52 +160,21 @@ fn colormap(t: f32, id: u32) -> vec3f {
 // ---------------------------------------------------------------------------
 // Color data sources (10 sources)
 // ---------------------------------------------------------------------------
-fn get_color_t(boid: Boid, instance_id: u32, source: u32) -> f32 {
+// Returns raw value for the selected data source (not yet normalized).
+// Gain is applied at the call site.
+fn get_color_raw(boid: Boid, instance_id: u32, source: u32) -> f32 {
   switch (source) {
-    // 0 - Velocity Direction
-    case 0u: {
-      return clamp(dot(normalize(boid.heading), vec3f(0.3, 0.4, 0.3)) + 0.5, 0.0, 1.0);
-    }
-    // 1 - Speed
-    case 1u: {
-      return clamp(boid.speed / 10.0, 0.0, 1.0);
-    }
-    // 2 - Direction Change
-    case 2u: {
-      return clamp(boid.dir_change / 0.3, 0.0, 1.0);
-    }
-    // 3 - Neighbor Count
-    case 3u: {
-      return clamp(boid.neighbor_count / 20.0, 0.0, 1.0);
-    }
-    // 4 - Altitude
-    case 4u: {
-      return clamp((boid.pos.y + 50.0) / 100.0, 0.0, 1.0);
-    }
-    // 5 - Distance from Center
-    case 5u: {
-      return clamp(length(boid.pos) / 60.0, 0.0, 1.0);
-    }
-    // 6 - Flock Alignment
-    case 6u: {
-      return clamp(boid.flock_alignment * 0.5 + 0.5, 0.0, 1.0);
-    }
-    // 7 - Separation Pressure
-    case 7u: {
-      return clamp(boid.sep_pressure / 3.0, 0.0, 1.0);
-    }
-    // 8 - Local Density
-    case 8u: {
-      return clamp(boid.density, 0.0, 1.0);
-    }
-    // 9 - Boid ID
-    case 9u: {
-      return fract(f32(instance_id) * 0.618034);
-    }
-    // Default fallback to Velocity Direction
-    default: {
-      return clamp(dot(normalize(boid.heading), vec3f(0.3, 0.4, 0.3)) + 0.5, 0.0, 1.0);
-    }
+    case 0u: { return dot(normalize(boid.heading), vec3f(0.3, 0.4, 0.3)) + 0.5; } // Velocity Dir [~0-1]
+    case 1u: { return boid.speed; }                    // Speed [0-max_speed]
+    case 2u: { return boid.dir_change; }               // Direction Change [0-~2]
+    case 3u: { return boid.neighbor_count; }            // Neighbor Count [0-16+]
+    case 4u: { return (boid.pos.y + 50.0) / 100.0; }   // Altitude [0-1]
+    case 5u: { return length(boid.pos) / 50.0; }        // Distance from Center [0-~1.4]
+    case 6u: { return boid.flock_alignment * 0.5 + 0.5; } // Flock Alignment [0-1]
+    case 7u: { return boid.sep_pressure; }              // Separation Pressure [0-~5]
+    case 8u: { return boid.density; }                   // Local Density [0-1]
+    case 9u: { return fract(f32(instance_id) * 0.618034); } // Boid ID [0-1]
+    default: { return dot(normalize(boid.heading), vec3f(0.3, 0.4, 0.3)) + 0.5; }
   }
 }
 
@@ -286,8 +255,10 @@ fn vs_main(
   let ndotl = abs(dot(rotated_normal, light_dir));
   let lighting = 0.3 + 0.7 * ndotl;
 
-  // Color: map data source through colormap
-  let t = get_color_t(boid, iid, camera.color_source);
+  // Color: map data source through gain + colormap
+  let raw = get_color_raw(boid, iid, camera.color_source);
+  let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
+  let t = clamp(raw / gainMul, 0.0, 1.0);
   let base = colormap(t, camera.gradient_id);
 
   // HDR bloom boost
