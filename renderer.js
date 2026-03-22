@@ -2,6 +2,8 @@
 
 const SAMPLE_COUNT = 4;
 const HDR_FORMAT = 'rgba16float';
+// Camera uniform: mat4x4f(64) + gradient_id(4) + color_source(4) + pad(8) = 80 bytes
+const UNIFORM_SIZE = 80;
 
 export async function createRenderer(device, context, simulation) {
   context.configure({
@@ -14,15 +16,14 @@ export async function createRenderer(device, context, simulation) {
   const code = await (await fetch('render.wgsl')).text();
   const module = device.createShaderModule({ code });
 
-  // Camera uniform: mat4x4f = 64 bytes
   const uniformBuf = device.createBuffer({
-    size: 64,
+    size: UNIFORM_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
   const bgl = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+      { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
     ],
   });
@@ -57,9 +58,17 @@ export async function createRenderer(device, context, simulation) {
 
   let { msaaTex, depthTex } = createTargets(device, context.canvas);
 
+  // Reusable uniform data buffer
+  const uniformData = new ArrayBuffer(UNIFORM_SIZE);
+
   return {
-    render(encoder, viewProj) {
-      device.queue.writeBuffer(uniformBuf, 0, viewProj);
+    /** viewProj: Float32Array(16), gradientId: u32, colorSource: u32 */
+    render(encoder, viewProj, gradientId = 0, colorSource = 0) {
+      // Pack: mat4x4f + 2 u32s
+      new Float32Array(uniformData, 0, 16).set(viewProj);
+      new Uint32Array(uniformData, 64, 2).set([gradientId, colorSource]);
+      device.queue.writeBuffer(uniformBuf, 0, new Uint8Array(uniformData));
+
       const curBuf = simulation.currentBuffer();
       const bg = curBuf === simulation.boidA ? bgA : bgB;
 

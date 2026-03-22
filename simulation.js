@@ -1,7 +1,7 @@
 // === WebGPU Compute Simulation (Spatial-Hash Flocking) ===
 
 const WORKGROUP_SIZE = 64;
-const PARAMS_SIZE = 80; // 17 fields × 4 bytes = 68, rounded to 80 (16-byte align)
+const PARAMS_SIZE = 96; // 24 fields × 4 bytes = 96 (16-byte aligned)
 
 export async function createSimulation(device, {
   numBoids = 5000,
@@ -20,7 +20,7 @@ export async function createSimulation(device, {
   const u = new Uint32Array(paramsData);
   const f = new Float32Array(paramsData);
 
-  // Fixed fields (never change at runtime)
+  // Fixed fields
   u[0]  = numBoids;
   u[1]  = gridSize;
   u[2]  = GRID_CELLS;
@@ -40,6 +40,11 @@ export async function createSimulation(device, {
     f[13] = p.minSpeed;
     f[15] = p.turnFactor;
     f[16] = p.smoothing;
+    f[17] = p.simSpeed ?? 1.0;
+    f[18] = p.sizeRandomness ?? 0.0;
+    f[19] = p.dragFactor ?? 0.3;
+    u[20] = p.gradientId ?? 0;
+    u[21] = p.colorSource ?? 0;
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
   }
 
@@ -49,17 +54,21 @@ export async function createSimulation(device, {
   });
 
   // --- Boid buffers (ping-pong) ---
-  // Boid struct: pos(vec3f+pad) + vel(vec3f+pad) + heading(vec3f+pad) = 48 bytes = 12 floats
-  const boidBytes = numBoids * 48;
-  const initData = new Float32Array(numBoids * 12);
+  // Boid struct: 64 bytes = 16 floats
+  // pos(3) + size_factor(1) + vel(3) + speed(1) + heading(3) + neighbor_count(1) +
+  // dir_change(1) + flock_alignment(1) + sep_pressure(1) + density(1)
+  const BOID_FLOATS = 16;
+  const boidBytes = numBoids * BOID_FLOATS * 4;
+  const initData = new Float32Array(numBoids * BOID_FLOATS);
   for (let i = 0; i < numBoids; i++) {
-    const o = i * 12;
+    const o = i * BOID_FLOATS;
     const r = worldSize * 0.35;
     // pos
     initData[o]     = (Math.random() - 0.5) * 2 * r;
     initData[o + 1] = (Math.random() - 0.5) * 2 * r;
     initData[o + 2] = (Math.random() - 0.5) * 2 * r;
-    // [o+3] padding
+    // size_factor (default 1.0, randomized via sizeRandomness param)
+    initData[o + 3] = 1.0;
     // vel
     const vx = (Math.random() - 0.5) * 4;
     const vy = (Math.random() - 0.5) * 4;
@@ -67,13 +76,23 @@ export async function createSimulation(device, {
     initData[o + 4] = vx;
     initData[o + 5] = vy;
     initData[o + 6] = vz;
-    // [o+7] padding
+    // speed
+    initData[o + 7] = Math.hypot(vx, vy, vz);
     // heading = normalize(vel)
-    const vlen = Math.hypot(vx, vy, vz) || 1;
+    const vlen = initData[o + 7] || 1;
     initData[o + 8]  = vx / vlen;
     initData[o + 9]  = vy / vlen;
     initData[o + 10] = vz / vlen;
-    // [o+11] padding
+    // neighbor_count, dir_change, flock_alignment, sep_pressure, density = 0
+  }
+
+  // Apply size randomness
+  function applySizeRandomness(randomness) {
+    for (let i = 0; i < numBoids; i++) {
+      const sf = 1.0 + (Math.random() - 0.5) * 2 * randomness;
+      initData[i * BOID_FLOATS + 3] = Math.max(0.3, Math.min(2.0, sf));
+    }
+    device.queue.writeBuffer(boidA, 0, initData);
   }
 
   const makeBoidBuf = (label, data) => {
@@ -146,9 +165,8 @@ export async function createSimulation(device, {
     numBoids,
     boidA,
     boidB,
-
-    /** Update tunable params at runtime. */
     setParams: writeParams,
+    applySizeRandomness,
 
     update(encoder) {
       const bg = step % 2 === 0 ? bgA : bgB;

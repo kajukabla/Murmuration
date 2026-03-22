@@ -1,131 +1,313 @@
-// === 3D Boid Render Shader (instanced) ===
+// render.wgsl — Instanced boid rendering with colormaps and color data sources
 
 struct CameraUniforms {
   view_proj: mat4x4f,
-  // inv_view_proj removed — no skybox
+  gradient_id: u32,
+  color_source: u32,
+  _pad0: u32,
+  _pad1: u32,
 }
 
 struct Boid {
   pos: vec3f,
+  size_factor: f32,
   vel: vec3f,
+  speed: f32,
   heading: vec3f,
+  neighbor_count: f32,
+  dir_change: f32,
+  flock_alignment: f32,
+  sep_pressure: f32,
+  density: f32,
+}
+
+struct BoidBuffer {
+  boids: array<Boid>,
 }
 
 @group(0) @binding(0) var<uniform> camera: CameraUniforms;
-@group(0) @binding(1) var<storage, read> boids: array<Boid>;
+@group(0) @binding(1) var<storage, read> boid_buf: BoidBuffer;
 
-struct VsOut {
+struct VertexOutput {
   @builtin(position) pos: vec4f,
   @location(0) color: vec3f,
   @location(1) lighting: f32,
 }
 
+// ---------------------------------------------------------------------------
+// Piecewise-linear ramp with 5 color stops at t = 0, 0.25, 0.5, 0.75, 1.0
+// ---------------------------------------------------------------------------
+fn ramp5(t: f32, c0: vec3f, c1: vec3f, c2: vec3f, c3: vec3f, c4: vec3f) -> vec3f {
+  let tc = clamp(t, 0.0, 1.0);
+  if (tc < 0.25) {
+    return mix(c0, c1, tc / 0.25);
+  } else if (tc < 0.5) {
+    return mix(c1, c2, (tc - 0.25) / 0.25);
+  } else if (tc < 0.75) {
+    return mix(c2, c3, (tc - 0.5) / 0.25);
+  } else {
+    return mix(c3, c4, (tc - 0.75) / 0.25);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Colormaps (10 palettes)
+// ---------------------------------------------------------------------------
+fn colormap(t: f32, id: u32) -> vec3f {
+  switch (id) {
+    // 0 - Viridis
+    case 0u: {
+      return ramp5(t,
+        vec3f(0.267, 0.004, 0.329),
+        vec3f(0.282, 0.140, 0.458),
+        vec3f(0.127, 0.566, 0.551),
+        vec3f(0.544, 0.774, 0.247),
+        vec3f(0.993, 0.906, 0.144));
+    }
+    // 1 - Inferno
+    case 1u: {
+      return ramp5(t,
+        vec3f(0.001, 0.000, 0.014),
+        vec3f(0.259, 0.038, 0.406),
+        vec3f(0.578, 0.148, 0.404),
+        vec3f(0.895, 0.412, 0.188),
+        vec3f(0.988, 0.998, 0.645));
+    }
+    // 2 - Magma
+    case 2u: {
+      return ramp5(t,
+        vec3f(0.001, 0.000, 0.014),
+        vec3f(0.232, 0.059, 0.437),
+        vec3f(0.550, 0.161, 0.506),
+        vec3f(0.929, 0.412, 0.365),
+        vec3f(0.987, 0.991, 0.749));
+    }
+    // 3 - Plasma
+    case 3u: {
+      return ramp5(t,
+        vec3f(0.050, 0.030, 0.528),
+        vec3f(0.415, 0.009, 0.658),
+        vec3f(0.698, 0.165, 0.564),
+        vec3f(0.930, 0.411, 0.305),
+        vec3f(0.940, 0.975, 0.131));
+    }
+    // 4 - Turbo
+    case 4u: {
+      return ramp5(t,
+        vec3f(0.190, 0.072, 0.232),
+        vec3f(0.133, 0.569, 0.920),
+        vec3f(0.246, 0.876, 0.406),
+        vec3f(0.928, 0.679, 0.068),
+        vec3f(0.659, 0.106, 0.096));
+    }
+    // 5 - Cividis
+    case 5u: {
+      return ramp5(t,
+        vec3f(0.000, 0.135, 0.305),
+        vec3f(0.166, 0.272, 0.385),
+        vec3f(0.420, 0.420, 0.420),
+        vec3f(0.651, 0.580, 0.349),
+        vec3f(0.995, 0.764, 0.210));
+    }
+    // 6 - Coolwarm
+    case 6u: {
+      return ramp5(t,
+        vec3f(0.230, 0.299, 0.754),
+        vec3f(0.552, 0.691, 0.996),
+        vec3f(0.866, 0.866, 0.866),
+        vec3f(0.956, 0.604, 0.486),
+        vec3f(0.706, 0.016, 0.150));
+    }
+    // 7 - Spectral
+    case 7u: {
+      return ramp5(t,
+        vec3f(0.620, 0.004, 0.259),
+        vec3f(0.957, 0.427, 0.263),
+        vec3f(0.998, 0.999, 0.746),
+        vec3f(0.529, 0.808, 0.502),
+        vec3f(0.369, 0.310, 0.635));
+    }
+    // 8 - Hot
+    case 8u: {
+      return ramp5(t,
+        vec3f(0.042, 0.000, 0.000),
+        vec3f(0.586, 0.000, 0.000),
+        vec3f(1.000, 0.437, 0.000),
+        vec3f(1.000, 0.878, 0.000),
+        vec3f(1.000, 1.000, 1.000));
+    }
+    // 9 - Ocean
+    case 9u: {
+      return ramp5(t,
+        vec3f(0.000, 0.125, 0.000),
+        vec3f(0.000, 0.208, 0.271),
+        vec3f(0.000, 0.417, 0.542),
+        vec3f(0.471, 0.745, 0.784),
+        vec3f(1.000, 1.000, 1.000));
+    }
+    // Default fallback to Viridis
+    default: {
+      return ramp5(t,
+        vec3f(0.267, 0.004, 0.329),
+        vec3f(0.282, 0.140, 0.458),
+        vec3f(0.127, 0.566, 0.551),
+        vec3f(0.544, 0.774, 0.247),
+        vec3f(0.993, 0.906, 0.144));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Color data sources (10 sources)
+// ---------------------------------------------------------------------------
+fn get_color_t(boid: Boid, instance_id: u32, source: u32) -> f32 {
+  switch (source) {
+    // 0 - Velocity Direction
+    case 0u: {
+      return clamp(dot(normalize(boid.heading), vec3f(0.3, 0.4, 0.3)) + 0.5, 0.0, 1.0);
+    }
+    // 1 - Speed
+    case 1u: {
+      return clamp(boid.speed / 10.0, 0.0, 1.0);
+    }
+    // 2 - Direction Change
+    case 2u: {
+      return clamp(boid.dir_change / 0.3, 0.0, 1.0);
+    }
+    // 3 - Neighbor Count
+    case 3u: {
+      return clamp(boid.neighbor_count / 20.0, 0.0, 1.0);
+    }
+    // 4 - Altitude
+    case 4u: {
+      return clamp((boid.pos.y + 50.0) / 100.0, 0.0, 1.0);
+    }
+    // 5 - Distance from Center
+    case 5u: {
+      return clamp(length(boid.pos) / 60.0, 0.0, 1.0);
+    }
+    // 6 - Flock Alignment
+    case 6u: {
+      return clamp(boid.flock_alignment * 0.5 + 0.5, 0.0, 1.0);
+    }
+    // 7 - Separation Pressure
+    case 7u: {
+      return clamp(boid.sep_pressure / 3.0, 0.0, 1.0);
+    }
+    // 8 - Local Density
+    case 8u: {
+      return clamp(boid.density, 0.0, 1.0);
+    }
+    // 9 - Boid ID
+    case 9u: {
+      return fract(f32(instance_id) * 0.618034);
+    }
+    // Default fallback to Velocity Direction
+    default: {
+      return clamp(dot(normalize(boid.heading), vec3f(0.3, 0.4, 0.3)) + 0.5, 0.0, 1.0);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Vertex Shader
+// ---------------------------------------------------------------------------
 @vertex
 fn vs_main(
   @builtin(vertex_index) vid: u32,
   @builtin(instance_index) iid: u32,
-) -> VsOut {
-  let boid = boids[iid];
+) -> VertexOutput {
+  let boid = boid_buf.boids[iid];
 
-  // Build local frame from smoothed heading (decoupled from velocity)
-  var fwd = boid.heading;
-  let spd = length(fwd);
-  if (spd < 0.5) { fwd = normalize(boid.vel); } else { fwd = fwd / spd; }
-  let fwd_len = length(fwd);
-  if (fwd_len < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); } else { fwd = fwd / fwd_len; }
+  // Scale factor
+  let s = 0.25 * boid.size_factor;
 
-  // Smooth up-vector: blend from Y-up to Z-up as fwd approaches vertical
-  var ref_up = vec3f(0.0, 1.0, 0.0);
-  let dot_y = abs(fwd.y);
-  if (dot_y > 0.9) {
-    let t = smoothstep(0.9, 0.99, dot_y);
-    ref_up = normalize(mix(vec3f(0.0, 1.0, 0.0), vec3f(0.0, 0.0, 1.0), t));
-  }
-  let right = normalize(cross(fwd, ref_up));
-  let real_up = normalize(cross(right, fwd));
+  // Tetrahedron vertices in local space (nose points along +Z)
+  let nose  = vec3f( 0.0,  0.0,  1.5) * s;
+  let left  = vec3f(-0.5,  0.0, -0.5) * s;
+  let right = vec3f( 0.5,  0.0, -0.5) * s;
+  let top   = vec3f( 0.0,  0.5, -0.3) * s;
 
-  let s = 0.25;
+  // 4 faces x 3 vertices = 12 vertices
+  var local_pos: vec3f;
+  var face_id: u32;
 
-  // Tetrahedron vertices
-  let tip   = fwd * s * 1.8;
-  let left  = -fwd * s + right * s * 0.7;
-  let rgt   = -fwd * s - right * s * 0.7;
-  let top   = -fwd * s + real_up * s * 0.7;
-
-  // 4 faces × 3 vertices = 12 verts
-  var lp: vec3f;
-  var face_normal: vec3f;
   switch (vid) {
-    // Face 0: bottom (tip, left, right)
-    case 0u  { lp = tip; }
-    case 1u  { lp = left; }
-    case 2u  { lp = rgt; }
-    // Face 1: right side (tip, right, top)
-    case 3u  { lp = tip; }
-    case 4u  { lp = rgt; }
-    case 5u  { lp = top; }
-    // Face 2: left side (tip, top, left)
-    case 6u  { lp = tip; }
-    case 7u  { lp = top; }
-    case 8u  { lp = left; }
-    // Face 3: back cap (rgt, top, left) — wound outward
-    case 9u  { lp = rgt; }
-    case 10u { lp = top; }
-    case 11u { lp = left; }
-    default  { lp = vec3f(0.0); }
+    // Face 0: bottom (nose, left, right)
+    case 0u  { local_pos = nose;  face_id = 0u; }
+    case 1u  { local_pos = left;  face_id = 0u; }
+    case 2u  { local_pos = right; face_id = 0u; }
+    // Face 1: left side (nose, top, left)
+    case 3u  { local_pos = nose;  face_id = 1u; }
+    case 4u  { local_pos = top;   face_id = 1u; }
+    case 5u  { local_pos = left;  face_id = 1u; }
+    // Face 2: right side (nose, right, top)
+    case 6u  { local_pos = nose;  face_id = 2u; }
+    case 7u  { local_pos = right; face_id = 2u; }
+    case 8u  { local_pos = top;   face_id = 2u; }
+    // Face 3: back cap (left, top, right)
+    case 9u  { local_pos = left;  face_id = 3u; }
+    case 10u { local_pos = top;   face_id = 3u; }
+    case 11u { local_pos = right; face_id = 3u; }
+    default  { local_pos = vec3f(0.0); face_id = 0u; }
   }
 
-  // Compute face normal for lighting
-  let face_id = vid / 3u;
-  var v0: vec3f; var v1: vec3f; var v2: vec3f;
+  // Compute face normals in local space
+  var face_normal: vec3f;
   switch (face_id) {
-    case 0u { v0 = tip; v1 = left; v2 = rgt; }
-    case 1u { v0 = tip; v1 = rgt;  v2 = top; }
-    case 2u { v0 = tip; v1 = top;  v2 = left; }
-    case 3u { v0 = rgt; v1 = top; v2 = left; }
-    default { v0 = vec3f(0.0); v1 = vec3f(0.0); v2 = vec3f(0.0); }
+    case 0u { face_normal = normalize(cross(left - nose, right - nose)); }
+    case 1u { face_normal = normalize(cross(top - nose, left - nose)); }
+    case 2u { face_normal = normalize(cross(right - nose, top - nose)); }
+    case 3u { face_normal = normalize(cross(top - left, right - left)); }
+    default { face_normal = vec3f(0.0, 1.0, 0.0); }
   }
-  face_normal = normalize(cross(v1 - v0, v2 - v0));
 
-  let world = boid.pos + lp;
+  // Build orientation matrix from boid heading
+  let fwd = normalize(boid.heading);
+
+  // Smooth up-vector blend to avoid gimbal lock near vertical
+  let world_up = vec3f(0.0, 1.0, 0.0);
+  let alt_up   = vec3f(0.0, 0.0, 1.0);
+  let up_dot   = abs(dot(fwd, world_up));
+  let ref_up   = mix(world_up, alt_up, smoothstep(0.9, 0.99, up_dot));
+
+  let right_dir = normalize(cross(ref_up, fwd));
+  let up_dir    = cross(fwd, right_dir);
+
+  // Rotation matrix: columns are right, up, forward
+  let rot = mat3x3f(right_dir, up_dir, fwd);
+
+  // Transform to world space
+  let world_pos = rot * local_pos + boid.pos;
+  let rotated_normal = rot * face_normal;
+
+  // Lighting: abs dot for two-sided illumination
   let light_dir = normalize(vec3f(0.4, 0.8, 0.6));
-  let ndotl = abs(dot(face_normal, light_dir));
+  let ndotl = abs(dot(rotated_normal, light_dir));
+  let lighting = 0.3 + 0.7 * ndotl;
 
-  var out: VsOut;
-  out.pos = camera.view_proj * vec4f(world, 1.0);
-  out.lighting = 0.45 + ndotl * 0.8;
+  // Color: map data source through colormap
+  let t = get_color_t(boid, iid, camera.color_source);
+  let base = colormap(t, camera.gradient_id);
 
-  // Viridis-inspired palette: map velocity direction to [0,1] then sample viridis
-  // Viridis goes: dark purple → blue → teal → green → yellow
-  let d = fwd;
-  let t = clamp(d.x * 0.3 + d.y * 0.4 + d.z * 0.3 + 0.5, 0.0, 1.0);
-
-  // Piecewise viridis approximation (5 stops)
-  let c0 = vec3f(0.267, 0.004, 0.329);  // dark purple (t=0)
-  let c1 = vec3f(0.282, 0.140, 0.458);  // blue-purple (t=0.25)
-  let c2 = vec3f(0.127, 0.566, 0.551);  // teal (t=0.5)
-  let c3 = vec3f(0.544, 0.774, 0.247);  // green (t=0.75)
-  let c4 = vec3f(0.993, 0.906, 0.144);  // yellow (t=1) — bloom candidate
-
-  var base: vec3f;
-  if (t < 0.25) {
-    base = mix(c0, c1, t / 0.25);
-  } else if (t < 0.5) {
-    base = mix(c1, c2, (t - 0.25) / 0.25);
-  } else if (t < 0.75) {
-    base = mix(c2, c3, (t - 0.5) / 0.25);
-  } else {
-    base = mix(c3, c4, (t - 0.75) / 0.25);
+  // HDR bloom boost
+  let lum = dot(base, vec3f(0.299, 0.587, 0.114));
+  var hdr = base;
+  if (lum > 0.8) {
+    hdr = base * (1.0 + (lum - 0.8) * 1.5);
   }
 
-  // HDR bloom: push bright yellows/greens slightly above 1.0 for HDR glow
-  let bloom = smoothstep(0.7, 1.0, t) * 0.3;
-  out.color = base + vec3f(bloom * 0.5, bloom * 0.3, 0.0);
-
+  var out: VertexOutput;
+  out.pos = camera.view_proj * vec4f(world_pos, 1.0);
+  out.color = hdr;
+  out.lighting = lighting;
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Fragment Shader
+// ---------------------------------------------------------------------------
 @fragment
-fn fs_main(@location(0) color: vec3f, @location(1) lighting: f32) -> @location(0) vec4f {
-  return vec4f(color * lighting, 1.0);
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  return vec4f(in.color * in.lighting, 1.0);
 }

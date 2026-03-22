@@ -60,6 +60,11 @@ f32[13] = 2.5;         // min_speed
 f32[14] = 0.016;       // dt
 f32[15] = 0.5;         // turn_factor
 f32[16] = 0.04;        // smoothing
+f32[17] = 1.0;         // sim_speed
+f32[18] = 0.0;         // size_randomness
+f32[19] = 0.3;         // drag_factor
+u32[20] = 0;           // gradient_id
+u32[21] = 0;           // color_source
 
 const paramsBuffer = device.createBuffer({
   size: PARAMS_SIZE,
@@ -67,22 +72,25 @@ const paramsBuffer = device.createBuffer({
 });
 device.queue.writeBuffer(paramsBuffer, 0, new Uint8Array(paramsData));
 
-// --- Boid buffers (48 bytes per boid: pos+pad, vel+pad, heading+pad) ---
-const BOID_BYTES = NUM_BOIDS * 48;
-const initData = new Float32Array(NUM_BOIDS * 12);
+// --- Boid buffers (64 bytes per boid: expanded struct with metrics) ---
+const BOID_FLOATS = 16;
+const BOID_BYTES = NUM_BOIDS * BOID_FLOATS * 4;
+const initData = new Float32Array(NUM_BOIDS * BOID_FLOATS);
 for (let i = 0; i < NUM_BOIDS; i++) {
-  const o = i * 12;
+  const o = i * BOID_FLOATS;
   const r = WORLD_SIZE * 0.35;
   initData[o] = (Math.random() - 0.5) * 2 * r;
   initData[o + 1] = (Math.random() - 0.5) * 2 * r;
   initData[o + 2] = (Math.random() - 0.5) * 2 * r;
+  initData[o + 3] = 1.0; // size_factor
   const vx = (Math.random() - 0.5) * 4;
   const vy = (Math.random() - 0.5) * 4;
   const vz = (Math.random() - 0.5) * 4;
   initData[o + 4] = vx;
   initData[o + 5] = vy;
   initData[o + 6] = vz;
-  const vlen = Math.hypot(vx, vy, vz) || 1;
+  initData[o + 7] = Math.hypot(vx, vy, vz); // speed
+  const vlen = initData[o + 7] || 1;
   initData[o + 8] = vx / vlen;
   initData[o + 9] = vy / vlen;
   initData[o + 10] = vz / vlen;
