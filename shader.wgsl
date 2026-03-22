@@ -136,41 +136,34 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let lo = max(mg - vec3i(1), vec3i(0));
   let hi = min(mg + vec3i(1), vec3i(gs - 1));
 
-  // Precompute neighbor cell indices into flat array to avoid triple-loop branch overhead
-  let gs2 = params.grid_size * params.grid_size;
-  var neighbor_cells: array<u32, 27>;
-  var num_nc = 0u;
   for (var nz = lo.z; nz <= hi.z; nz++) {
-    let zoff = u32(nz) * gs2;
+    let zoff = u32(nz) * params.grid_size * params.grid_size;
     for (var ny = lo.y; ny <= hi.y; ny++) {
       let yzoff = u32(ny) * params.grid_size + zoff;
       for (var nx = lo.x; nx <= hi.x; nx++) {
-        neighbor_cells[num_nc] = u32(nx) + yzoff;
-        num_nc++;
-      }
-    }
-  }
-
-  for (var ci = 0u; ci < num_nc; ci++) {
-    let nc = neighbor_cells[ci];
-    let start = cell_offsets[nc];
-    let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
-    if (start >= end_val) { continue; }
-    for (var j = start; j < end_val; j++) {
-      let other_idx = sorted_indices[j];
-      if (other_idx == i) { continue; }
-      let other_pos = boids_src[other_idx].pos;
-      let diff = boid.pos - other_pos;
-      let d2 = dot(diff, diff);
-      if (d2 < params.visual_range_sq && d2 > 0.0001) {
-        ali += boids_src[other_idx].vel;
-        coh += other_pos;
-        n_align++;
-        if (d2 < params.separation_dist_sq) {
-          sep += diff * (1.0 - d2 / params.separation_dist_sq);
-          n_sep++;
+        let nc = u32(nx) + yzoff;
+        let start = cell_offsets[nc];
+        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+        if (start >= end_val) { continue; }
+        for (var j = start; j < end_val; j++) {
+          let other_idx = sorted_indices[j];
+          if (other_idx == i) { continue; }
+          let other_pos = boids_src[other_idx].pos;
+          let diff = boid.pos - other_pos;
+          let d2 = dot(diff, diff);
+          if (d2 < params.visual_range_sq && d2 > 0.0001) {
+            ali += boids_src[other_idx].vel;
+            coh += other_pos;
+            n_align++;
+            if (d2 < params.separation_dist_sq) {
+              sep += diff * (1.0 - d2 / params.separation_dist_sq);
+              n_sep++;
+            }
+          }
         }
+        if (n_align >= 10u) { break; }
       }
+      if (n_align >= 10u) { break; }
     }
     if (n_align >= 10u) { break; }
   }
@@ -188,16 +181,12 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep * params.separation_factor;
   }
 
-  // Boundary steering (skip when well inside)
   let margin = params.world_size * 0.4;
-  let abs_pos = abs(boid.pos);
-  if (abs_pos.x > margin || abs_pos.y > margin || abs_pos.z > margin) {
-    let inv_soft = 1.0 / (params.world_size * 0.1);
-    let btf = params.turn_factor;
-    let low_push = max(vec3f(0.0), (-margin - boid.pos) * inv_soft);
-    let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
-    new_vel += btf * (low_push - high_push);
-  }
+  let inv_soft = 1.0 / (params.world_size * 0.1);
+  let btf = params.turn_factor;
+  let low_push = max(vec3f(0.0), (-margin - boid.pos) * inv_soft);
+  let high_push = max(vec3f(0.0), (boid.pos - vec3f(margin)) * inv_soft);
+  new_vel += btf * (low_push - high_push);
 
   let old_speed = length(boid.vel);
   var old_dir = boid.vel;
@@ -215,8 +204,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   new_vel = final_dir * final_speed;
 
   let dir_change_val = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
+  let effective_dt = params.dt;
 
-  boids_dst[i].pos = boid.pos + new_vel * params.dt;
+  boids_dst[i].pos = boid.pos + new_vel * effective_dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
