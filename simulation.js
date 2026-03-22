@@ -198,6 +198,7 @@ export async function createSimulation(device, {
   let autoRangeEnabled = false;
   let statsReading = false;
   let smoothMin = 0, smoothMax = 1;
+  let emaInitialized = false;
 
   return {
     numBoids,
@@ -206,7 +207,7 @@ export async function createSimulation(device, {
     setParams: writeParams,
     applySizeRandomness,
 
-    set autoRange(v) { autoRangeEnabled = v; },
+    set autoRange(v) { autoRangeEnabled = v; if (!v) emaInitialized = false; },
     get autoMin() { return smoothMin; },
     get autoMax() { return smoothMax; },
 
@@ -250,19 +251,30 @@ export async function createSimulation(device, {
       step++;
     },
 
-    /** Call after queue.submit + onSubmittedWorkDone to read back stats */
+    /** Call after queue.submit to read back stats (non-blocking) */
     async readStats() {
       if (!autoRangeEnabled || statsReading) return;
       statsReading = true;
       try {
         await statsReadBuf.mapAsync(GPUMapMode.READ);
-        const data = new Float32Array(statsReadBuf.getMappedRange().slice(0));
+        const mapped = statsReadBuf.getMappedRange();
+        const data = new Uint32Array(mapped.slice(0));
         statsReadBuf.unmap();
-        const rawMin = data[0], rawMax = data[1];
-        if (isFinite(rawMin) && isFinite(rawMax)) {
-          const alpha = 0.02;
-          smoothMin = smoothMin * (1 - alpha) + rawMin * alpha;
-          smoothMax = smoothMax * (1 - alpha) + rawMax * alpha;
+        // Bitcast u32 back to f32
+        const f = new Float32Array(data.buffer);
+        const rawMin = f[0], rawMax = f[1];
+        if (isFinite(rawMin) && isFinite(rawMax) && rawMax >= rawMin) {
+          if (!emaInitialized) {
+            // Snap to first valid reading
+            smoothMin = rawMin;
+            smoothMax = rawMax;
+            emaInitialized = true;
+          } else {
+            // Very slow EMA to avoid flickering
+            const alpha = 0.005;
+            smoothMin = smoothMin * (1 - alpha) + rawMin * alpha;
+            smoothMax = smoothMax * (1 - alpha) + rawMax * alpha;
+          }
         }
       } catch {}
       statsReading = false;
