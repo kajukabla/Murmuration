@@ -169,16 +169,13 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   }
 
   var new_vel = boid.vel;
-  var alignment_metric = 0.0;
+  var avg_vel = vec3f(0.0);
   if (n_align > 0u) {
     let nf = f32(n_align);
-    let avg_vel = ali / nf;
+    avg_vel = ali / nf;
     let avg_pos = coh / nf;
     new_vel += (avg_vel - boid.vel) * params.align_factor;
     new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
-    let my_dir = normalize(boid.vel + vec3f(0.0001, 0.0, 0.0));
-    let avg_dir = normalize(avg_vel + vec3f(0.0001, 0.0, 0.0));
-    alignment_metric = dot(my_dir, avg_dir);
   }
   if (n_sep > 0u) {
     new_vel += sep * params.separation_factor;
@@ -223,7 +220,10 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].speed = length(new_vel);
   boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = dir_change_val;
-  boids_dst[i].flock_alignment = alignment_metric;
+  // Approximate alignment: dot of velocity directions (cheap, no extra normalize)
+  let vel_d2 = dot(boid.vel, boid.vel);
+  let avg_d2 = dot(avg_vel, avg_vel);
+  boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), 0.0, vel_d2 < 0.001 || avg_d2 < 0.001);
   boids_dst[i].sep_pressure = length(sep);
   let vol = params.visual_range * params.visual_range * params.visual_range;
   boids_dst[i].density = clamp(f32(n_align) / max(vol * 0.01, 1.0), 0.0, 1.0);
