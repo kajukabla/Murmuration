@@ -266,3 +266,53 @@ fn compute_stats(@builtin(global_invocation_id) id: vec3u) {
   atomicMin(&stats[0], val_bits);
   atomicMax(&stats[1], val_bits);
 }
+
+// === Frustum Culling ===
+// Uses @group(2) for cull-specific buffers
+struct CullUniforms {
+  vp: mat4x4f,
+  frustum: array<vec4f, 6>, // 6 frustum planes (nx,ny,nz,d)
+}
+
+@group(2) @binding(0) var<uniform> cull: CullUniforms;
+@group(2) @binding(1) var<storage, read_write> visible_count: atomic<u32>;
+@group(2) @binding(2) var<storage, read_write> visible_indices: array<u32>;
+@group(2) @binding(3) var<storage, read_write> indirect_args: array<u32, 4>;
+
+@compute @workgroup_size(64)
+fn clear_cull(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x == 0u) {
+    atomicStore(&visible_count, 0u);
+    // indirect args: vertexCount, instanceCount, firstVertex, firstInstance
+    indirect_args[0] = 12u; // or 6 for billboard - set from JS
+    indirect_args[1] = 0u;  // will be set by cull pass
+    indirect_args[2] = 0u;
+    indirect_args[3] = 0u;
+  }
+}
+
+@compute @workgroup_size(64)
+fn frustum_cull(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+
+  let pos = boids_src[i].pos;
+
+  // Test against 6 frustum planes (with margin for boid size)
+  var visible = true;
+  for (var p = 0u; p < 6u; p++) {
+    let plane = cull.frustum[p];
+    let dist = dot(plane.xyz, pos) + plane.w;
+    if (dist < -2.0) { // 2 unit margin for boid size
+      visible = false;
+      break;
+    }
+  }
+
+  if (visible) {
+    let idx = atomicAdd(&visible_count, 1u);
+    visible_indices[idx] = i;
+    // Also update indirect instanceCount
+    atomicMax(&indirect_args[1], idx + 1u);
+  }
+}

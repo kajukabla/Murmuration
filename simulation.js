@@ -214,6 +214,9 @@ export async function createSimulation(device, {
   return {
     numBoids,
     boidA,
+    // Expose internals for frustum culling
+    _simBG() { return step % 2 === 0 ? bgA : bgB; },
+    _statsBG: statsBG,
     boidB,
     setParams: writeParams,
     applySizeRandomness,
