@@ -306,8 +306,8 @@ def start_agent():
     # Clear log for fresh run
     open(log_path, 'w').close()
     log_file = open(log_path, 'a')
-    # Use --verbose --output-format stream-json for live streaming output
-    cmd = 'claude --verbose --output-format stream-json --dangerously-skip-permissions "Read program.md and begin the optimization loop. Do not stop or ask questions."'
+    # Use --output-format stream-json for live streaming output
+    cmd = 'claude --output-format stream-json --dangerously-skip-permissions "Read program.md and begin the optimization loop. Do not stop or ask questions."'
     agent_proc = subprocess.Popen(
         cmd, shell=True,
         stdout=log_file, stderr=subprocess.STDOUT,
