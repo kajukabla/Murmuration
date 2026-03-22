@@ -301,12 +301,12 @@ document.getElementById('preset-del').addEventListener('click', () => {
   delete userPresets[name];
   saveUserPresets(userPresets);
   populatePresetDropdown();
-  presetSelect.value = 'Murmuration';
+  presetSelect.value = 'Swarm';
   applyPreset('Murmuration');
 });
 
 populatePresetDropdown();
-presetSelect.value = 'Murmuration';
+presetSelect.value = 'Swarm';
 
 // Panel toggle
 const panel = document.getElementById('panel');
