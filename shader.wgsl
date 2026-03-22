@@ -217,12 +217,14 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   else { old_heading = old_heading / h_len; }
   boids_dst[i].heading = normalize(mix(old_heading, vel_dir, 0.08));
 
-  boids_dst[i].speed = final_speed;  // reuse already-computed speed
+  boids_dst[i].speed = length(new_vel);
   boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = dir_change_val;
-  // Approximate alignment using already-computed old_dir
+  // Approximate alignment: dot of velocity directions (cheap, no extra normalize)
+  let vel_d2 = dot(boid.vel, boid.vel);
   let avg_d2 = dot(avg_vel, avg_vel);
-  boids_dst[i].flock_alignment = select(dot(old_dir, avg_vel) * inverseSqrt(avg_d2), 0.0, avg_d2 < 0.001);
-  boids_dst[i].sep_pressure = dot(sep, sep);  // squared magnitude (avoids sqrt)
-  boids_dst[i].density = f32(n_align) * 0.0625;  // /16 normalized to neighbor cap
+  boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), 0.0, vel_d2 < 0.001 || avg_d2 < 0.001);
+  boids_dst[i].sep_pressure = length(sep);
+  let vol = params.visual_range * params.visual_range * params.visual_range;
+  boids_dst[i].density = clamp(f32(n_align) / max(vol * 0.01, 1.0), 0.0, 1.0);
 }
