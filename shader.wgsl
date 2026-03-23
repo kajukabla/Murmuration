@@ -234,7 +234,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // === Murmuration-specific forces ===
 
   // Gravity: slight downward pull (creates the flat pancake shape)
-  new_vel.y -= 0.05;
+  new_vel.y -= 0.08;
 
   // Center-seeking: gentle drift toward local flock center
   if (n_found >= 2u) {
