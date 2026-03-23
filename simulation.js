@@ -39,7 +39,7 @@ export async function createSimulation(device, {
 
   function writeParams(p) {
     // Clamp visual range to what the 3x3x3 grid search can cover
-    const maxRange = cellSize * 1.0; // tight clamp: only within own cell radius
+    const maxRange = cellSize * 0.8; // very tight clamp: reduce neighbor candidates
     const vr = Math.min(p.visualRange, maxRange);
     f[5]  = vr;
     f[6]  = vr * vr;
