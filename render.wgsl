@@ -412,12 +412,13 @@ fn vs_billboard(
 
 @fragment
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
-  let dist = length(in.uv * vec2f(1.0, camera.falloff));
+  let uv_scaled = in.uv * vec2f(1.0, camera.falloff);
+  let d2 = dot(uv_scaled, uv_scaled);
   // Opaque modes: hard cutoff to avoid depth/alpha shimmering
   if (camera.render_mode == 2u || camera.render_mode == 4u) {
-    if (dist > 0.9) { discard; }
+    if (d2 > 0.81) { discard; }
   }
-  let alpha = smoothstep(1.0, 0.3, dist);
+  let alpha = clamp(1.0 - d2, 0.0, 1.0);
 
   if (camera.render_mode == 4u) {
     // Reflective billboard: fake sphere normal from UV
