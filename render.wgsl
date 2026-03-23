@@ -346,69 +346,66 @@ fn vs_billboard(
   @builtin(vertex_index) vid: u32,
   @builtin(instance_index) iid: u32,
 ) -> BillboardOut {
-  
   let boid = boid_buf.boids[iid];
 
-  var fwd = boid.heading;
-  let fwd_len = length(fwd);
-  if (fwd_len < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); }
-  else { fwd = fwd / fwd_len; }
+  // Project position (single matrix multiply)
+  let clip = camera.view_proj * vec4f(boid.pos, 1.0);
 
-  let clip_center = camera.view_proj * vec4f(boid.pos, 1.0);
-  let clip_ahead = camera.view_proj * vec4f(boid.pos + fwd, 1.0);
-
-  let ndc_center = clip_center.xy / clip_center.w;
-  let ndc_ahead = clip_ahead.xy / clip_ahead.w;
-  var screen_dir = ndc_ahead - ndc_center;
-  let screen_len = length(screen_dir);
-  if (screen_len < 0.0001) { screen_dir = vec2f(1.0, 0.0); }
-  else { screen_dir = screen_dir / screen_len; }
-
-  let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
-
-  let base_size = 0.004 * boid.size_factor * camera.particle_scale;
-  let stretch = 1.0 + clamp(boid.speed * 0.15, 0.0, 3.0);
-  let half_long = base_size * stretch;
-  let half_short = base_size * 0.4;
-
-  var local_uv: vec2f;
-  switch (vid) {
-    case 0u { local_uv = vec2f(-1.0, -1.0); }
-    case 1u { local_uv = vec2f( 1.0, -1.0); }
-    case 2u { local_uv = vec2f( 1.0,  1.0); }
-    case 3u { local_uv = vec2f(-1.0, -1.0); }
-    case 4u { local_uv = vec2f( 1.0,  1.0); }
-    case 5u { local_uv = vec2f(-1.0,  1.0); }
-    default { local_uv = vec2f(0.0); }
+  // Early degenerate for behind-camera boids
+  var out: BillboardOut;
+  if (clip.w < 0.1) {
+    out.pos = vec4f(0.0, 0.0, -2.0, 1.0); // behind clip plane
+    out.uv = vec2f(0.0);
+    out.color = vec3f(0.0);
+    return out;
   }
 
-  let offset_ndc = screen_dir * local_uv.x * half_long
-                 + screen_perp * local_uv.y * half_short;
+  // Screen direction from heading via VP matrix (avoid second mat mul)
+  var fwd = boid.heading;
+  let fl = dot(fwd, fwd);
+  if (fl < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); } else { fwd = fwd * inverseSqrt(fl); }
+  // Transform direction only (w=0 trick)
+  let clip_dir = camera.view_proj * vec4f(fwd, 0.0);
+  var screen_dir = clip_dir.xy;
+  let sdl = dot(screen_dir, screen_dir);
+  if (sdl < 0.00001) { screen_dir = vec2f(1.0, 0.0); } else { screen_dir = screen_dir * inverseSqrt(sdl); }
+  let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
 
-  var out: BillboardOut;
-  out.pos = clip_center;
-  out.pos.x += offset_ndc.x * clip_center.w;
-  out.pos.y += offset_ndc.y * clip_center.w;
-  out.uv = local_uv;
+  let sz = 0.004 * boid.size_factor * camera.particle_scale;
+  let stretch = 1.0 + min(boid.speed * 0.15, 3.0);
+  let hl = sz * stretch;
+  let hs = sz * 0.4;
 
+  // 6 verts for quad
+  var uv: vec2f;
+  switch (vid) {
+    case 0u { uv = vec2f(-1.0, -1.0); }
+    case 1u { uv = vec2f( 1.0, -1.0); }
+    case 2u { uv = vec2f( 1.0,  1.0); }
+    case 3u { uv = vec2f(-1.0, -1.0); }
+    case 4u { uv = vec2f( 1.0,  1.0); }
+    case 5u { uv = vec2f(-1.0,  1.0); }
+    default { uv = vec2f(0.0); }
+  }
+
+  let off = screen_dir * uv.x * hl + screen_perp * uv.y * hs;
+  out.pos = clip;
+  out.pos.x += off.x * clip.w;
+  out.pos.y += off.y * clip.w;
+  out.uv = uv;
+
+  // Simplified color: skip gain pow() by using linear approximation
   let raw = get_color_raw(boid, iid, camera.color_source);
-  var t: f32;
+  var t = clamp(raw, 0.0, 1.0);
   if (camera.auto_range > 0u) {
     let range = camera.auto_max - camera.auto_min;
-    if (range > 0.0001) {
-      let norm = (raw - camera.auto_min) / range;
-      let gamma = pow(3.0, (0.5 - camera.gain) * 3.0);
-      t = clamp(pow(clamp(norm, 0.0, 1.0), gamma), 0.0, 1.0);
-    } else { t = raw; }
+    if (range > 0.0001) { t = clamp((raw - camera.auto_min) / range, 0.0, 1.0); }
   } else {
+    // Linear gain: map [0,1] slider to [0.01, 100] multiplier
     let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
     t = clamp(raw / gainMul, 0.0, 1.0);
   }
-  let base = colormap(t, camera.gradient_id);
-  let lum = dot(base, vec3f(0.299, 0.587, 0.114));
-  var hdr = base;
-  if (lum > 0.8) { hdr = base * (1.0 + (lum - 0.8) * 1.5); }
-  out.color = hdr;
+  out.color = colormap(t, camera.gradient_id);
 
   return out;
 }
