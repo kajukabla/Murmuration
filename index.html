@@ -291,7 +291,7 @@ resize();
 
 let simulation, renderer;
 try {
-  simulation = await createSimulation(device, { numBoids: NUM_BOIDS, sphereRadius: currentParams.sphereRadius ?? 100 });
+  simulation = await createSimulation(device, { numBoids: NUM_BOIDS, sphereRadius: BUILTIN_PRESETS['Murmuration'].sphereRadius ?? 100 });
   renderer = await createRenderer(device, ctx, simulation);
 } catch(e) {
   showError('Init failed: ' + e.message);
