@@ -50,6 +50,7 @@ export async function createSimulation(device, {
     u[20] = p.gradientId ?? 0;
     u[21] = p.colorSource ?? 0;
     f[22] = p.sphereRadius ?? 100.0;
+    u[23] = frameCount;
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
   }
 
@@ -210,6 +211,7 @@ export async function createSimulation(device, {
   });
 
   let step = 0;
+  let frameCount = 0;
   let autoRangeEnabled = false;
   let statsReading = false;
   let smoothMin = 0, smoothMax = 1;
@@ -228,6 +230,11 @@ export async function createSimulation(device, {
 
     /** Run one sim step. Set lastStep=true on the final step of the frame. */
     update(encoder, lastStep = true) {
+      // Update frame counter in params
+      frameCount++;
+      u[23] = frameCount;
+      device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+
       const bg = step % 2 === 0 ? bgA : bgB;
       const passes = [
         [clearPipe,   gridWG],

@@ -27,7 +27,7 @@ struct SimParams {
   gradient_id: u32,
   color_source: u32,
   sphere_radius: f32,
-  _pad0: u32,
+  frame_count: u32,
 }
 
 struct Boid {
@@ -234,18 +234,39 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // === Murmuration-specific forces ===
 
   // Gravity: slight downward pull (creates the flat pancake shape)
-  new_vel.y -= 0.05;
+  new_vel.y -= 0.03;
 
-  // Center-seeking: birds prefer flock interior (peripheral predation pressure)
-  // Use average neighbor position as a proxy for flock center
+  // Center-seeking: gentle drift toward local flock center
   if (n_found >= 2u) {
     let local_center = coh / f32(min(n_found, K_NEIGHBORS));
     let to_center = local_center - boid.pos;
     let center_dist = length(to_center);
     if (center_dist > 0.5) {
-      new_vel += normalize(to_center) * 0.4;
+      new_vel += normalize(to_center) * 0.08;
     }
   }
+
+  // Roost attractor: orbiting point that guides flock into sweeping arcs
+  let time = f32(params.frame_count) * 0.002;
+  let roost = vec3f(
+    sin(time) * params.sphere_radius * 0.4,
+    cos(time * 0.7) * params.sphere_radius * 0.15,
+    cos(time) * params.sphere_radius * 0.4
+  );
+  let to_roost = roost - boid.pos;
+  let roost_dist = length(to_roost);
+  if (roost_dist > 1.0) {
+    new_vel += normalize(to_roost) * 0.3;
+  }
+
+  // Random perturbation: breaks symmetry, triggers wave cascades
+  let noise_seed = f32(i * 1973u + params.frame_count * 9277u);
+  let noise = vec3f(
+    fract(sin(noise_seed) * 43758.5) - 0.5,
+    fract(sin(noise_seed * 1.3) * 22578.1) - 0.5,
+    fract(sin(noise_seed * 0.7) * 31415.9) - 0.5
+  ) * 0.15;
+  new_vel += noise;
 
   // Spherical boundary steering
   let dist_from_center = length(boid.pos);
