@@ -219,7 +219,7 @@ async function refresh() {
     const isScore = e => typeof e.max_boids === 'number' && e.max_boids < 100;
     const filtered = currentTab === 'quality'
       ? data.experiments.filter(isScore)
-      : data.experiments.filter(isBrowserPerf);
+      : data.experiments.filter(e => !isScore(e));
     const bestVal = filtered.length ? Math.max(...filtered.filter(e=>e.result==='kept').map(e=>e.max_boids), 0) : 0;
 
     // Summary cards
