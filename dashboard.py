@@ -104,7 +104,7 @@ HTML = """<!DOCTYPE html>
     <canvas id="boidChart"></canvas>
   </div>
   <div class="chart-container">
-    <div class="chart-title">Frame Time vs Boid Count (all probes)</div>
+    <div class="chart-title">All Experiments (green=kept, red=reverted)</div>
     <canvas id="timeChart"></canvas>
   </div>
 </div>
@@ -251,16 +251,17 @@ async function refresh() {
       { line: true, color: '#6f8', yFmt: v => v < 100 ? v.toFixed(2) : (v/1000).toFixed(0) + 'k', xFmt: v => '#' + Math.round(v), yMin: 0 }
     );
 
-    // Time chart (all probes as scatter)
+    // All experiments scatter (kept=green, reverted=red)
     drawChart(document.getElementById('timeChart'),
-      data.probes.map(p => ({
-        x: p.boids / 1000,
-        y: p.p99_ms,
-        color: p.passed ? '#6f84' : '#f664',
+      filtered.map((e, i) => ({
+        x: i,
+        y: e.max_boids,
+        color: e.result === 'kept' ? '#6f8' : '#f664',
       })),
-      { line: false, color: '#8af', pointSize: 3,
-        xFmt: v => v.toFixed(0) + 'k', yFmt: v => v.toFixed(0) + 'ms',
-        threshold: 16.6, thresholdLabel: '60 FPS', yMin: 0 }
+      { line: false, color: '#8af', pointSize: 4,
+        xFmt: v => '#' + Math.round(v),
+        yFmt: currentTab === 'quality' ? (v => v.toFixed(2)) : (v => v < 10000 ? v.toFixed(0) : (v/1000).toFixed(0) + 'k'),
+        yMin: 0 }
     );
 
     // Git log
