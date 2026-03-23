@@ -241,7 +241,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     let local_center = coh / f32(min(n_found, K_NEIGHBORS));
     let to_center = local_center - boid.pos;
     let center_dist = length(to_center);
-    if (center_dist > 0.5) {
+    if (center_dist > 1.0) {
       new_vel += normalize(to_center) * 0.08;
     }
   }
