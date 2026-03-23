@@ -1,4 +1,7 @@
-// === 3D Flocking Compute Shader with Spatial Hashing ===
+// === 3D Murmuration Compute Shader — Topological Neighbor Model ===
+// Based on empirical starling research: birds track their nearest 7 neighbors,
+// not all within a fixed radius. This produces realistic wave propagation,
+// sharp flock edges, and coordinated turns.
 
 struct SimParams {
   num_boids: u32,
@@ -117,6 +120,12 @@ fn scatter(@builtin(global_invocation_id) id: vec3u) {
   sorted_indices[cell_offsets[cell] + local_offset] = i;
 }
 
+// === Topological Neighbor Flocking ===
+// Find the K nearest neighbors (K=7 for alignment/cohesion, closest 1 for avoidance)
+// Uses the spatial hash to find candidates, then keeps only the K closest.
+
+const K_NEIGHBORS: u32 = 7u;
+
 @compute @workgroup_size(64)
 fn flock(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
@@ -124,17 +133,27 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 
   let boid = boids_src[i];
   let my_grid = get_cell(boid.pos);
-
-  var sep = vec3f(0.0);
-  var ali = vec3f(0.0);
-  var coh = vec3f(0.0);
-  var n_align = 0u;
-  var n_sep   = 0u;
-
   let gs = i32(params.grid_size);
   let mg = vec3i(my_grid);
-  let lo = max(mg - vec3i(1), vec3i(0));
-  let hi = min(mg + vec3i(1), vec3i(gs - 1));
+
+  // Track K nearest neighbors by distance (insertion sort into small array)
+  // Store squared distances and indices
+  var nearest_d2: array<f32, 7>;   // distances squared
+  var nearest_idx: array<u32, 7>;  // boid indices
+  var n_found = 0u;
+
+  // Initialize with large distances
+  for (var k = 0u; k < K_NEIGHBORS; k++) {
+    nearest_d2[k] = 1e10;
+    nearest_idx[k] = 0u;
+  }
+
+  // Search expanding rings of cells (own cell first, then neighbors)
+  // This naturally finds nearest neighbors efficiently
+  let lo = max(mg - vec3i(2), vec3i(0));  // search 5x5x5 for better K-nearest
+  let hi = min(mg + vec3i(2), vec3i(gs - 1));
+
+  var total_candidates = 0u;
 
   for (var nz = lo.z; nz <= hi.z; nz++) {
     let zoff = u32(nz) * params.grid_size * params.grid_size;
@@ -145,52 +164,98 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
         let start = cell_offsets[nc];
         let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
         if (start >= end_val) { continue; }
+
         for (var j = start; j < end_val; j++) {
           let other_idx = sorted_indices[j];
           if (other_idx == i) { continue; }
+
           let other_pos = boids_src[other_idx].pos;
           let diff = boid.pos - other_pos;
           let d2 = dot(diff, diff);
-          if (d2 < params.visual_range_sq && d2 > 0.0001) {
-            ali += boids_src[other_idx].vel;
-            coh += other_pos;
-            n_align++;
-            if (d2 < params.separation_dist_sq) {
-              sep += diff * (1.0 - d2 / params.separation_dist_sq);
-              n_sep++;
+
+          total_candidates++;
+
+          // Insert into sorted K-nearest if closer than current worst
+          if (d2 < nearest_d2[K_NEIGHBORS - 1u]) {
+            // Find insertion position
+            var pos = K_NEIGHBORS - 1u;
+            for (var k = 0u; k < K_NEIGHBORS - 1u; k++) {
+              if (d2 < nearest_d2[k]) {
+                pos = k;
+                break;
+              }
             }
+            // Shift larger entries down
+            for (var k = K_NEIGHBORS - 1u; k > pos; k--) {
+              nearest_d2[k] = nearest_d2[k - 1u];
+              nearest_idx[k] = nearest_idx[k - 1u];
+            }
+            nearest_d2[pos] = d2;
+            nearest_idx[pos] = other_idx;
+            n_found = min(n_found + 1u, K_NEIGHBORS);
           }
         }
-        if (n_align >= 10u) { break; }
       }
-      if (n_align >= 10u) { break; }
     }
-    if (n_align >= 10u) { break; }
   }
 
+  // === Apply flocking rules using topological neighbors ===
   var new_vel = boid.vel;
+
+  // Avoidance: only the 1 nearest neighbor
+  var sep_force = vec3f(0.0);
+  if (n_found > 0u && nearest_d2[0] < params.separation_dist_sq) {
+    let other_pos = boids_src[nearest_idx[0]].pos;
+    let diff = boid.pos - other_pos;
+    let d2 = nearest_d2[0];
+    sep_force = diff * (1.0 - d2 / params.separation_dist_sq);
+    new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
+  }
+
+  // Alignment + Cohesion: all K neighbors
+  var ali = vec3f(0.0);
+  var coh = vec3f(0.0);
   var avg_vel = vec3f(0.0);
-  if (n_align > 0u) {
-    let nf = f32(n_align);
+  if (n_found > 0u) {
+    for (var k = 0u; k < min(n_found, K_NEIGHBORS); k++) {
+      let other = boids_src[nearest_idx[k]];
+      ali += other.vel;
+      coh += other.pos;
+    }
+    let nf = f32(min(n_found, K_NEIGHBORS));
     avg_vel = ali / nf;
     let avg_pos = coh / nf;
     new_vel += (avg_vel - boid.vel) * params.align_factor;
     new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
   }
-  if (n_sep > 0u) {
-    new_vel += sep * params.separation_factor;
+
+  // === Murmuration-specific forces ===
+
+  // Gravity: slight downward pull (creates the flat pancake shape)
+  new_vel.y -= 0.3;
+
+  // Center-seeking: birds prefer flock interior (peripheral predation pressure)
+  // Use average neighbor position as a proxy for flock center
+  if (n_found >= 3u) {
+    let local_center = coh / f32(min(n_found, K_NEIGHBORS));
+    let to_center = local_center - boid.pos;
+    let center_dist = length(to_center);
+    if (center_dist > 0.5) {
+      new_vel += normalize(to_center) * 0.15;
+    }
   }
 
   // Spherical boundary steering
   let dist_from_center = length(boid.pos);
   let r = params.sphere_radius;
-  let soft_zone = r * 0.15; // steering ramps up in outer 15%
+  let soft_zone = r * 0.15;
   if (dist_from_center > r - soft_zone && dist_from_center > 0.001) {
     let penetration = (dist_from_center - (r - soft_zone)) / soft_zone;
     let push = -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
     new_vel += push;
   }
 
+  // Turn rate limiter (smooth heading changes — creates wave-like motion)
   let old_speed = length(boid.vel);
   var old_dir = boid.vel;
   if (old_speed > 0.001) { old_dir = old_dir / old_speed; }
@@ -201,34 +266,32 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   else { desired_dir = old_dir; }
   let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
 
+  // Speed with drag
   let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
   var final_speed = mix(old_speed, desired_speed, 0.15);
   final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
   new_vel = final_dir * final_speed;
 
+  // Direction change metric
   let dir_change_val = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
   let effective_dt = params.dt;
 
+  // Write outputs
   boids_dst[i].pos = boid.pos + new_vel * effective_dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
-
-  // Heading: use final_dir directly (already normalized, saves 2 normalize+length+mix)
   boids_dst[i].heading = final_dir;
-
   boids_dst[i].speed = final_speed;
-  boids_dst[i].neighbor_count = f32(n_align);
+  boids_dst[i].neighbor_count = f32(n_found);
   boids_dst[i].dir_change = dir_change_val;
-  // Approximate alignment: dot of velocity directions (cheap, no extra normalize)
   let vel_d2 = dot(boid.vel, boid.vel);
   let avg_d2 = dot(avg_vel, avg_vel);
   boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), 0.0, vel_d2 < 0.001 || avg_d2 < 0.001);
-  boids_dst[i].sep_pressure = dot(sep, sep);
-  boids_dst[i].density = f32(n_align) * 0.0625;  // n/16, normalized to neighbor cap
+  boids_dst[i].sep_pressure = length(sep_force);
+  boids_dst[i].density = f32(n_found) / f32(K_NEIGHBORS);
 }
 
-// === Auto-range: compute min/max of selected color source metric ===
-// Uses separate bind group: @group(1) for stats buffer
+// === Auto-range stats ===
 @group(1) @binding(0) var<storage, read_write> stats: array<atomic<u32>, 2>;
 
 fn get_metric(boid: Boid, source: u32) -> f32 {
@@ -242,7 +305,7 @@ fn get_metric(boid: Boid, source: u32) -> f32 {
     case 6u: { return boid.flock_alignment * 0.5 + 0.5; }
     case 7u: { return boid.sep_pressure; }
     case 8u: { return boid.density; }
-    case 9u: { return 0.5; } // Boid ID is static, no range needed
+    case 9u: { return 0.5; }
     default: { return 0.5; }
   }
 }
@@ -250,7 +313,6 @@ fn get_metric(boid: Boid, source: u32) -> f32 {
 @compute @workgroup_size(64)
 fn clear_stats(@builtin(global_invocation_id) id: vec3u) {
   if (id.x == 0u) {
-    // Init min to large positive, max to 0 (as bitcast u32)
     atomicStore(&stats[0], bitcast<u32>(1e10));
     atomicStore(&stats[1], 0u);
   }
@@ -262,8 +324,6 @@ fn compute_stats(@builtin(global_invocation_id) id: vec3u) {
   if (i >= params.num_boids) { return; }
   let val = get_metric(boids_src[i], params.color_source);
   let val_bits = bitcast<u32>(val);
-  // Atomic min: smaller float = smaller u32 for positive floats
   atomicMin(&stats[0], val_bits);
   atomicMax(&stats[1], val_bits);
 }
-
