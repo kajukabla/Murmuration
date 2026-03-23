@@ -360,23 +360,9 @@ fn vs_billboard(
     return out;
   }
 
-  // Screen direction from heading via VP matrix (avoid second mat mul)
-  var fwd = boid.heading;
-  let fl = dot(fwd, fwd);
-  if (fl < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); } else { fwd = fwd * inverseSqrt(fl); }
-  // Transform direction only (w=0 trick)
-  let clip_dir = camera.view_proj * vec4f(fwd, 0.0);
-  var screen_dir = clip_dir.xy;
-  let sdl = dot(screen_dir, screen_dir);
-  if (sdl < 0.00001) { screen_dir = vec2f(1.0, 0.0); } else { screen_dir = screen_dir * inverseSqrt(sdl); }
-  let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
-
-  // Scale down distant boids to reduce fragment overdraw
+  // Simple circular billboard — no heading transform, no stretch
   let depth_scale = 1.0 / max(clip.w * 0.01, 1.0);
   let sz = 0.004 * boid.size_factor * camera.particle_scale * depth_scale;
-  let stretch = 1.0 + min(boid.speed * 0.15, 3.0);
-  let hl = sz * stretch;
-  let hs = sz * 0.4;
 
   // 6 verts for quad
   var uv: vec2f;
@@ -390,7 +376,7 @@ fn vs_billboard(
     default { uv = vec2f(0.0); }
   }
 
-  let off = screen_dir * uv.x * hl + screen_perp * uv.y * hs;
+  let off = uv * sz;
   out.pos = clip;
   out.pos.x += off.x * clip.w;
   out.pos.y += off.y * clip.w;
