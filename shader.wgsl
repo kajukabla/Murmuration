@@ -338,10 +338,9 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             ali += other.vel;
             coh += other.pos;
             n_align++;
-            if (d2 < params.separation_dist_sq) {
-              sep += diff * (1.0 - d2 / params.separation_dist_sq);
-              n_sep++;
-            }
+            let sep_w = select(0.0, 1.0 - d2 / params.separation_dist_sq, d2 < params.separation_dist_sq);
+            sep += diff * sep_w;
+            n_sep += select(0u, 1u, d2 < params.separation_dist_sq);
           }
         }
         if (n_align >= 16u) { break; }
@@ -373,14 +372,17 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel += -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
   }
 
-  // Turn rate limiter + speed
-  let old_speed = length(boid.vel);
-  var old_dir = boid.vel;
-  if (old_speed > 0.001) { old_dir = old_dir / old_speed; } else { old_dir = vec3f(1.0, 0.0, 0.0); }
-  let desired_speed = length(new_vel);
-  var desired_dir = new_vel;
-  if (desired_speed > 0.001) { desired_dir = desired_dir / desired_speed; } else { desired_dir = old_dir; }
-  let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
+  // Turn rate limiter + speed (branchless, inverseSqrt)
+  let old_speed_sq = dot(boid.vel, boid.vel);
+  let old_inv = inverseSqrt(max(old_speed_sq, 1e-6));
+  let old_speed = old_speed_sq * old_inv;
+  let old_dir = boid.vel * old_inv;
+  let desired_speed_sq = dot(new_vel, new_vel);
+  let desired_inv = inverseSqrt(max(desired_speed_sq, 1e-6));
+  let desired_speed = desired_speed_sq * desired_inv;
+  let desired_dir = new_vel * desired_inv;
+  let mixed = mix(old_dir, desired_dir, params.smoothing);
+  let final_dir = mixed * inverseSqrt(max(dot(mixed, mixed), 1e-6));
   let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
   var final_speed = mix(old_speed, desired_speed, 0.15);
   final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
