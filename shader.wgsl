@@ -211,7 +211,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     let diff = boid.pos - other_pos;
     let d2 = nearest_d2[0];
     sep_force = diff * (1.0 - d2 / params.separation_dist_sq);
-    new_vel += sep_force * params.separation_factor * 3.0; // stronger since only 1 neighbor
+    new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
   // Alignment + Cohesion: all K neighbors
