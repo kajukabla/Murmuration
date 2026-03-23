@@ -242,7 +242,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     let to_center = local_center - boid.pos;
     let center_dist = length(to_center);
     if (center_dist > 0.5) {
-      new_vel += normalize(to_center) * 0.08;
+      new_vel += normalize(to_center) * 0.07;
     }
   }
 
