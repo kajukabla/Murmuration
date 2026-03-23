@@ -237,7 +237,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= 0.08;
 
   // Center-seeking: gentle drift toward local flock center
-  if (n_found >= 2u) {
+  if (n_found >= 3u) {
     let local_center = coh / f32(min(n_found, K_NEIGHBORS));
     let to_center = local_center - boid.pos;
     let center_dist = length(to_center);
