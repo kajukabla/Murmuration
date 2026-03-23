@@ -146,6 +146,8 @@
         <option value="0">Tetrahedron</option>
         <option value="1">Billboard (Additive)</option>
         <option value="2">Billboard (Opaque)</option>
+        <option value="3">Reflective Tetrahedron</option>
+        <option value="4">Reflective Billboard</option>
       </select>
     </div>
     <div class="param-row">
@@ -661,7 +663,7 @@ function frame() {
     gain: currentParams.gain ?? 0.5,
     autoRange: ar, autoMin: simulation.autoMin, autoMax: simulation.autoMax,
     falloff, brightness, particleScale, sphereRadius: currentParams.sphereRadius ?? 100,
-    renderMode, bloomEnabled, bloomThreshold, bloomIntensity,
+    renderMode, cameraPos: eye, bloomEnabled, bloomThreshold, bloomIntensity,
     numBoids: NUM_BOIDS, sim: simulation,
   });
   device.queue.submit([encoder.finish()]);

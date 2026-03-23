@@ -2,7 +2,7 @@
 
 const SAMPLE_COUNT = 4;
 const HDR_FORMAT = 'rgba16float';
-const UNIFORM_SIZE = 112;
+const UNIFORM_SIZE = 128; // + camera_pos(12) + pad(4)
 
 export async function createRenderer(device, context, simulation) {
   context.configure({
@@ -118,7 +118,7 @@ export async function createRenderer(device, context, simulation) {
         gradientId = 0, colorSource = 0, gain = 0.5,
         autoRange = false, autoMin = 0, autoMax = 1,
         falloff = 1.0, brightness = 1.0, sphereRadius = 100,
-        particleScale = 1.0, renderMode = 0,
+        particleScale = 1.0, renderMode = 0, cameraPos = [0,0,0],
         numBoids = simulation.numBoids, sim = simulation,
       } = opts;
 
@@ -132,13 +132,15 @@ export async function createRenderer(device, context, simulation) {
       new Float32Array(uniformData, 96, 1).set([sphereRadius]);
       new Float32Array(uniformData, 100, 1).set([particleScale]);
       new Uint32Array(uniformData, 104, 1).set([renderMode]);
+      new Float32Array(uniformData, 112, 3).set(cameraPos);
       device.queue.writeBuffer(uniformBuf, 0, new Uint8Array(uniformData));
 
       const curBuf = sim.currentBuffer();
       const bg = curBuf === sim.boidA ? bgA : bgB;
       const canvasTex = context.getCurrentTexture().createView();
 
-      if (renderMode === 0) {
+      if (renderMode === 0 || renderMode === 3) {
+        // Tetrahedron or Reflective Tetrahedron (MSAA + depth)
         const pass = encoder.beginRenderPass({
           colorAttachments: [{
             view: msaaTex.createView(),
@@ -168,8 +170,8 @@ export async function createRenderer(device, context, simulation) {
         pass.setBindGroup(0, bg);
         pass.draw(6, numBoids);
         pass.end();
-      } else if (renderMode === 2 && opaqueBlbPipeline) {
-        // Billboard opaque (MSAA + depth)
+      } else if ((renderMode === 2 || renderMode === 4) && opaqueBlbPipeline) {
+        // Billboard opaque or Reflective Billboard (MSAA + depth)
         const pass = encoder.beginRenderPass({
           colorAttachments: [{
             view: msaaTex.createView(),

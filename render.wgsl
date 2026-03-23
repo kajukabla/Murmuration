@@ -14,6 +14,8 @@ struct CameraUniforms {
   particle_scale: f32,
   render_mode: u32,
   _pad0: u32,
+  camera_pos: vec3f,
+  _pad1: u32,
 }
 
 struct Boid {
@@ -40,6 +42,8 @@ struct VertexOutput {
   @builtin(position) pos: vec4f,
   @location(0) color: vec3f,
   @location(1) lighting: f32,
+  @location(2) world_normal: vec3f,
+  @location(3) world_pos: vec3f,
 }
 
 // ---------------------------------------------------------------------------
@@ -296,14 +300,34 @@ fn vs_main(
   out.pos = camera.view_proj * vec4f(world_pos, 1.0);
   out.color = hdr;
   out.lighting = lighting;
+  out.world_normal = rotated_normal;
+  out.world_pos = world_pos;
   return out;
 }
 
 // ---------------------------------------------------------------------------
 // Fragment Shader
 // ---------------------------------------------------------------------------
+// Sample the invisible gradient skybox as an environment map
+fn env_reflect(normal: vec3f, view_dir: vec3f) -> vec3f {
+  let refl = reflect(view_dir, normal);
+  // Map reflection Y to [0,1] for gradient lookup (latitude-based env map)
+  let t = clamp(refl.y * 0.5 + 0.5, 0.0, 1.0);
+  let env = colormap(t, camera.gradient_id);
+  // Add some Fresnel-like rim brightness
+  let fresnel = pow(1.0 - max(dot(normal, -view_dir), 0.0), 3.0);
+  return env * (0.6 + fresnel * 0.8);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  if (camera.render_mode == 3u || camera.render_mode == 4u) {
+    // Reflective modes (3=reflective tetra, 4=reflective billboard)
+    let view_dir = normalize(in.world_pos - camera.camera_pos);
+    let n = normalize(in.world_normal);
+    let refl_color = env_reflect(n, view_dir);
+    return vec4f(refl_color * camera.brightness, 1.0);
+  }
   return vec4f(in.color * in.lighting * camera.brightness, 1.0);
 }
 
@@ -393,6 +417,19 @@ fn vs_billboard(
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
   let dist = length(in.uv * vec2f(1.0, camera.falloff));
   let alpha = smoothstep(1.0, 0.3, dist);
+
+  if (camera.render_mode == 4u) {
+    // Reflective billboard: fake sphere normal from UV
+    let nz = sqrt(max(0.0, 1.0 - dot(in.uv, in.uv)));
+    if (nz < 0.01) { discard; }
+    // Construct view-space normal, approximate world normal
+    let sphere_normal = normalize(vec3f(in.uv.x, in.uv.y, nz));
+    let view_dir = vec3f(0.0, 0.0, -1.0); // approximate
+    let refl_color = env_reflect(sphere_normal, view_dir);
+    let sphere_alpha = smoothstep(0.0, 0.1, nz);
+    return vec4f(refl_color * camera.brightness * sphere_alpha, sphere_alpha);
+  }
+
   return vec4f(in.color * alpha * camera.brightness, alpha);
 }
 // CACHE BUST 1774222319
