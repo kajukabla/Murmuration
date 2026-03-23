@@ -274,7 +274,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let soft_zone = r * 0.15;
   if (dist_from_center > r - soft_zone && dist_from_center > 0.001) {
     let penetration = (dist_from_center - (r - soft_zone)) / soft_zone;
-    let push = -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 4.0);
+    let push = -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
     new_vel += push;
   }
 
