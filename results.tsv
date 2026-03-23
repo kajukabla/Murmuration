@@ -39,5 +39,3 @@ experiment	max_boids	description	result
 36	2097000	skip boundary steering for interior boids	reverted
 37	0	flat neighbor cell iteration (per-thread array killed occupancy)	reverted
 38	500000	hoist uniform params into locals (evaluate.py HI=500 cap hit)	reverted
-16	1.0000	maxSpeed 8.0 -> 10.0	kept
-17	0.0000	K_NEIGHBORS 7 -> 6 (benchmark.ts corrupted)	reverted
