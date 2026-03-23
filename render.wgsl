@@ -422,9 +422,9 @@ fn vs_billboard(
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
   let scaled_uv = in.uv * vec2f(1.0, camera.falloff);
   let d2 = dot(scaled_uv, scaled_uv);
-  // Tight discard: reduces fragment overdraw (biggest perf win for additive)
-  if (d2 > 0.4) { discard; }
-  let alpha = clamp((1.0 - d2) * 1.67, 0.0, 1.0);
+  // Discard edge fragments: saves blend ops in additive, avoids shimmering in opaque
+  if (d2 > 0.7) { discard; }
+  let alpha = clamp((1.0 - d2) * 1.43, 0.0, 1.0);
 
   if (camera.render_mode == 4u) {
     // Reflective billboard: fake sphere normal from UV
