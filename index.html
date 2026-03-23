@@ -215,6 +215,7 @@ import { createRenderer }   from './renderer.js';
 // Benchmark mode: ?boids=N runs a measured benchmark
 const urlParams = new URLSearchParams(location.search);
 const benchmarkBoids = urlParams.get('boids') ? parseInt(urlParams.get('boids')) : null;
+const urlMode = urlParams.get('mode'); // 'radius' to default to radius mode
 
 let NUM_BOIDS = benchmarkBoids || 40000;
 const WORLD_SIZE = 100;
@@ -476,7 +477,8 @@ particleScaleSlider.addEventListener('input', () => {
 
 // Neighbor mode
 const neighborModeSelect = document.getElementById('neighbor-mode-select');
-let neighborMode = 0;
+let neighborMode = urlMode === 'radius' ? 1 : 0;
+if (urlMode === 'radius') { neighborModeSelect.value = '1'; }
 neighborModeSelect.addEventListener('change', () => {
   neighborMode = parseInt(neighborModeSelect.value);
 });
