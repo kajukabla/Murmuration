@@ -247,7 +247,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Roost attractor: orbiting point that guides flock into sweeping arcs
-  let time = f32(params.frame_count) * 0.002;
+  let time = f32(params.frame_count) * 0.0025;
   let roost = vec3f(
     sin(time) * params.sphere_radius * 0.4,
     cos(time * 0.7) * params.sphere_radius * 0.05,
