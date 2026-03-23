@@ -39,3 +39,18 @@ experiment	max_boids	description	result
 36	2097000	skip boundary steering for interior boids	reverted
 37	0	flat neighbor cell iteration (per-thread array killed occupancy)	reverted
 38	500000	hoist uniform params into locals (evaluate.py HI=500 cap hit)	reverted
+39	421000	branchless ramp5 colormap (switch on segment index)	reverted
+40	437000	remove HDR bloom boost from tetrahedron vertex shader	reverted
+1	0.7902	gravity 0.03 -> 0.06	kept
+2	0.5229	gravity 0.06 -> 0.09	reverted
+3	0.4894	roost orbit radius 0.4 -> 0.55	reverted
+4	0.7528	roost orbit speed 0.002 -> 0.004	reverted
+5	0.9999	roost Y amplitude 0.15 -> 0.05	kept
+7	0.9999	gravity 0.06 -> 0.07	reverted
+8	0.9999	noise 0.15 -> 0.20	reverted
+9	0.8932	center-seeking 0.08 -> 0.05	reverted
+10	0.7127	separation multiplier 2.0 -> 2.5	reverted
+11	0.3274	roost attractor 0.3 -> 0.5	reverted
+12	0.2787	smoothing 0.10 -> 0.08	reverted
+13	0.8852	alignFactor 0.12 -> 0.15	reverted
+14	0.7247	sphereRadius 120 -> 140	reverted
