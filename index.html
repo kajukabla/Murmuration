@@ -696,6 +696,20 @@ function frame() {
 }
 requestAnimationFrame(frame);
 
+// Poll for benchmark requests from evaluate.py (every 3 seconds)
+if (!benchmarkBoids) {
+  setInterval(async () => {
+    try {
+      const resp = await fetch('/api/bench_request', { cache: 'no-store' });
+      const req = await resp.json();
+      if (req.boids && req.boids > 0) {
+        // Reload with benchmark params
+        location.href = `/?boids=${req.boids}&mode=radius&benchmark=1`;
+      }
+    } catch {}
+  }, 3000);
+}
+
 function showError(msg) {
   document.getElementById('hud').remove();
   const d = document.createElement('div'); d.id = 'error'; d.textContent = msg;
