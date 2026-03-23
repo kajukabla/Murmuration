@@ -422,10 +422,8 @@ fn vs_billboard(
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
   let scaled_uv = in.uv * vec2f(1.0, camera.falloff);
   let d2 = dot(scaled_uv, scaled_uv);
-  // Opaque modes: hard cutoff to avoid depth/alpha shimmering
-  if (camera.render_mode == 2u || camera.render_mode == 4u) {
-    if (d2 > 0.81) { discard; }
-  }
+  // Discard edge fragments: saves blend ops in additive, avoids shimmering in opaque
+  if (d2 > 0.7) { discard; }
   let alpha = clamp((1.0 - d2) * 1.43, 0.0, 1.0);
 
   if (camera.render_mode == 4u) {
