@@ -362,7 +362,7 @@ fn vs_billboard(
 
   // Circular billboard — skip heading transform + stretch for fewer ALU + smaller fragments
   let depth_scale = 1.0 / max(clip.w * 0.01, 1.0);
-  let sz = 0.004 * boid.size_factor * camera.particle_scale * depth_scale;
+  let sz = 0.003 * boid.size_factor * camera.particle_scale * depth_scale;
 
   // 6 verts for quad
   var uv: vec2f;
