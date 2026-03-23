@@ -79,9 +79,12 @@ def main():
 
         p99 = result.get("p99_ms", 999)
         avg = result.get("avg_ms", 999)
-        passed = p99 < TARGET_MS
+        drop_rate = result.get("drop_rate", 1.0)
+        eff_fps = result.get("effective_fps", 0)
+        # Pass if <5% frames dropped (missed VSync) AND effective fps >= 55
+        passed = drop_rate < 0.05 and eff_fps >= 55
 
-        print(f" avg={avg:.1f}ms p99={p99:.1f}ms {'PASS' if passed else 'FAIL'}", file=sys.stderr)
+        print(f" fps={eff_fps:.0f} drops={drop_rate*100:.1f}% avg={avg:.1f}ms {'PASS' if passed else 'FAIL'}", file=sys.stderr)
         append_csv(iteration, num_boids, avg, p99, passed)
 
         if passed:

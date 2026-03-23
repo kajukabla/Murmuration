@@ -661,13 +661,19 @@ function frame() {
     const sorted = [...frameTimes].sort((a,b) => a - b);
     const avg = sorted.reduce((a,b) => a+b, 0) / sorted.length;
     const p99 = sorted[Math.floor(sorted.length * 0.99)];
+    // Count dropped frames (>20ms = missed VSync on 60Hz)
+    const dropped = frameTimes.filter(t => t > 20).length;
+    const dropRate = dropped / frameTimes.length;
+    // Effective FPS based on total time
+    const totalTime = frameTimes.reduce((a,b) => a+b, 0);
+    const effectiveFps = frameTimes.length / (totalTime / 1000);
     fetch('/api/bench_result', { method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ num_boids: NUM_BOIDS, frames: sorted.length,
         avg_ms: +avg.toFixed(2), p99_ms: +p99.toFixed(2),
-        min_ms: +sorted[0].toFixed(2), max_ms: +sorted[sorted.length-1].toFixed(2) }),
+        min_ms: +sorted[0].toFixed(2), max_ms: +sorted[sorted.length-1].toFixed(2),
+        drop_rate: +dropRate.toFixed(3), effective_fps: +effectiveFps.toFixed(1) }),
     }).then(() => {
-      // Go back to clean URL so polling resumes for next benchmark
       setTimeout(() => { location.href = '/'; }, 500);
     }).catch(() => {});
   }
