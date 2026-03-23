@@ -1,59 +1,54 @@
 #!/usr/bin/env python3
 """
-Evaluate full-pipeline performance using Playwright browser benchmark.
-Binary-searches for max boid count that maintains 60 FPS with REAL rendering.
-Measures compute + vertex shaders + fragment overdraw + MSAA + present.
+Evaluate full-pipeline performance by navigating existing Chrome tab.
+NO Playwright, NO new windows. Uses osascript + bench_result.json.
 
-Outputs: max_boids: NNNNN
+Binary-searches for max boid count at 60 FPS with real rendering.
+Requires: serve.py on port 8080, Chrome tab open to localhost:8080.
 """
 
 import subprocess
 import json
 import sys
 import os
+import time
 from datetime import datetime
 
 BENCH_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_browser.js")
 CSV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_metrics.csv")
-TARGET_FPS = 55  # slightly below 60 to account for variance
+TARGET_MS = 16.6  # 60 FPS
 
 LO = 10   # 10k
-HI = 500  # 500k
-WARMUP = 10  # seconds
-MEASURE = 8  # seconds
+HI = 300  # 300k
 
 
 def run_benchmark(num_boids: int) -> dict | None:
     try:
         result = subprocess.run(
-            ["node", BENCH_SCRIPT,
-             "--boids", str(num_boids),
-             "--warmup-sec", str(WARMUP),
-             "--measure-sec", str(MEASURE)],
-            capture_output=True, text=True, timeout=120,
+            ["node", BENCH_SCRIPT, "--boids", str(num_boids), "--timeout", "45"],
+            capture_output=True, text=True, timeout=60,
         )
         if result.returncode != 0:
-            print(f"  bench failed: {result.stderr[:200]}", file=sys.stderr)
+            print(f"  failed: {result.stderr[:200]}", file=sys.stderr)
             return None
-        # stdout is the JSON result line
         for line in result.stdout.strip().split('\n'):
             try:
                 return json.loads(line)
             except json.JSONDecodeError:
                 continue
         return None
-    except (subprocess.TimeoutExpired, Exception) as e:
-        print(f"  bench error: {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"  error: {e}", file=sys.stderr)
         return None
 
 
-def append_csv(iteration: int, num_boids: int, avg_fps: float, avg_ms: float, passed: bool):
+def append_csv(iteration: int, num_boids: int, avg_ms: float, p99_ms: float, passed: bool):
     write_header = not os.path.exists(CSV_FILE) or os.path.getsize(CSV_FILE) == 0
     with open(CSV_FILE, "a") as f:
         if write_header:
             f.write("Timestamp,Iteration,Particle_Count,Avg_Frame_Time,P99_Frame_Time,Result\n")
         f.write(f"{datetime.now().isoformat()},{iteration},{num_boids},"
-                f"{avg_ms:.1f},{avg_ms:.1f},{'Pass' if passed else 'Fail'}\n")
+                f"{avg_ms:.1f},{p99_ms:.1f},{'Pass' if passed else 'Fail'}\n")
 
 
 def main():
@@ -62,7 +57,7 @@ def main():
         with open(CSV_FILE) as f:
             iteration = max(0, sum(1 for _ in f) - 1)
 
-    print(f"Browser benchmark: binary search for max boids @ {TARGET_FPS}+ fps", file=sys.stderr)
+    print(f"Browser perf: binary search for max boids @ p99 < {TARGET_MS}ms", file=sys.stderr)
 
     lo, hi = LO, HI
     best = 0
@@ -76,19 +71,18 @@ def main():
         print(f"  probe {probe}: {num_boids} boids ...", end="", file=sys.stderr, flush=True)
         result = run_benchmark(num_boids)
 
-        if result is None:
+        if result is None or 'error' in result:
             print(f" FAILED", file=sys.stderr)
-            append_csv(iteration, num_boids, 0, 999, False)
+            append_csv(iteration, num_boids, 0, 0, False)
             hi = mid - 1
             continue
 
-        avg_fps = result.get("avg_fps", 0)
-        min_fps = result.get("min_fps", 0)
-        avg_ms = result.get("avg_ms", 999)
-        passed = min_fps >= TARGET_FPS
+        p99 = result.get("p99_ms", 999)
+        avg = result.get("avg_ms", 999)
+        passed = p99 < TARGET_MS
 
-        print(f" avg={avg_fps:.0f}fps min={min_fps}fps {avg_ms:.0f}ms {'PASS' if passed else 'FAIL'}", file=sys.stderr)
-        append_csv(iteration, num_boids, avg_fps, avg_ms, passed)
+        print(f" avg={avg:.1f}ms p99={p99:.1f}ms {'PASS' if passed else 'FAIL'}", file=sys.stderr)
+        append_csv(iteration, num_boids, avg, p99, passed)
 
         if passed:
             best = max(best, num_boids)
@@ -96,6 +90,7 @@ def main():
         else:
             hi = mid - 1
 
+    # Navigate back to normal view
     print(f"max_boids: {best}")
 
 

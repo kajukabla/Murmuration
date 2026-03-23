@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 /**
- * Browser-based benchmark using Playwright.
- * Launches Chrome with GPU, loads the simulation, waits for steady state,
- * then reads actual FPS from the HUD. Measures FULL pipeline (compute + render).
+ * Browser-based benchmark that reuses an existing Chrome tab.
+ * NO Playwright, NO new windows, NO focus stealing.
+ *
+ * Uses osascript to navigate the existing localhost:8080 tab,
+ * waits for benchmark mode to complete, reads results from bench_result.json.
+ *
+ * Requires: serve.py running on port 8080 with POST /api/bench_result
+ * Requires: An existing Chrome tab open to localhost:8080
  *
  * Usage: node bench_browser.js [--boids N] [--warmup-sec N] [--measure-sec N]
- *
- * Requires: npx playwright install chromium (first time)
- * Requires: serve.py running on port 8080
  */
 
-const { chromium } = require('playwright');
+const { execSync, execFileSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
-// Parse args
 const args = {};
 for (let i = 2; i < process.argv.length; i += 2) {
   if (process.argv[i].startsWith('--')) {
@@ -20,119 +23,64 @@ for (let i = 2; i < process.argv.length; i += 2) {
   }
 }
 const NUM_BOIDS = args.boids || 40000;
-const WARMUP_SEC = args['warmup-sec'] || 15; // seconds to let boids cluster
-const MEASURE_SEC = args['measure-sec'] || 10; // seconds to measure
+const TIMEOUT = args.timeout || 60; // seconds
 
-async function run() {
-  const browser = await chromium.launch({
-    headless: false, // need real GPU for WebGPU
-    args: [
-      '--enable-unsafe-webgpu',
-      '--enable-features=Vulkan,WebGPU',
-      '--use-angle=metal',
-      '--ignore-gpu-blocklist',
-      '--disable-frame-rate-limit', // bypass VSync for accurate timing
-      '--disable-gpu-vsync',
-    ],
-  });
+const RESULT_FILE = path.join(__dirname, 'bench_result.json');
 
-  const page = await browser.newPage();
-  // Set viewport to consistent size
-  await page.setViewportSize({ width: 1280, height: 800 });
+// Clear any stale result
+try { fs.unlinkSync(RESULT_FILE); } catch {}
 
-  // Navigate — add neighborMode=1 to default to radius mode
-  const url = `http://localhost:8080?boids=${NUM_BOIDS}&mode=radius`;
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+// Navigate existing Chrome tab to benchmark URL (no focus steal)
+const url = `http://localhost:8080?boids=${NUM_BOIDS}&mode=radius&benchmark=1`;
+const script = `
+tell application "Google Chrome"
+  if (count of windows) > 0 then
+    set found to false
+    repeat with w in windows
+      repeat with t in tabs of w
+        if URL of t starts with "http://localhost:8080" then
+          set URL of t to "${url}"
+          set found to true
+          exit repeat
+        end if
+      end repeat
+      if found then exit repeat
+    end repeat
+    if not found then
+      set URL of active tab of front window to "${url}"
+    end if
+  end if
+end tell
+`;
 
-  // Wait for WebGPU to init and first frame
-  await page.waitForFunction(() => {
-    const hud = document.getElementById('hud');
-    return hud && hud.textContent.includes('fps');
-  }, { timeout: 30000 });
-
-  // Switch to radius mode + billboard additive via JS
-  await page.evaluate(() => {
-    // Find and set neighbor mode dropdown
-    const nm = document.getElementById('neighbor-mode-select');
-    if (nm) { nm.value = '1'; nm.dispatchEvent(new Event('change')); }
-    // Find and set render mode dropdown
-    const rm = document.getElementById('render-mode-select');
-    if (rm) { rm.value = '1'; rm.dispatchEvent(new Event('change')); }
-  });
-
-  console.error(`Warming up ${NUM_BOIDS} boids for ${WARMUP_SEC}s...`);
-  await page.waitForTimeout(WARMUP_SEC * 1000);
-
-  // Measure: clear frame times, wait, then read raw timing data
-  // First clear the accumulated frame times
-  await page.evaluate(() => {
-    // Expose a way to get raw frame times without VSync cap
-    // Use requestAnimationFrame timing delta which IS capped by VSync
-    // Instead, measure GPU submit time via performance.now() around the encoder
-    window.__benchSamples = [];
-    window.__benchActive = true;
-  });
-
-  // Inject measurement hook into the frame loop
-  await page.evaluate((sec) => {
-    const origRAF = window.requestAnimationFrame;
-    let lastT = performance.now();
-    const samples = window.__benchSamples;
-    const maxSamples = sec * 120; // oversample
-    function hookedFrame(cb) {
-      origRAF(function(ts) {
-        const now = performance.now();
-        if (window.__benchActive && samples.length < maxSamples) {
-          samples.push(now - lastT);
-        }
-        lastT = now;
-        cb(ts);
-      });
-    }
-    window.requestAnimationFrame = hookedFrame;
-  }, MEASURE_SEC);
-
-  console.error(`Measuring for ${MEASURE_SEC}s...`);
-  await page.waitForTimeout(MEASURE_SEC * 1000);
-
-  // Read results
-  const samples = await page.evaluate(() => {
-    window.__benchActive = false;
-    return window.__benchSamples || [];
-  });
-
-  await browser.close();
-
-  if (samples.length < 10) {
-    console.log(JSON.stringify({ error: 'too few samples: ' + samples.length }));
-    process.exit(1);
-  }
-
-  // Drop first 10% (warmup noise) and outliers > 200ms
-  const cleaned = samples.slice(Math.floor(samples.length * 0.1)).filter(t => t < 200);
-  cleaned.sort((a, b) => a - b);
-
-  const avgMs = cleaned.reduce((a, b) => a + b, 0) / cleaned.length;
-  const p50Ms = cleaned[Math.floor(cleaned.length * 0.5)];
-  const p95Ms = cleaned[Math.floor(cleaned.length * 0.95)];
-  const p99Ms = cleaned[Math.floor(cleaned.length * 0.99)];
-  const maxMs = cleaned[cleaned.length - 1];
-
-  const result = {
-    num_boids: NUM_BOIDS,
-    samples: cleaned.length,
-    avg_fps: +(1000 / avgMs).toFixed(1),
-    avg_ms: +avgMs.toFixed(1),
-    p50_ms: +p50Ms.toFixed(1),
-    p95_ms: +p95Ms.toFixed(1),
-    p99_ms: +p99Ms.toFixed(1),
-    max_ms: +maxMs.toFixed(1),
-  };
-
-  console.log(JSON.stringify(result));
+try {
+  execFileSync('osascript', ['-e', script], { timeout: 5000 });
+} catch (e) {
+  console.error('Failed to navigate Chrome:', e.message);
+  process.exit(1);
 }
 
-run().catch(e => {
-  console.error(e);
+// Poll for bench_result.json (the page POSTs results when benchmark completes)
+console.error(`Waiting for ${NUM_BOIDS} boids benchmark (timeout ${TIMEOUT}s)...`);
+const deadline = Date.now() + TIMEOUT * 1000;
+
+function poll() {
+  while (Date.now() < deadline) {
+    try {
+      const data = fs.readFileSync(RESULT_FILE, 'utf8');
+      const result = JSON.parse(data);
+      if (result.num_boids === NUM_BOIDS) {
+        fs.unlinkSync(RESULT_FILE); // consume it
+        console.log(JSON.stringify(result));
+        process.exit(0);
+      }
+    } catch {}
+    // Sleep 500ms
+    execSync('sleep 0.5');
+  }
+  console.error('Timeout waiting for benchmark result');
+  console.log(JSON.stringify({ error: 'timeout', num_boids: NUM_BOIDS }));
   process.exit(1);
-});
+}
+
+poll();

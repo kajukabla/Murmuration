@@ -634,7 +634,7 @@ function frame() {
   const dt = now - lastTime;
   lastTime = now;
   benchFrame++;
-  if (benchFrame > 30) frameTimes.push(dt);
+  if (benchFrame > 300) frameTimes.push(dt); // 300 frame warmup for boids to cluster
   if (frameTimes.length > 200) frameTimes.shift();
 
   const display = frameTimes.length ? frameTimes : [16.6];

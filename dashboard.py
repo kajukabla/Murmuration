@@ -353,7 +353,8 @@ def start_agent():
         stdout=log_file, stderr=subprocess.STDOUT,
         cwd=work_dir,
         env={**os.environ, 'PATH': os.environ.get('PATH', '') + ':/usr/local/bin'},
-        bufsize=0,  # unbuffered
+        bufsize=0,
+        preexec_fn=os.setsid,  # new process group so we can kill ALL children
     )
     return True
 
@@ -361,12 +362,23 @@ def start_agent():
 def stop_agent():
     global agent_proc
     if agent_proc is not None:
-        agent_proc.send_signal(signal.SIGTERM)
         try:
+            # Kill the ENTIRE process group (agent + evaluate.py + bench + chromium)
+            pgid = os.getpgid(agent_proc.pid)
+            os.killpg(pgid, signal.SIGTERM)
             agent_proc.wait(timeout=5)
+        except (ProcessLookupError, ChildProcessError):
+            pass
         except subprocess.TimeoutExpired:
-            agent_proc.kill()
+            try:
+                os.killpg(os.getpgid(agent_proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, ChildProcessError):
+                pass
         agent_proc = None
+    # Also kill any stray playwright chromiums
+    subprocess.run(['pkill', '-9', '-f', 'chromium-1208'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'bench_browser'], capture_output=True)
+    subprocess.run(['pkill', '-9', '-f', 'eval_wrapper'], capture_output=True)
     return False
 
 
