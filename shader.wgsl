@@ -317,7 +317,6 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var n_align = 0u;
-  var n_sep = 0u;
 
   for (var nz = lo.z; nz <= hi.z; nz++) {
     let zoff = u32(nz) * params.grid_size * params.grid_size;
@@ -338,30 +337,23 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             ali += boids_src[other_idx].vel;
             coh += other_pos;
             n_align++;
-            let sep_w = select(0.0, 1.0 - d2 / params.separation_dist_sq, d2 < params.separation_dist_sq);
-            sep += diff * sep_w;
-            n_sep += select(0u, 1u, d2 < params.separation_dist_sq);
+            sep += diff * select(0.0, 1.0 - d2 / params.separation_dist_sq, d2 < params.separation_dist_sq);
           }
         }
-        if (n_align >= 16u) { break; }
+        if (n_align >= 12u) { break; }
       }
-      if (n_align >= 16u) { break; }
+      if (n_align >= 12u) { break; }
     }
-    if (n_align >= 16u) { break; }
+    if (n_align >= 12u) { break; }
   }
 
   var new_vel = boid.vel;
-  var avg_vel = vec3f(0.0);
   if (n_align > 0u) {
     let nf = f32(n_align);
-    avg_vel = ali / nf;
-    let avg_pos = coh / nf;
-    new_vel += (avg_vel - boid.vel) * params.align_factor;
-    new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
+    new_vel += (ali / nf - boid.vel) * params.align_factor;
+    new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   }
-  if (n_sep > 0u) {
-    new_vel += sep * params.separation_factor;
-  }
+  new_vel += sep * params.separation_factor;
 
   // Spherical boundary
   let dist_from_center = length(boid.pos);
@@ -391,13 +383,6 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
-  boids_dst[i].heading = final_dir;
-  boids_dst[i].speed = final_speed;
-  boids_dst[i].neighbor_count = f32(n_align);
-  boids_dst[i].dir_change = 0.0;
-  boids_dst[i].flock_alignment = 0.0;
-  boids_dst[i].sep_pressure = 0.0;
-  boids_dst[i].density = f32(n_align) * 0.0625;
 }
 
 // === Auto-range stats ===
