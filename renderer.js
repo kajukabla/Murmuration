@@ -89,6 +89,22 @@ export async function createRenderer(device, context, simulation) {
     });
   }
 
+  // Opaque billboard pipeline (with depth, no blend)
+  let opaqueBlbPipeline = null;
+  if (renderCode.includes('fn vs_billboard')) {
+    opaqueBlbPipeline = device.createRenderPipeline({
+      layout: pipelineLayout,
+      vertex: { module: renderModule, entryPoint: 'vs_billboard' },
+      fragment: {
+        module: renderModule, entryPoint: 'fs_billboard',
+        targets: [{ format: HDR_FORMAT }],
+      },
+      primitive: { topology: 'triangle-list' },
+      depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+      multisample: { count: SAMPLE_COUNT },
+    });
+  }
+
   let { msaaTex, depthTex } = createMSAATargets(device, context.canvas);
   const uniformData = new ArrayBuffer(UNIFORM_SIZE);
 
@@ -102,7 +118,7 @@ export async function createRenderer(device, context, simulation) {
         gradientId = 0, colorSource = 0, gain = 0.5,
         autoRange = false, autoMin = 0, autoMax = 1,
         falloff = 1.0, brightness = 1.0, sphereRadius = 100,
-        renderMode = 0,
+        particleScale = 1.0, renderMode = 0,
         numBoids = simulation.numBoids, sim = simulation,
       } = opts;
 
@@ -114,6 +130,8 @@ export async function createRenderer(device, context, simulation) {
       new Float32Array(uniformData, 88, 1).set([falloff]);
       new Float32Array(uniformData, 92, 1).set([brightness]);
       new Float32Array(uniformData, 96, 1).set([sphereRadius]);
+      new Float32Array(uniformData, 100, 1).set([particleScale]);
+      new Uint32Array(uniformData, 104, 1).set([renderMode]);
       device.queue.writeBuffer(uniformBuf, 0, new Uint8Array(uniformData));
 
       const curBuf = sim.currentBuffer();
@@ -137,7 +155,8 @@ export async function createRenderer(device, context, simulation) {
         pass.setBindGroup(0, bg);
         pass.draw(12, numBoids);
         pass.end();
-      } else if (billboardPipeline) {
+      } else if (renderMode === 1 && billboardPipeline) {
+        // Billboard additive (no MSAA, no depth)
         const pass = encoder.beginRenderPass({
           colorAttachments: [{
             view: canvasTex,
@@ -146,6 +165,24 @@ export async function createRenderer(device, context, simulation) {
           }],
         });
         pass.setPipeline(billboardPipeline);
+        pass.setBindGroup(0, bg);
+        pass.draw(6, numBoids);
+        pass.end();
+      } else if (renderMode === 2 && opaqueBlbPipeline) {
+        // Billboard opaque (MSAA + depth)
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{
+            view: msaaTex.createView(),
+            resolveTarget: canvasTex,
+            clearValue: { r: 0.003, g: 0.003, b: 0.01, a: 1 },
+            loadOp: 'clear', storeOp: 'discard',
+          }],
+          depthStencilAttachment: {
+            view: depthTex.createView(),
+            depthClearValue: 1.0, depthLoadOp: 'clear', depthStoreOp: 'discard',
+          },
+        });
+        pass.setPipeline(opaqueBlbPipeline);
         pass.setBindGroup(0, bg);
         pass.draw(6, numBoids);
         pass.end();

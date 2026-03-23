@@ -11,9 +11,9 @@ struct CameraUniforms {
   falloff: f32,
   brightness: f32,
   sphere_radius: f32,
+  particle_scale: f32,
+  render_mode: u32,
   _pad0: u32,
-  _pad1: u32,
-  _pad2: u32,
 }
 
 struct Boid {
@@ -198,7 +198,7 @@ fn vs_main(
   let boid = boid_buf.boids[iid];
 
   // Scale factor
-  let s = 5.0;
+  let s = 0.25 * boid.size_factor * camera.particle_scale;
 
   // Tetrahedron vertices in local space (nose points along +Z)
   let nose  = vec3f( 0.0,  0.0,  1.5) * s;
@@ -342,7 +342,7 @@ fn vs_billboard(
 
   let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
 
-  let base_size = 0.004 * boid.size_factor;
+  let base_size = 0.004 * boid.size_factor * camera.particle_scale;
   let stretch = 1.0 + clamp(boid.speed * 0.15, 0.0, 3.0);
   let half_long = base_size * stretch;
   let half_short = base_size * 0.4;
