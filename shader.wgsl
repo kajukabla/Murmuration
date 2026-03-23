@@ -124,7 +124,7 @@ fn scatter(@builtin(global_invocation_id) id: vec3u) {
 // Find the K nearest neighbors (K=7 for alignment/cohesion, closest 1 for avoidance)
 // Uses the spatial hash to find candidates, then keeps only the K closest.
 
-const K_NEIGHBORS: u32 = 7u;
+const K_NEIGHBORS: u32 = 6u;
 
 @compute @workgroup_size(64)
 fn flock(@builtin(global_invocation_id) id: vec3u) {
