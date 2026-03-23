@@ -235,7 +235,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 
   // Gravity: slight downward pull (creates the flat pancake shape)
   new_vel.y -= 0.08;
-  new_vel.z -= 0.02;
 
   // Center-seeking: gentle drift toward local flock center
   if (n_found >= 2u) {
