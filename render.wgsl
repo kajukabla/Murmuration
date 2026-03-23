@@ -372,7 +372,7 @@ fn vs_billboard(
   let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
 
   // Scale down distant boids to reduce fragment overdraw
-  let depth_scale = 1.0 / max(clip.w * 0.02, 1.0);
+  let depth_scale = 1.0 / max(clip.w * 0.01, 1.0);
   let sz = 0.004 * boid.size_factor * camera.particle_scale * depth_scale;
   let stretch = 1.0 + min(boid.speed * 0.15, 3.0);
   let hl = sz * stretch;
