@@ -23,6 +23,7 @@ CSV_FILE = "run_metrics.csv"
 TSV_FILE = "results.tsv"
 QUALITY_TSV = "results_quality.tsv"
 PERF_TSV = "results_perf.tsv"
+COMPUTE_TSV = "results_compute.tsv"
 
 HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -83,7 +84,11 @@ HTML = """<!DOCTYPE html>
   <button class="tab-btn" onclick="switchTab('perf')" id="tab-perf"
     style="padding: 8px 20px; font-size: 13px; cursor: pointer; background: rgba(20,20,40,0.5);
     color: #667; border: 1px solid rgba(100,100,160,0.15); border-radius: 6px 6px 0 0; border-bottom: none;">
-    Performance (Max Boids)</button>
+    Performance (Browser)</button>
+  <button class="tab-btn" onclick="switchTab('compute')" id="tab-compute"
+    style="padding: 8px 20px; font-size: 13px; cursor: pointer; background: rgba(20,20,40,0.5);
+    color: #667; border: 1px solid rgba(100,100,160,0.15); border-radius: 6px 6px 0 0; border-bottom: none;">
+    Compute (Deno)</button>
 </div>
 
 <div class="grid">
@@ -218,8 +223,8 @@ async function refresh() {
     const data = await fetchData();
 
     // Filter experiments by tab
-    const filtered = currentTab === 'quality' ? (data.quality_experiments || []) : (data.perf_experiments || []);
-    const bestVal = currentTab === 'quality' ? (data.quality_best || 0) : (data.perf_best || 0);
+    const filtered = currentTab === 'quality' ? (data.quality_experiments || []) : currentTab === 'perf' ? (data.perf_experiments || []) : (data.compute_experiments || []);
+    const bestVal = currentTab === 'quality' ? (data.quality_best || 0) : currentTab === 'perf' ? (data.perf_best || 0) : (data.compute_best || 0);
 
     // Summary cards
     document.getElementById('best').textContent = currentTab === 'quality' ? bestVal.toFixed(4) : bestVal.toLocaleString();
@@ -310,10 +315,14 @@ function switchTab(tab) {
     document.getElementById('bestLabel').textContent = 'Best Score';
     document.getElementById('baselineLabel').textContent = 'Baseline';
     document.getElementById('baseline').textContent = '0.695';
-  } else {
+  } else if (tab === 'perf') {
     document.getElementById('bestLabel').textContent = 'Max Boids';
     document.getElementById('baselineLabel').textContent = 'Baseline';
     document.getElementById('baseline').textContent = '118,000';
+  } else {
+    document.getElementById('bestLabel').textContent = 'Max Boids (Deno)';
+    document.getElementById('baselineLabel').textContent = 'Baseline';
+    document.getElementById('baseline').textContent = '170,000';
   }
   refresh();
 }
@@ -439,6 +448,7 @@ def read_tsv(filepath):
 
 def get_data():
     quality_exps = read_tsv(QUALITY_TSV)
+    compute_exps = read_tsv(COMPUTE_TSV)
     perf_exps = read_tsv(PERF_TSV)
     probes = []
 
@@ -458,6 +468,7 @@ def get_data():
 
     quality_best = max((e['max_boids'] for e in quality_exps if e['result'] == 'kept'), default=0)
     perf_best = max((e['max_boids'] for e in perf_exps if e['result'] == 'kept'), default=0)
+    compute_best = max((e['max_boids'] for e in compute_exps if e['result'] == 'kept'), default=0)
 
     # Git log
     git_log = []
@@ -513,6 +524,8 @@ def get_data():
         'perf_best': perf_best,
         'quality_experiments': quality_exps,
         'perf_experiments': perf_exps,
+        'compute_experiments': compute_exps,
+        'compute_best': compute_best,
         'probes': probes,
         'git_log': git_log,
         'agent_log': agent_log_tail,

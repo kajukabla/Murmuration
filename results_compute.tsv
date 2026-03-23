@@ -1,0 +1,40 @@
+experiment	max_boids	description	result
+0	170000	baseline	kept
+1	269000	parallel prefix sum (Hillis-Steele, 256 threads)	kept
+2	273000	fast acos approximation in turn-rate limiter	kept
+3	265000	workgroup size 64 -> 256 for all compute passes	reverted
+4	250000	use inverseSqrt instead of sqrt in separation force	reverted
+5	234000	workgroup size 64 -> 128 for all compute passes	reverted
+5	235000	gridSize 32 -> 24	reverted
+6	388000	gridSize 32 -> 48 (sparser cells)	kept
+7	1550000	gridSize 96 -> 64	kept
+8	1000000	gridSize 64 -> 48	reverted
+9	1500000	neighbor cap 16 -> 8	reverted
+10	1800000	simplify turn-rate limiter (skip acos, direct lerp)	kept
+11	1800000	skip heading smooth tracking	reverted
+12	1000000	gridSize 64 -> 80	reverted
+13	1500000	gridSize 64 -> 56	reverted
+14	1900000	use cell_offsets diff instead of atomicLoad in flock	kept
+15	2000000	vectorize boundary steering	kept
+16	1800000	inverseSqrt and select in turn-rate limiter	reverted
+17	1800000	remove self-check in flock inner loop	reverted
+18	2000000	prefix sum workgroup 256 -> 128	reverted
+19	2000000	precompute grid bounds and hoist yz offset	kept
+20	1800000	reuse final_speed and avoid sqrt in sep_pressure	reverted
+21	2000000	cheaper alignment metric (inverseSqrt vs 2x normalize)	kept
+22	1800000	eliminate redundant sqrt/normalize in outputs	reverted
+23	1800000	eliminate heading tracking, reuse final_speed, avoid sqrt in outputs	kept
+24	2000000	simplify density calc	kept
+25	2000000	reduced neighbor cap 16 -> 12	kept
+26	2000000	neighbor cap 10 (kept from 12->10, reverted 10->8)	kept
+27	2097000	gridSize 64 -> 72	kept
+28	2097000	gridSize 72 -> 80	kept
+29	2097000	gridSize 80 -> 96	reverted
+30	2097000	gridSize 80 -> 88	reverted
+31	2097000	split neighbor access (pos first, vel when in-range)	kept
+32	2097000	neighbor cap 10 -> 8	reverted
+33	2097000	eliminate turn-rate limiter	reverted
+34	2097000	process own cell first in neighbor search	reverted
+35	2097000	inline effective_dt	kept
+36	2097000	skip boundary steering for interior boids	reverted
+38	500000	hoist uniform params into locals (evaluate.py HI=500 cap hit)	reverted
