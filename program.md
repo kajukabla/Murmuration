@@ -1,14 +1,14 @@
 # WebGPU Flocking Optimization — Autoresearch Program
 
 ## Objective
-Maximize the number of 3D boids that can be simulated at 60 FPS (p99 frame time < 16.6ms).
-Current baseline: **170,000 boids**.
+Maximize the number of 3D boids that can be simulated AND rendered at 60 FPS (p99 < 16.6ms).
+The compute side is already well-optimized. **Focus on rendering performance.**
 
 ## The Loop
-1. Read this file and the current `shader.wgsl` + `simulation.js`
+1. Read this file and the current `shader.wgsl`, `render.wgsl`, and `simulation.js`
 2. Pick **ONE** optimization to try (see ideas below)
-3. Edit `shader.wgsl` and/or `simulation.js`
-4. `git add shader.wgsl simulation.js && git commit -m "experiment: <description>"`
+3. Edit the target files
+4. `git add shader.wgsl render.wgsl simulation.js && git commit -m "experiment: <description>"`
 5. Run: `python3 evaluate.py`
 6. Parse the last line of stdout for `max_boids: NNNNN`
 7. If max_boids **>** previous best → **KEEP** the commit, append to `results.tsv`
@@ -16,53 +16,39 @@ Current baseline: **170,000 boids**.
 9. **REPEAT.** Do NOT pause to ask the human. Loop until interrupted.
 
 ## What You Can Edit
-- `shader.wgsl` — compute kernels, workgroup sizes, algorithms, struct layout
-- `simulation.js` — buffer layout, dispatch counts, pipeline config, grid size, constants
+- `shader.wgsl` — compute kernels
+- `render.wgsl` — vertex/fragment shaders (THE MAIN BOTTLENECK)
+- `simulation.js` — buffer layout, dispatch config
+- `renderer.js` — render pipeline config, draw calls
 
 ## What You CANNOT Edit
-- `benchmark.ts` — locked evaluation harness
-- `evaluate.py` — locked metric extraction
-- `render.wgsl`, `renderer.js`, `index.html` — rendering/UI
-- `dashboard.py`, `serve.py` — infrastructure
+- `benchmark.ts`, `evaluate.py` — locked evaluation
+- `index.html` — UI
+- `dashboard.py`, `serve.py`, `bloom.wgsl` — infrastructure
 - `program.md` — only humans edit this
 
-## CRITICAL: git reset scope
-When reverting a failed experiment, ONLY reset the files you changed:
-```
-git checkout HEAD -- shader.wgsl simulation.js
-```
-Do NOT use `git reset --hard HEAD~1` as it reverts ALL files including locked ones.
-Instead: `git revert --no-edit HEAD` or selectively checkout the files you modified.
+## CRITICAL: git revert
+When reverting, use `git revert --no-edit HEAD`. Do NOT use `git reset --hard`.
 
 ## Results Tracking
-After each experiment, append ONE line to `results.tsv`:
-```
-<experiment_number>\t<max_boids>\t<description>\t<kept|reverted>
-```
+Append to `results.tsv`:
+`<experiment_number>\t<max_boids>\t<description>\t<kept|reverted>`
 
-## Important Notes
-- The Deno benchmark in `benchmark.ts` reads WORKGROUP_SIZE, PARAMS_SIZE, and gridSize from `simulation.js` via regex. If you rename these constants, the benchmark breaks.
-- The Boid struct (pos, vel, heading — each vec3f with padding = 48 bytes) must stay consistent between `shader.wgsl` and `simulation.js`. The benchmark mirrors this layout.
-- If you change buffer sizes or add/remove buffers, `benchmark.ts` will break. Only change what's inside the existing structure.
-- The spatial hashing approach (grid binning + 27-cell neighbor lookup) must be preserved.
-- The simulation MUST produce correct flocking behavior (separation, alignment, cohesion).
-
-## Optimization Ideas (roughly priority order)
-1. **Parallel prefix sum** — the serial `workgroup_size(1)` prefix_sum is the #1 bottleneck at high boid counts. Replace with Blelloch scan or Hillis-Steele scan.
-2. **Workgroup size tuning** — try 128, 256 for compute passes (clear_grid, assign_cells, scatter, flock).
-3. **Grid resolution tuning** — GRID_SIZE=32 may not be optimal. Try 16, 24, 48, 64. Smaller grid = faster prefix sum but denser cells.
-4. **Reduce per-boid math** — `acos()` in the turn-rate limiter is expensive. Use a fast approximation or skip it if the angle is small.
-5. **Combine passes** — merge clear_grid + assign_cells into one dispatch (clear your cell first, then assign).
-6. **Early cell skip** — in the flock pass, skip cells with count=0 immediately.
-7. **Local workgroup accumulation** — aggregate atomics within a workgroup before global atomicAdd.
-8. **Struct packing** — heading could be 2 floats (spherical coords) instead of 3, shrinking Boid to 40 bytes. (Must update benchmark.ts Boid size too — CAREFUL.)
-9. **Loop unrolling** — manually unroll the 27-cell neighbor loop or the inner boid loop.
-10. **Memory coalescing** — ensure flock pass reads from sorted_indices are sequential.
-11. **Use u16 for sorted_indices** — if boid count < 65536, halve the index buffer size.
-12. **Reduce visual_range** — smaller range = fewer neighbors = faster flock pass. But must still produce valid flocking.
+## Rendering Optimization Ideas (priority order)
+1. **Simplify colormap in vertex shader** — the 10-way switch with 5 stops each is expensive. Precompute a lookup or use a simpler formula.
+2. **Reduce vertex shader math** — the billboard vs_billboard does projection, NDC direction, perpendicular, stretch, colormap, gain, HDR boost. Simplify.
+3. **Move colormap to fragment shader** — compute color per-pixel instead of per-vertex (fewer invocations for large triangles).
+4. **Reduce vertex count** — billboards use 6 verts. Could use 3 (single triangle covering a quad area).
+5. **Skip invisible boids** — boids behind camera produce degenerate quads but still run the vertex shader. Add clip_center.w < 0 early exit.
+6. **Reduce overdraw** — make distant billboards smaller so they cover fewer pixels.
+7. **Simplify the tetrahedron vertex shader** — the rotation matrix construction + face normal computation is heavy. Could precompute or simplify.
+8. **Use flat shading** — avoid per-vertex normal computation, use provoking vertex.
+9. **Reduce precision** — use f16 where possible for colors/UVs.
 
 ## Constraints
-- Do NOT change `benchmark.ts` or `evaluate.py`
-- Do NOT change the CLI interface (--boids, --frames args, JSON stdout format)
-- Keep the 5-pass structure (clear, assign, prefix_sum, scatter, flock) unless you can prove a merged version is correct
-- All changes must be a single atomic experiment — one idea per commit
+- Boid struct: pos(vec3f), size_factor(f32), vel(vec3f), speed(f32), heading(vec3f), neighbor_count(f32), dir_change(f32), flock_alignment(f32), sep_pressure(f32), density(f32) — 64 bytes
+- SimParams: 24 fields, 96 bytes
+- CameraUniforms in render.wgsl: 128 bytes
+- Grid size auto-scales: `round(cbrt(numBoids) * 0.8)`, clamped 8-128
+- Must produce correct visual output (colored boids in 3D)
+- All changes must be a single atomic experiment

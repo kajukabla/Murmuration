@@ -6,8 +6,12 @@ const PARAMS_SIZE = 96; // 24 fields × 4 bytes = 96 (16-byte aligned)
 export async function createSimulation(device, {
   numBoids = 5000,
   worldSize = 100.0,
-  gridSize = 80,
+  gridSize = 0, // 0 = auto-scale to boid count
 } = {}) {
+  // Auto-scale grid: ~1-2 boids per cell on average
+  if (gridSize <= 0) {
+    gridSize = Math.max(8, Math.min(128, Math.round(Math.cbrt(numBoids) * 0.8)));
+  }
   const GRID_CELLS = gridSize ** 3;
   const cellSize = worldSize / gridSize;
 
