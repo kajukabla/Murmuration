@@ -19,9 +19,10 @@ const simCode = await Deno.readTextFile("simulation.js");
 const WORKGROUP_SIZE = parseInt(simCode.match(/const WORKGROUP_SIZE\s*=\s*(\d+)/)?.[1] ?? "64");
 const PARAMS_SIZE = parseInt(simCode.match(/const PARAMS_SIZE\s*=\s*(\d+)/)?.[1] ?? "96");
 
-const GRID_SIZE = Math.max(16, Math.min(96, Math.round(Math.cbrt(NUM_BOIDS * 0.5))));
+const GRID_SIZE = Math.max(16, Math.min(80, Math.round(Math.cbrt(NUM_BOIDS / 4))));
 const GRID_CELLS = GRID_SIZE ** 3;
-const WORLD_SIZE = 100.0;
+const SPHERE_R = parseFloat((await Deno.readTextFile('index.html')).match(/sphereRadius:\s*(\d+)/)?.[1] ?? '100');
+const WORLD_SIZE = SPHERE_R * 2.5;
 const CELL_SIZE = WORLD_SIZE / GRID_SIZE;
 
 const adapter = await navigator.gpu?.requestAdapter();
@@ -79,7 +80,7 @@ const paramsBuffer = device.createBuffer({
 const BOID_FLOATS = 16;
 const BOID_BYTES = NUM_BOIDS * BOID_FLOATS * 4;
 const initData = new Float32Array(NUM_BOIDS * BOID_FLOATS);
-const spawnR = WORLD_SIZE * 0.08;
+const spawnR = SPHERE_R * 0.3;
 for (let i = 0; i < NUM_BOIDS; i++) {
   const o = i * BOID_FLOATS;
   // Spawn in sphere

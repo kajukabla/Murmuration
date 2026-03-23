@@ -291,7 +291,7 @@ resize();
 
 let simulation, renderer;
 try {
-  simulation = await createSimulation(device, { numBoids: NUM_BOIDS, worldSize: WORLD_SIZE });
+  simulation = await createSimulation(device, { numBoids: NUM_BOIDS, sphereRadius: currentParams.sphereRadius ?? 100 });
   renderer = await createRenderer(device, ctx, simulation);
 } catch(e) {
   showError('Init failed: ' + e.message);
@@ -515,7 +515,7 @@ particleCountSlider.addEventListener('input', () => {
   clearTimeout(particleCountTimeout);
   particleCountTimeout = setTimeout(async () => {
     NUM_BOIDS = count;
-    simulation = await createSimulation(device, { numBoids: count, worldSize: WORLD_SIZE });
+    simulation = await createSimulation(device, { numBoids: count, sphereRadius: currentParams.sphereRadius ?? 100 });
     simulation.setParams(currentParams);
     simulation.applySizeRandomness(currentParams.sizeRandomness ?? 0);
     simulation.autoRange = autoRangeCb.checked;
@@ -637,7 +637,9 @@ function frame() {
 
   const display = frameTimes.length ? frameTimes : [16.6];
   const avgMs = display.reduce((a,b) => a+b, 0) / display.length;
-  hud.textContent = `${NUM_BOIDS.toLocaleString()} boids | ${(1000/avgMs).toFixed(0)} fps | ${avgMs.toFixed(1)} ms`;
+  const mode = neighborMode === 0 ? 'topo' : 'radius';
+  const rmode = ['tetra','blb-add','blb-opq','refl-t','refl-b'][renderMode] || '?';
+  hud.textContent = `${NUM_BOIDS.toLocaleString()} boids | ${(1000/avgMs).toFixed(0)} fps | ${avgMs.toFixed(1)} ms | ${mode} | ${rmode}`;
 
   if (benchmarkBoids && frameTimes.length >= 120 && !benchDone) {
     benchDone = true;
@@ -665,13 +667,18 @@ function frame() {
   const view = lookAt(eye, [0,0,0], [0,1,0]);
   const vp = mat4Mul(proj, view);
 
-  const encoder = device.createCommandEncoder();
+  // Split compute and render into separate submits for timing
+  const t_compute_start = performance.now();
+  const computeEncoder = device.createCommandEncoder();
   const simSteps = Math.max(1, Math.round(currentParams.simSpeed ?? 1));
   for (let s = 0; s < simSteps; s++) {
-    simulation.update(encoder, s === simSteps - 1, neighborMode);
+    simulation.update(computeEncoder, s === simSteps - 1, neighborMode);
   }
+  device.queue.submit([computeEncoder.finish()]);
+
+  const renderEncoder = device.createCommandEncoder();
   const ar = autoRangeCb.checked;
-  renderer.render(encoder, vp, {
+  renderer.render(renderEncoder, vp, {
     gradientId: currentParams.gradientId ?? 0,
     colorSource: currentParams.colorSource ?? 0,
     gain: currentParams.gain ?? 0.5,
@@ -680,7 +687,7 @@ function frame() {
     renderMode, cameraPos: eye, bloomEnabled, bloomThreshold, bloomIntensity,
     numBoids: NUM_BOIDS, sim: simulation,
   });
-  device.queue.submit([encoder.finish()]);
+  device.queue.submit([renderEncoder.finish()]);
   if (ar) simulation.readStats();
 
   requestAnimationFrame(frame);

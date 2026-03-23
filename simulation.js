@@ -5,13 +5,17 @@ const PARAMS_SIZE = 96; // 24 fields × 4 bytes = 96 (16-byte aligned)
 
 export async function createSimulation(device, {
   numBoids = 5000,
-  worldSize = 100.0,
-  gridSize = 0, // 0 = auto-scale to boid count
+  worldSize = 0, // 0 = auto (2.5x sphere radius)
+  gridSize = 0,
+  sphereRadius = 100,
 } = {}) {
-  // Auto-scale grid: ~1-2 boids per cell on average
+  // World size should tightly wrap the sphere where boids live
+  if (worldSize <= 0) {
+    worldSize = sphereRadius * 2.5;
+  }
+  // Grid: target ~4 boids per cell, assuming uniform distribution
   if (gridSize <= 0) {
-    // Scale grid to boid count — target ~2-4 boids per cell on average
-    gridSize = Math.max(16, Math.min(96, Math.round(Math.cbrt(numBoids * 0.5))));
+    gridSize = Math.max(16, Math.min(80, Math.round(Math.cbrt(numBoids / 4))));
   }
   const GRID_CELLS = gridSize ** 3;
   const cellSize = worldSize / gridSize;
@@ -72,7 +76,7 @@ export async function createSimulation(device, {
   const initData = new Float32Array(numBoids * BOID_FLOATS);
   for (let i = 0; i < numBoids; i++) {
     const o = i * BOID_FLOATS;
-    const r = worldSize * 0.08; // tight spawn so boids find neighbors immediately
+    const r = sphereRadius * 0.3; // spawn within inner 30% of sphere
     // pos
     // Spawn inside sphere using rejection sampling
     let px, py, pz;
