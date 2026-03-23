@@ -314,7 +314,7 @@ function switchTab(tab) {
   } else {
     document.getElementById('bestLabel').textContent = 'Max Boids';
     document.getElementById('baselineLabel').textContent = 'Baseline';
-    document.getElementById('baseline').textContent = '170,000';
+    document.getElementById('baseline').textContent = '118,000';
   }
   refresh();
 }
