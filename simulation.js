@@ -68,7 +68,7 @@ export async function createSimulation(device, {
   const initData = new Float32Array(numBoids * BOID_FLOATS);
   for (let i = 0; i < numBoids; i++) {
     const o = i * BOID_FLOATS;
-    const r = worldSize * 0.2;
+    const r = worldSize * 0.08; // tight spawn so boids find neighbors immediately
     // pos
     // Spawn inside sphere using rejection sampling
     let px, py, pz;

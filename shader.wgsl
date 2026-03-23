@@ -350,3 +350,76 @@ fn compute_stats(@builtin(global_invocation_id) id: vec3u) {
   atomicMin(&stats[0], val_bits);
   atomicMax(&stats[1], val_bits);
 }
+
+// === Murmuration Quality Metrics ===
+// Computes behavioral metrics for evaluating murmuration quality.
+// Uses @group(1) @binding(1) for a metrics buffer (separate from auto-range stats).
+// 16 atomic u32 slots, interpreted as f32 via bitcast accumulation.
+
+@group(1) @binding(1) var<storage, read_write> metrics: array<atomic<u32>, 16>;
+
+// Slots:
+// 0: count of boids with >= 5 neighbors (cohesion)
+// 1: sum of neighbor_count (for avg)
+// 2: sum of velocity_correlation (dot products)
+// 3: sum of pos.x
+// 4: sum of pos.y
+// 5: sum of pos.z
+// 6: sum of pos.x^2
+// 7: sum of pos.y^2
+// 8: sum of pos.z^2
+// 9: sum of neighbor_count^2 (for variance)
+// 10: count of boids processed
+
+@compute @workgroup_size(64)
+fn clear_metrics(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x == 0u) {
+    for (var k = 0u; k < 16u; k++) {
+      atomicStore(&metrics[k], 0u);
+    }
+  }
+}
+
+// Atomic float add via CAS loop
+fn atomic_add_f32(slot: u32, val: f32) {
+  var old = atomicLoad(&metrics[slot]);
+  loop {
+    let new_val = bitcast<f32>(old) + val;
+    let result = atomicCompareExchangeWeak(&metrics[slot], old, bitcast<u32>(new_val));
+    if (result.exchanged) { break; }
+    old = result.old_value;
+  }
+}
+
+@compute @workgroup_size(64)
+fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+
+  let boid = boids_src[i];
+
+  // Cohesion: count boids with >= 5 neighbors
+  if (boid.neighbor_count >= 5.0) {
+    atomicAdd(&metrics[0], 1u);
+  }
+
+  // Neighbor count sum
+  atomic_add_f32(1u, boid.neighbor_count);
+
+  // Velocity correlation (flock_alignment is already dot(my_vel, avg_neighbor_vel))
+  atomic_add_f32(2u, boid.flock_alignment);
+
+  // Position sums for covariance
+  atomic_add_f32(3u, boid.pos.x);
+  atomic_add_f32(4u, boid.pos.y);
+  atomic_add_f32(5u, boid.pos.z);
+  atomic_add_f32(6u, boid.pos.x * boid.pos.x);
+  atomic_add_f32(7u, boid.pos.y * boid.pos.y);
+  atomic_add_f32(8u, boid.pos.z * boid.pos.z);
+
+  // Neighbor count squared for variance
+  atomic_add_f32(9u, boid.neighbor_count * boid.neighbor_count);
+
+  // Total count
+  atomicAdd(&metrics[10], 1u);
+}

@@ -1,140 +1,74 @@
 #!/usr/bin/env python3
 """
-Locked evaluation script for the autoresearch optimization loop.
-Binary-searches for the maximum boid count that maintains 60 FPS.
-Uses the LIVE BROWSER (Chrome on macOS) for benchmarking with full rendering.
+Evaluate murmuration quality using headless WebGPU benchmark.
+Runs simulation for ~1 minute to reach steady state, then measures
+behavioral quality metrics derived from real starling murmuration data.
 
-The browser navigates to localhost:8080?boids=N, runs 120 measured frames,
-and POSTs results to localhost:8080/api/bench_result.
-
-Outputs: max_boids: NNNNN
-Appends each probe to run_metrics.csv.
+Outputs: score: X.XXXX (0 to 1, higher = more murmuration-like)
 """
 
 import subprocess
 import json
 import sys
 import os
-import time
+from datetime import datetime
 
-SERVER_URL = "http://localhost:8080"
-TARGET_MS = 16.6  # 60 FPS
-RESULT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_result.json")
+DENO = os.path.expanduser("~/.deno/bin/deno")
+BENCHMARK = "benchmark.ts"
 CSV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_metrics.csv")
-TIMEOUT = 30  # max seconds to wait for benchmark
-
-# Binary search bounds (in thousands)
-LO = 1     # 1,000 boids
-HI = 500   # 500,000 boids
+NUM_BOIDS = 20000
 
 
-def navigate_chrome(url: str):
-    """Navigate a Chrome tab to a URL WITHOUT stealing focus (macOS)."""
-    script = f'''
-    tell application "Google Chrome"
-        if (count of windows) > 0 then
-            set found to false
-            repeat with w in windows
-                repeat with t in tabs of w
-                    if URL of t starts with "http://localhost:8080" then
-                        set URL of t to "{url}"
-                        set found to true
-                        exit repeat
-                    end if
-                end repeat
-                if found then exit repeat
-            end repeat
-            if not found then
-                set URL of active tab of front window to "{url}"
-            end if
-        end if
-    end tell
-    '''
-    subprocess.run(["osascript", "-e", script], capture_output=True, timeout=5)
+def run_benchmark() -> dict | None:
+    try:
+        result = subprocess.run(
+            [DENO, "run", "--unstable-webgpu", "--allow-read",
+             BENCHMARK, "--boids", str(NUM_BOIDS), "--frames", "30"],
+            capture_output=True, text=True, timeout=300,
+        )
+        if result.returncode != 0:
+            print(f"  benchmark failed: {result.stderr[:200]}", file=sys.stderr)
+            return None
+        return json.loads(result.stdout.strip())
+    except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
+        print(f"  benchmark error: {e}", file=sys.stderr)
+        return None
 
 
-def wait_for_result(timeout: int = TIMEOUT) -> dict | None:
-    """Poll bench_result.json until it appears or timeout."""
-    # Clear any stale result
-    if os.path.exists(RESULT_FILE):
-        os.remove(RESULT_FILE)
-
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if os.path.exists(RESULT_FILE):
-            try:
-                with open(RESULT_FILE) as f:
-                    data = json.load(f)
-                os.remove(RESULT_FILE)  # consume it
-                return data
-            except (json.JSONDecodeError, IOError):
-                pass
-        time.sleep(0.5)
-    return None
-
-
-def append_csv(iteration: int, num_boids: int, avg_ms: float, p99_ms: float, passed: bool):
-    from datetime import datetime
+def append_csv(iteration: int, data: dict):
     write_header = not os.path.exists(CSV_FILE) or os.path.getsize(CSV_FILE) == 0
     with open(CSV_FILE, "a") as f:
         if write_header:
-            f.write("Timestamp,Iteration,Particle_Count,Avg_Frame_Time,P99_Frame_Time,Result\n")
-        result = "Pass" if passed else "Fail"
-        f.write(f"{datetime.now().isoformat()},{iteration},{num_boids},{avg_ms:.2f},{p99_ms:.2f},{result}\n")
-
-
-def run_benchmark(num_boids: int) -> dict | None:
-    """Navigate Chrome to benchmark URL and wait for results."""
-    url = f"{SERVER_URL}?boids={num_boids}"
-    navigate_chrome(url)
-    # Wait for warmup (30 frames) + measurement (120 frames) + buffer
-    # At 60fps that's ~2.5s, at 15fps ~10s. Give it generous time.
-    return wait_for_result(TIMEOUT)
+            f.write("Timestamp,Iteration,Score,Cohesion,VelocityCorr,AspectRatio,DensityCV,Dynamics,AvgNeighbors,AvgMs\n")
+        f.write(f"{datetime.now().isoformat()},{iteration},{data.get('score',0):.4f},"
+                f"{data.get('cohesion_ratio',0):.3f},{data.get('velocity_corr',0):.3f},"
+                f"{data.get('aspect_ratio',0):.2f},{data.get('density_cv',0):.3f},"
+                f"{data.get('dynamics',0):.4f},{data.get('avg_neighbors',0):.1f},"
+                f"{data.get('avg_ms',0):.1f}\n")
 
 
 def main():
-    # Read iteration number
     iteration = 0
     if os.path.exists(CSV_FILE):
         with open(CSV_FILE) as f:
             iteration = max(0, sum(1 for _ in f) - 1)
 
-    print(f"Evaluating: binary search for max boids @ p99 < {TARGET_MS}ms (browser)", file=sys.stderr)
+    print(f"Evaluating murmuration quality ({NUM_BOIDS} boids, ~90s)...", file=sys.stderr)
+    result = run_benchmark()
 
-    lo, hi = LO, HI
-    best = 0
-    probe_num = 0
+    if result is None:
+        print("score: 0.0000")
+        return
 
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        num_boids = mid * 1000
-        probe_num += 1
-
-        print(f"  probe {probe_num}: {num_boids} boids ...", end="", file=sys.stderr, flush=True)
-        result = run_benchmark(num_boids)
-
-        if result is None:
-            print(f" TIMEOUT", file=sys.stderr)
-            append_csv(iteration, num_boids, 0, 0, False)
-            hi = mid - 1
-            continue
-
-        p99 = result["p99_ms"]
-        avg = result["avg_ms"]
-        passed = p99 < TARGET_MS
-
-        print(f" avg={avg:.1f}ms p99={p99:.1f}ms {'PASS' if passed else 'FAIL'}", file=sys.stderr)
-        append_csv(iteration, num_boids, avg, p99, passed)
-
-        if passed:
-            best = max(best, num_boids)
-            lo = mid + 1
-        else:
-            hi = mid - 1
-
-    # Navigate back to normal viewing mode with best count
-    navigate_chrome(SERVER_URL)
-    print(f"max_boids: {best}")
+    score = result.get("score", 0)
+    print(f"  cohesion={result.get('cohesion_ratio',0):.3f} "
+          f"vel_corr={result.get('velocity_corr',0):.3f} "
+          f"aspect={result.get('aspect_ratio',0):.2f} "
+          f"density_cv={result.get('density_cv',0):.3f} "
+          f"dynamics={result.get('dynamics',0):.4f} "
+          f"avg_neighbors={result.get('avg_neighbors',0):.1f}", file=sys.stderr)
+    append_csv(iteration, result)
+    print(f"score: {score:.4f}")
 
 
 if __name__ == "__main__":

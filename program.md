@@ -1,54 +1,61 @@
-# WebGPU Flocking Optimization — Autoresearch Program
+# Murmuration Quality Optimization — Autoresearch Program
 
 ## Objective
-Maximize the number of 3D boids that can be simulated AND rendered at 60 FPS (p99 < 16.6ms).
-The compute side is already well-optimized. **Focus on rendering performance.**
+Maximize the murmuration quality score (0-1) which measures how closely the simulation matches real starling murmuration behavior based on empirical measurements from Cavagna, Ballerini, and Attanasi et al.
+
+## The Score
+The composite score combines 5 metrics from real murmurations:
+- **Cohesion ratio** (target >0.90): fraction of boids with 5+ of 7 neighbors
+- **Velocity correlation** (target 0.75-0.95): avg alignment with neighbors (1.0 = too static)
+- **Aspect ratio** (target 2-5): flock elongation (1=sphere, bad; 3-4=ideal)
+- **Density uniformity** (target CV<0.5): uniform spacing, not clumpy
+- **Shape dynamics** (target 0.05-0.2): flock is actively morphing, not frozen
+
+**Current baseline score: ~0.70**
 
 ## The Loop
-1. Read this file and the current `shader.wgsl`, `render.wgsl`, and `simulation.js`
-2. Pick **ONE** optimization to try (see ideas below)
-3. Edit the target files
-4. `git add shader.wgsl render.wgsl simulation.js && git commit -m "experiment: <description>"`
+1. Read the current `shader.wgsl` and `index.html` (Murmuration preset values)
+2. Pick ONE parameter change to try
+3. Edit the file(s)
+4. `git add shader.wgsl index.html && git commit -m "experiment: <description>"`
 5. Run: `python3 evaluate.py`
-6. Parse the last line of stdout for `max_boids: NNNNN`
-7. If max_boids **>** previous best → **KEEP** the commit, append to `results.tsv`
-8. If max_boids **≤** previous best → `git revert --no-edit HEAD`, append to `results.tsv`
-9. **REPEAT.** Do NOT pause to ask the human. Loop until interrupted.
+6. Parse the last line of stdout for `score: X.XXXX`
+7. If score > previous best → KEEP, append to results.tsv
+8. If score ≤ previous best → `git revert --no-edit HEAD`, append to results.tsv
+9. REPEAT. Do NOT pause. Loop until interrupted.
 
 ## What You Can Edit
-- `shader.wgsl` — compute kernels
-- `render.wgsl` — vertex/fragment shaders (THE MAIN BOTTLENECK)
-- `simulation.js` — buffer layout, dispatch config
-- `renderer.js` — render pipeline config, draw calls
+- `shader.wgsl` — hardcoded constants in the flock() function:
+  - `K_NEIGHBORS` (line ~127): try 5, 6, 7, 8
+  - Gravity: `new_vel.y -= 0.03` — try 0.0 to 0.1
+  - Center-seeking: `normalize(to_center) * 0.08` — try 0.0 to 0.3
+  - Roost attractor: `normalize(to_roost) * 0.3` — try 0.1 to 1.0
+  - Roost orbit speed: `f32(params.frame_count) * 0.002` — try 0.001 to 0.01
+  - Roost orbit radius: `params.sphere_radius * 0.4` — try 0.2 to 0.6
+  - Noise amplitude: the `* 0.15` — try 0.0 to 0.3
+  - Separation multiplier: `* 2.0` — try 1.0 to 4.0
+- `index.html` — Murmuration preset values (the agent reads these via benchmark.ts):
+  - visualRange, separationDist, alignFactor, cohesionFactor, separationFactor
+  - maxSpeed, minSpeed, turnFactor, smoothing, sphereRadius
 
 ## What You CANNOT Edit
 - `benchmark.ts`, `evaluate.py` — locked evaluation
-- `index.html` — UI
-- `dashboard.py`, `serve.py`, `bloom.wgsl` — infrastructure
+- `render.wgsl`, `renderer.js` — rendering
+- `simulation.js` — compute pipeline setup
 - `program.md` — only humans edit this
 
 ## CRITICAL: git revert
-When reverting, use `git revert --no-edit HEAD`. Do NOT use `git reset --hard`.
+Use `git revert --no-edit HEAD` to undo failed experiments. NOT `git reset --hard`.
 
 ## Results Tracking
-Append to `results.tsv`:
-`<experiment_number>\t<max_boids>\t<description>\t<kept|reverted>`
+Append to results.tsv: `<experiment_number>\t<score>\t<description>\t<kept|reverted>`
 
-## Rendering Optimization Ideas (priority order)
-1. **Simplify colormap in vertex shader** — the 10-way switch with 5 stops each is expensive. Precompute a lookup or use a simpler formula.
-2. **Reduce vertex shader math** — the billboard vs_billboard does projection, NDC direction, perpendicular, stretch, colormap, gain, HDR boost. Simplify.
-3. **Move colormap to fragment shader** — compute color per-pixel instead of per-vertex (fewer invocations for large triangles).
-4. **Reduce vertex count** — billboards use 6 verts. Could use 3 (single triangle covering a quad area).
-5. **Skip invisible boids** — boids behind camera produce degenerate quads but still run the vertex shader. Add clip_center.w < 0 early exit.
-6. **Reduce overdraw** — make distant billboards smaller so they cover fewer pixels.
-7. **Simplify the tetrahedron vertex shader** — the rotation matrix construction + face normal computation is heavy. Could precompute or simplify.
-8. **Use flat shading** — avoid per-vertex normal computation, use provoking vertex.
-9. **Reduce precision** — use f16 where possible for colors/UVs.
+## Optimization Strategy
+The score has 5 components. Focus on whichever is weakest:
+- Low cohesion → increase cohesionFactor, reduce sphereRadius, increase visualRange
+- Low velocity corr → increase alignFactor
+- Bad aspect ratio → adjust gravity, roost attractor shape
+- High density CV → adjust separationFactor, K_NEIGHBORS
+- Low dynamics → increase roost speed, noise, reduce smoothing
 
-## Constraints
-- Boid struct: pos(vec3f), size_factor(f32), vel(vec3f), speed(f32), heading(vec3f), neighbor_count(f32), dir_change(f32), flock_alignment(f32), sep_pressure(f32), density(f32) — 64 bytes
-- SimParams: 24 fields, 96 bytes
-- CameraUniforms in render.wgsl: 128 bytes
-- Grid size auto-scales: `round(cbrt(numBoids) * 0.8)`, clamped 8-128
-- Must produce correct visual output (colored boids in 3D)
-- All changes must be a single atomic experiment
+Try ONE change at a time. Small increments. The evaluation takes ~90 seconds.
