@@ -10,10 +10,8 @@ export async function createSimulation(device, {
 } = {}) {
   // Auto-scale grid: ~1-2 boids per cell on average
   if (gridSize <= 0) {
-    // Cell size = worldSize/gridSize. The 3x3x3 search covers 3*cellSize.
-    // For visual range V, need cellSize >= V/1.5 → gridSize <= worldSize*1.5/V.
-    // Use gridSize=16 (cellSize=6.25) as a good default — covers ~18.75 units.
-    gridSize = 16;
+    // Scale grid to boid count — target ~2-4 boids per cell on average
+    gridSize = Math.max(16, Math.min(96, Math.round(Math.cbrt(numBoids * 0.5))));
   }
   const GRID_CELLS = gridSize ** 3;
   const cellSize = worldSize / gridSize;
@@ -36,8 +34,11 @@ export async function createSimulation(device, {
   f[14] = 0.016;  // dt
 
   function writeParams(p) {
-    f[5]  = p.visualRange;
-    f[6]  = p.visualRange * p.visualRange;
+    // Clamp visual range to what the 3x3x3 grid search can cover
+    const maxRange = cellSize * 1.4; // ~1.4 cells in each direction
+    const vr = Math.min(p.visualRange, maxRange);
+    f[5]  = vr;
+    f[6]  = vr * vr;
     f[7]  = p.separationDist;
     f[8]  = p.separationDist * p.separationDist;
     f[9]  = p.alignFactor;
@@ -236,8 +237,11 @@ export async function createSimulation(device, {
     /** neighborMode: 0=topological (K-nearest), 1=radius (classic) */
     update(encoder, lastStep = true, neighborMode = 0) {
       frameCount++;
-      u[23] = frameCount;
-      device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+      // Only write params once per frame (on last step), not every sub-step
+      if (lastStep) {
+        u[23] = frameCount;
+        device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+      }
 
       const bg = step % 2 === 0 ? bgA : bgB;
       const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
