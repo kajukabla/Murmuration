@@ -371,7 +371,9 @@ fn vs_billboard(
   if (sdl < 0.00001) { screen_dir = vec2f(1.0, 0.0); } else { screen_dir = screen_dir * inverseSqrt(sdl); }
   let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
 
-  let sz = 0.004 * boid.size_factor * camera.particle_scale;
+  // Scale by 1/clip.w to shrink distant boids (reduce fragment overdraw)
+  let depth_scale = 1.0 / max(clip.w, 0.5);
+  let sz = 0.004 * boid.size_factor * camera.particle_scale * depth_scale;
   let stretch = 1.0 + min(boid.speed * 0.15, 3.0);
   let hl = sz * stretch;
   let hs = sz * 0.4;
