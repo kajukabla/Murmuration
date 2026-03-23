@@ -215,7 +215,20 @@ import { createRenderer }   from './renderer.js';
 // Benchmark mode: ?boids=N runs a measured benchmark
 const urlParams = new URLSearchParams(location.search);
 const benchmarkBoids = urlParams.get('boids') ? parseInt(urlParams.get('boids')) : null;
-const urlMode = urlParams.get('mode'); // 'radius' to default to radius mode
+const urlMode = urlParams.get('mode');
+
+// Poll for benchmark requests IMMEDIATELY (before any WebGPU init that might fail)
+if (!benchmarkBoids) {
+  setInterval(async () => {
+    try {
+      const r = await fetch('/api/bench_request', { cache: 'no-store' });
+      const req = await r.json();
+      if (req.boids && req.boids > 0) {
+        location.href = `/?boids=${req.boids}&mode=radius&benchmark=1`;
+      }
+    } catch {}
+  }, 2000);
+}
 
 let NUM_BOIDS = benchmarkBoids || 40000;
 const WORLD_SIZE = 100;
@@ -697,20 +710,6 @@ function frame() {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-
-// Poll for benchmark requests from evaluate.py (every 3 seconds)
-if (!benchmarkBoids) {
-  setInterval(async () => {
-    try {
-      const resp = await fetch('/api/bench_request', { cache: 'no-store' });
-      const req = await resp.json();
-      if (req.boids && req.boids > 0) {
-        // Reload with benchmark params
-        location.href = `/?boids=${req.boids}&mode=radius&benchmark=1`;
-      }
-    } catch {}
-  }, 3000);
-}
 
 function showError(msg) {
   document.getElementById('hud').remove();
