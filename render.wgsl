@@ -35,7 +35,6 @@ struct BoidBuffer {
 
 @group(0) @binding(0) var<uniform> camera: CameraUniforms;
 @group(0) @binding(1) var<storage, read> boid_buf: BoidBuffer;
-@group(0) @binding(2) var<storage, read> visible_indices: array<u32>;
 
 struct VertexOutput {
   @builtin(position) pos: vec4f,
@@ -195,8 +194,8 @@ fn vs_main(
   @builtin(vertex_index) vid: u32,
   @builtin(instance_index) iid: u32,
 ) -> VertexOutput {
-  let boid_idx = visible_indices[iid];
-  let boid = boid_buf.boids[boid_idx];
+  
+  let boid = boid_buf.boids[iid];
 
   // Scale factor
   let s = 5.0;
@@ -268,7 +267,7 @@ fn vs_main(
   let lighting = 0.3 + 0.7 * ndotl;
 
   // Color: map data source through auto-range + gain + colormap
-  var raw = get_color_raw(boid, boid_idx, camera.color_source);
+  var raw = get_color_raw(boid, iid, camera.color_source);
   var t: f32;
   if (camera.auto_range > 0u) {
     // Auto-range: normalize to [0,1], then apply gentle contrast curve
@@ -323,8 +322,8 @@ fn vs_billboard(
   @builtin(vertex_index) vid: u32,
   @builtin(instance_index) iid: u32,
 ) -> BillboardOut {
-  let boid_idx = visible_indices[iid];
-  let boid = boid_buf.boids[boid_idx];
+  
+  let boid = boid_buf.boids[iid];
 
   var fwd = boid.heading;
   let fwd_len = length(fwd);
@@ -368,7 +367,7 @@ fn vs_billboard(
   out.pos.y += offset_ndc.y * clip_center.w;
   out.uv = local_uv;
 
-  let raw = get_color_raw(boid, boid_idx, camera.color_source);
+  let raw = get_color_raw(boid, iid, camera.color_source);
   var t: f32;
   if (camera.auto_range > 0u) {
     let range = camera.auto_max - camera.auto_min;

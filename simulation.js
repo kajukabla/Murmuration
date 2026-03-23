@@ -214,9 +214,6 @@ export async function createSimulation(device, {
   return {
     numBoids,
     boidA,
-    // Expose internals for frustum culling
-    _simBG() { return step % 2 === 0 ? bgA : bgB; },
-    _statsBG: statsBG,
     boidB,
     setParams: writeParams,
     applySizeRandomness,
@@ -244,7 +241,7 @@ export async function createSimulation(device, {
       }
 
       // Only compute stats on the last step of the frame (avoids races with multi-step)
-      if (autoRangeEnabled && lastStep && !statsReading) {
+      if (false && autoRangeEnabled && lastStep && !statsReading) {
         const c = encoder.beginComputePass();
         c.setPipeline(clearStatsPipe);
         c.setBindGroup(0, bg);
