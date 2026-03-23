@@ -15,7 +15,7 @@ export async function createSimulation(device, {
   }
   // Grid: target ~4 boids per cell, assuming uniform distribution
   if (gridSize <= 0) {
-    gridSize = Math.max(16, Math.min(128, Math.round(Math.cbrt(numBoids / 2))));
+    gridSize = Math.max(16, Math.min(80, Math.round(Math.cbrt(numBoids / 4))));
   }
   const GRID_CELLS = gridSize ** 3;
   const cellSize = worldSize / gridSize;
