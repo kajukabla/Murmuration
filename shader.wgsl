@@ -265,7 +265,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     fract(sin(noise_seed) * 43758.5) - 0.5,
     fract(sin(noise_seed * 1.3) * 22578.1) - 0.5,
     fract(sin(noise_seed * 0.7) * 31415.9) - 0.5
-  ) * 0.14;
+  ) * 0.15;
   new_vel += noise;
 
   // Spherical boundary steering
