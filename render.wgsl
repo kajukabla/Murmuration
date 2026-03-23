@@ -234,14 +234,14 @@ fn vs_main(
     default  { local_pos = vec3f(0.0); face_id = 0u; }
   }
 
-  // Compute face normals in local space
+  // Precomputed face normals (constant for the fixed tetrahedron shape)
   var face_normal: vec3f;
   switch (face_id) {
-    case 0u { face_normal = normalize(cross(left - nose, right - nose)); }
-    case 1u { face_normal = normalize(cross(top - nose, left - nose)); }
-    case 2u { face_normal = normalize(cross(right - nose, top - nose)); }
-    case 3u { face_normal = normalize(cross(top - left, right - left)); }
-    default { face_normal = vec3f(0.0, 1.0, 0.0); }
+    case 0u { face_normal = vec3f( 0.0,     -1.0,      0.0);     }
+    case 1u { face_normal = vec3f(-0.73070,  0.65763,   0.18268); }
+    case 2u { face_normal = vec3f( 0.73070,  0.65763,   0.18268); }
+    case 3u { face_normal = vec3f( 0.0,      0.37139,  -0.92848); }
+    default { face_normal = vec3f( 0.0,      1.0,       0.0);     }
   }
 
   // Build orientation matrix from boid heading (guard against zero)
