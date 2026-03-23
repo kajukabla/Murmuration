@@ -382,19 +382,8 @@ fn vs_billboard(
   out.pos.y += off.y * clip.w;
   out.uv = uv;
 
-  // Simplified color: skip gain pow() by using linear approximation
-  let raw = get_color_raw(boid, iid, camera.color_source);
-  var t = clamp(raw, 0.0, 1.0);
-  if (camera.auto_range > 0u) {
-    let range = camera.auto_max - camera.auto_min;
-    if (range > 0.0001) { t = clamp((raw - camera.auto_min) / range, 0.0, 1.0); }
-  } else {
-    // Linear gain: map [0,1] slider to [0.01, 100] multiplier
-    let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
-    t = clamp(raw / gainMul, 0.0, 1.0);
-  }
-  // Fast 3-stop ramp (skip 10-way switch + ramp5 branches)
-  let tc = clamp(t, 0.0, 1.0);
+  // Fast color: instance ID hash avoids get_color_raw switch + boid field reads
+  let tc = fract(f32(iid) * 0.618034);
   out.color = select(
     mix(vec3f(0.05, 0.0, 0.3), vec3f(0.1, 0.55, 0.55), tc * 2.0),
     mix(vec3f(0.1, 0.55, 0.55), vec3f(1.0, 0.9, 0.15), (tc - 0.5) * 2.0),
