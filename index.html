@@ -653,8 +653,10 @@ function frame() {
       body: JSON.stringify({ num_boids: NUM_BOIDS, frames: sorted.length,
         avg_ms: +avg.toFixed(2), p99_ms: +p99.toFixed(2),
         min_ms: +sorted[0].toFixed(2), max_ms: +sorted[sorted.length-1].toFixed(2) }),
+    }).then(() => {
+      // Go back to clean URL so polling resumes for next benchmark
+      setTimeout(() => { location.href = '/'; }, 500);
     }).catch(() => {});
-    hud.textContent += ' | BENCHMARK COMPLETE';
   }
 
 
