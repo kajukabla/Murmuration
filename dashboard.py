@@ -216,7 +216,7 @@ async function refresh() {
     const data = await fetchData();
 
     // Filter experiments by tab
-    const isScore = e => typeof e.max_boids === 'number' && e.max_boids < 2 && e.max_boids > 0;
+    const isScore = e => typeof e.max_boids === 'number' && e.max_boids < 100;
     const filtered = currentTab === 'quality'
       ? data.experiments.filter(isScore)
       : data.experiments.filter(e => !isScore(e));
