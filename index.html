@@ -209,7 +209,7 @@ import { createRenderer }   from './renderer.js';
 const urlParams = new URLSearchParams(location.search);
 const benchmarkBoids = urlParams.get('boids') ? parseInt(urlParams.get('boids')) : null;
 
-let NUM_BOIDS = benchmarkBoids || 50000;
+let NUM_BOIDS = benchmarkBoids || 20000;
 const WORLD_SIZE = 100;
 
 // ============================================================
@@ -217,10 +217,10 @@ const WORLD_SIZE = 100;
 // ============================================================
 const BUILTIN_PRESETS = {
   'Murmuration': {
-    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.0, sphereRadius: 150,
-    visualRange: 8.0, separationDist: 2.0, alignFactor: 0.12,
-    cohesionFactor: 0.008, separationFactor: 0.6,
-    maxSpeed: 10.0, minSpeed: 3.0, turnFactor: 0.5, smoothing: 0.06,
+    simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.0, sphereRadius: 80,
+    visualRange: 12.0, separationDist: 1.5, alignFactor: 0.15,
+    cohesionFactor: 0.02, separationFactor: 0.8,
+    maxSpeed: 10.0, minSpeed: 3.0, turnFactor: 0.6, smoothing: 0.08,
   },
   'Boids Classic': {
     simSpeed: 1.0, sizeRandomness: 0.0, dragFactor: 0.3, sphereRadius: 100,

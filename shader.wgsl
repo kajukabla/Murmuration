@@ -148,10 +148,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     nearest_idx[k] = 0u;
   }
 
-  // Search expanding rings of cells (own cell first, then neighbors)
-  // This naturally finds nearest neighbors efficiently
-  let lo = max(mg - vec3i(2), vec3i(0));  // search 5x5x5 for better K-nearest
-  let hi = min(mg + vec3i(2), vec3i(gs - 1));
+  // Search 3x3x3 neighborhood (27 cells)
+  let lo = max(mg - vec3i(1), vec3i(0));
+  let hi = min(mg + vec3i(1), vec3i(gs - 1));
 
   var total_candidates = 0u;
 
@@ -172,6 +171,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
           let other_pos = boids_src[other_idx].pos;
           let diff = boid.pos - other_pos;
           let d2 = dot(diff, diff);
+
+          // Pre-filter by visual range before K-nearest sort
+          if (d2 > params.visual_range_sq) { continue; }
 
           total_candidates++;
 
@@ -232,16 +234,16 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // === Murmuration-specific forces ===
 
   // Gravity: slight downward pull (creates the flat pancake shape)
-  new_vel.y -= 0.3;
+  new_vel.y -= 0.05;
 
   // Center-seeking: birds prefer flock interior (peripheral predation pressure)
   // Use average neighbor position as a proxy for flock center
-  if (n_found >= 3u) {
+  if (n_found >= 2u) {
     let local_center = coh / f32(min(n_found, K_NEIGHBORS));
     let to_center = local_center - boid.pos;
     let center_dist = length(to_center);
     if (center_dist > 0.5) {
-      new_vel += normalize(to_center) * 0.15;
+      new_vel += normalize(to_center) * 0.4;
     }
   }
 

@@ -67,7 +67,7 @@ export async function createSimulation(device, {
   const initData = new Float32Array(numBoids * BOID_FLOATS);
   for (let i = 0; i < numBoids; i++) {
     const o = i * BOID_FLOATS;
-    const r = worldSize * 0.35;
+    const r = worldSize * 0.2;
     // pos
     // Spawn inside sphere using rejection sampling
     let px, py, pz;
