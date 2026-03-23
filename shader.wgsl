@@ -344,11 +344,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             }
           }
         }
-        if (n_align >= 16u) { break; }
+        if (n_align >= 10u) { break; }
       }
-      if (n_align >= 16u) { break; }
+      if (n_align >= 10u) { break; }
     }
-    if (n_align >= 16u) { break; }
+    if (n_align >= 10u) { break; }
   }
 
   var new_vel = boid.vel;
