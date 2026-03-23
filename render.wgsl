@@ -50,14 +50,15 @@ struct VertexOutput {
 // Piecewise-linear ramp with 5 color stops at t = 0, 0.25, 0.5, 0.75, 1.0
 // ---------------------------------------------------------------------------
 fn ramp5(t: f32, c0: vec3f, c1: vec3f, c2: vec3f, c3: vec3f, c4: vec3f) -> vec3f {
-  let tc = clamp(t, 0.0, 0.9999) * 4.0;
-  let seg = u32(tc);
-  let frac = tc - f32(seg);
-  switch (seg) {
-    case 0u { return mix(c0, c1, frac); }
-    case 1u { return mix(c1, c2, frac); }
-    case 2u { return mix(c2, c3, frac); }
-    default { return mix(c3, c4, frac); }
+  let tc = clamp(t, 0.0, 1.0);
+  if (tc < 0.25) {
+    return mix(c0, c1, tc / 0.25);
+  } else if (tc < 0.5) {
+    return mix(c1, c2, (tc - 0.25) / 0.25);
+  } else if (tc < 0.75) {
+    return mix(c2, c3, (tc - 0.5) / 0.25);
+  } else {
+    return mix(c3, c4, (tc - 0.75) / 0.25);
   }
 }
 
