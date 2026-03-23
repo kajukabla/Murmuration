@@ -38,7 +38,7 @@ tell application "Google Chrome"
     set found to false
     repeat with w in windows
       repeat with t in tabs of w
-        if URL of t starts with "http://localhost:8080" then
+        if URL of t contains "localhost:8080" then
           set URL of t to "${url}"
           set found to true
           exit repeat
@@ -47,6 +47,7 @@ tell application "Google Chrome"
       if found then exit repeat
     end repeat
     if not found then
+      -- Don't open new tab, just use active tab
       set URL of active tab of front window to "${url}"
     end if
   end if
