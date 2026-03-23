@@ -413,6 +413,10 @@ fn vs_billboard(
 @fragment
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
   let dist = length(in.uv * vec2f(1.0, camera.falloff));
+  // Opaque modes: hard cutoff to avoid depth/alpha shimmering
+  if (camera.render_mode == 2u || camera.render_mode == 4u) {
+    if (dist > 0.9) { discard; }
+  }
   let alpha = smoothstep(1.0, 0.3, dist);
 
   if (camera.render_mode == 4u) {
