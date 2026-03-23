@@ -61,6 +61,10 @@ HTML = """<!DOCTYPE html>
   .status-dot.reverted { background: #f66; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   #last-update { color: #445; font-size: 11px; position: fixed; bottom: 12px; right: 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #334;
+    border-top-color: #6f8; border-radius: 50%; animation: spin 0.8s linear infinite;
+    vertical-align: middle; margin-right: 6px; }
 </style>
 </head>
 <body>
@@ -73,7 +77,11 @@ HTML = """<!DOCTYPE html>
   <button id="stopBtn" onclick="stopAgent()" style="padding: 8px 20px; font-size: 14px; cursor: pointer;
     background: #c44; color: #fff; border: none; border-radius: 6px; font-weight: 600;" disabled>Stop Agent</button>
   <span id="agentStatus" style="color: #667; font-size: 13px; margin-left: 8px;">Agent idle</span>
+  <span id="agentLastAction" style="color: #556; font-size: 12px; margin-left: 12px; font-family: monospace;"></span>
 </div>
+<div id="agentLogInline" style="background: rgba(10,10,25,0.7); border: 1px solid rgba(100,100,160,0.15);
+  border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; max-height: 120px; overflow-y: auto;
+  font: 11px/1.5 monospace; color: #778; white-space: pre-wrap; display: none;"></div>
 
 <!-- Tab bar -->
 <div style="display: flex; gap: 2px; margin-bottom: 20px;">
@@ -275,8 +283,16 @@ async function refresh() {
     }
 
     // Agent log
-    const agentLog = document.getElementById('agentLog');
-    if (agentLog) agentLog.textContent = data.agent_log || '(buffered — output appears when agent completes)';
+    const agentLog = document.getElementById('agentLogInline');
+    if (agentLog && data.agent_log) {
+      agentLog.textContent = data.agent_log;
+      agentLog.scrollTop = agentLog.scrollHeight;
+      // Show last action next to status
+      const lines = data.agent_log.split('\n').filter(l => l.trim());
+      const last = lines[lines.length - 1] || '';
+      const actionEl = document.getElementById('agentLastAction');
+      if (actionEl) actionEl.textContent = last.substring(0, 80);
+    }
 
     // Update agent status
     updateAgentUI(data.agent_running);
@@ -300,8 +316,17 @@ async function stopAgent() {
 function updateAgentUI(running) {
   document.getElementById('startBtn').disabled = running;
   document.getElementById('stopBtn').disabled = !running;
-  document.getElementById('agentStatus').textContent = running ? 'Agent running...' : 'Agent idle';
-  document.getElementById('agentStatus').style.color = running ? '#6f8' : '#667';
+  const status = document.getElementById('agentStatus');
+  const logDiv = document.getElementById('agentLogInline');
+  if (running) {
+    status.innerHTML = '<span class="spinner"></span> Agent running...';
+    status.style.color = '#6f8';
+    logDiv.style.display = 'block';
+  } else {
+    status.textContent = 'Agent idle';
+    status.style.color = '#667';
+    logDiv.style.display = 'none';
+  }
 }
 
 let currentTab = 'quality';
