@@ -139,6 +139,13 @@
       <input type="range" id="sphere-radius-slider" min="20" max="300" step="5" value="100" style="flex:1; height:4px; accent-color:#668cff;">
       <span class="val" id="sphere-radius-val">100</span>
     </div>
+    <div class="param-row">
+      <label>Neighbor Mode</label>
+      <select id="neighbor-mode-select" style="flex:1; padding:3px 6px; font-size:12px; background:rgba(30,30,60,0.9); color:#bbd; border:1px solid rgba(100,100,160,0.3); border-radius:4px;">
+        <option value="0">Topological (K=7 nearest)</option>
+        <option value="1">Radius (classic, fast)</option>
+      </select>
+    </div>
     <div class="section-label">Rendering</div>
     <div class="param-row">
       <label>Render Mode</label>
@@ -467,6 +474,13 @@ particleScaleSlider.addEventListener('input', () => {
   particleScaleVal.textContent = particleScale.toFixed(2);
 });
 
+// Neighbor mode
+const neighborModeSelect = document.getElementById('neighbor-mode-select');
+let neighborMode = 0;
+neighborModeSelect.addEventListener('change', () => {
+  neighborMode = parseInt(neighborModeSelect.value);
+});
+
 // Rendering controls
 const renderModeSelect = document.getElementById('render-mode-select');
 const falloffSlider = document.getElementById('falloff-slider');
@@ -654,7 +668,7 @@ function frame() {
   const encoder = device.createCommandEncoder();
   const simSteps = Math.max(1, Math.round(currentParams.simSpeed ?? 1));
   for (let s = 0; s < simSteps; s++) {
-    simulation.update(encoder, s === simSteps - 1); // stats only on last step
+    simulation.update(encoder, s === simSteps - 1, neighborMode);
   }
   const ar = autoRangeCb.checked;
   renderer.render(encoder, vp, {

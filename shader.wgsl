@@ -300,6 +300,107 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].density = f32(n_found) / f32(K_NEIGHBORS);
 }
 
+// === Classic Radius-Based Flocking (high performance, simpler behavior) ===
+@compute @workgroup_size(64)
+fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+
+  let boid = boids_src[i];
+  let my_grid = get_cell(boid.pos);
+  let gs = i32(params.grid_size);
+  let mg = vec3i(my_grid);
+  let lo = max(mg - vec3i(1), vec3i(0));
+  let hi = min(mg + vec3i(1), vec3i(gs - 1));
+
+  var sep = vec3f(0.0);
+  var ali = vec3f(0.0);
+  var coh = vec3f(0.0);
+  var n_align = 0u;
+  var n_sep = 0u;
+
+  for (var nz = lo.z; nz <= hi.z; nz++) {
+    let zoff = u32(nz) * params.grid_size * params.grid_size;
+    for (var ny = lo.y; ny <= hi.y; ny++) {
+      let yzoff = u32(ny) * params.grid_size + zoff;
+      for (var nx = lo.x; nx <= hi.x; nx++) {
+        let nc = u32(nx) + yzoff;
+        let start = cell_offsets[nc];
+        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+        if (start >= end_val) { continue; }
+        for (var j = start; j < end_val; j++) {
+          let other_idx = sorted_indices[j];
+          if (other_idx == i) { continue; }
+          let other = boids_src[other_idx];
+          let diff = boid.pos - other.pos;
+          let d2 = dot(diff, diff);
+          if (d2 < params.visual_range_sq && d2 > 0.0001) {
+            ali += other.vel;
+            coh += other.pos;
+            n_align++;
+            if (d2 < params.separation_dist_sq) {
+              sep += diff * (1.0 - d2 / params.separation_dist_sq);
+              n_sep++;
+            }
+          }
+        }
+        if (n_align >= 16u) { break; }
+      }
+      if (n_align >= 16u) { break; }
+    }
+    if (n_align >= 16u) { break; }
+  }
+
+  var new_vel = boid.vel;
+  var avg_vel = vec3f(0.0);
+  if (n_align > 0u) {
+    let nf = f32(n_align);
+    avg_vel = ali / nf;
+    let avg_pos = coh / nf;
+    new_vel += (avg_vel - boid.vel) * params.align_factor;
+    new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
+  }
+  if (n_sep > 0u) {
+    new_vel += sep * params.separation_factor;
+  }
+
+  // Spherical boundary
+  let dist_from_center = length(boid.pos);
+  let r = params.sphere_radius;
+  let soft_zone = r * 0.15;
+  if (dist_from_center > r - soft_zone && dist_from_center > 0.001) {
+    let penetration = (dist_from_center - (r - soft_zone)) / soft_zone;
+    new_vel += -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
+  }
+
+  // Turn rate limiter + speed
+  let old_speed = length(boid.vel);
+  var old_dir = boid.vel;
+  if (old_speed > 0.001) { old_dir = old_dir / old_speed; } else { old_dir = vec3f(1.0, 0.0, 0.0); }
+  let desired_speed = length(new_vel);
+  var desired_dir = new_vel;
+  if (desired_speed > 0.001) { desired_dir = desired_dir / desired_speed; } else { desired_dir = old_dir; }
+  let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
+  let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
+  var final_speed = mix(old_speed, desired_speed, 0.15);
+  final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
+  new_vel = final_dir * final_speed;
+
+  let dir_change_val = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
+  boids_dst[i].pos = boid.pos + new_vel * params.dt;
+  boids_dst[i].vel = new_vel;
+  boids_dst[i].size_factor = boid.size_factor;
+  boids_dst[i].heading = final_dir;
+  boids_dst[i].speed = final_speed;
+  boids_dst[i].neighbor_count = f32(n_align);
+  boids_dst[i].dir_change = dir_change_val;
+  let vel_d2r = dot(boid.vel, boid.vel);
+  let avg_d2r = dot(avg_vel, avg_vel);
+  boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2r * avg_d2r), 0.0, vel_d2r < 0.001 || avg_d2r < 0.001);
+  boids_dst[i].sep_pressure = length(sep);
+  boids_dst[i].density = f32(n_align) * 0.0625;
+}
+
 // === Auto-range stats ===
 @group(1) @binding(0) var<storage, read_write> stats: array<atomic<u32>, 2>;
 

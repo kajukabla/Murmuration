@@ -170,7 +170,8 @@ export async function createSimulation(device, {
   const assignPipe  = pipe('assign_cells');
   const prefixPipe  = pipe('prefix_sum');
   const scatterPipe = pipe('scatter');
-  const flockPipe   = pipe('flock');
+  const flockPipe   = pipe('flock');         // topological K-nearest
+  const flockRadiusPipe = pipe('flock_radius'); // classic radius-based
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
@@ -229,19 +230,20 @@ export async function createSimulation(device, {
     get autoMax() { return smoothMax; },
 
     /** Run one sim step. Set lastStep=true on the final step of the frame. */
-    update(encoder, lastStep = true) {
-      // Update frame counter in params
+    /** neighborMode: 0=topological (K-nearest), 1=radius (classic) */
+    update(encoder, lastStep = true, neighborMode = 0) {
       frameCount++;
       u[23] = frameCount;
       device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 
       const bg = step % 2 === 0 ? bgA : bgB;
+      const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
       const passes = [
         [clearPipe,   gridWG],
         [assignPipe,  boidWG],
         [prefixPipe,  1],
         [scatterPipe, boidWG],
-        [flockPipe,   boidWG],
+        [activeFlock, boidWG],
       ];
       for (const [pipeline, wg] of passes) {
         const p = encoder.beginComputePass();
