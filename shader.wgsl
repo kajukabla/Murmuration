@@ -234,7 +234,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // === Murmuration-specific forces ===
 
   // Gravity: slight downward pull (creates the flat pancake shape)
-  new_vel.y -= 0.10;
+  new_vel.y -= 0.08;
 
   // Center-seeking: gentle drift toward local flock center
   if (n_found >= 2u) {
@@ -247,7 +247,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Roost attractor: orbiting point that guides flock into sweeping arcs
-  let time = f32(params.frame_count) * 0.004;
+  let time = f32(params.frame_count) * 0.002;
   let roost = vec3f(
     sin(time) * params.sphere_radius * 0.4,
     cos(time * 0.7) * params.sphere_radius * 0.05,
