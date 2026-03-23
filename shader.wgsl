@@ -262,10 +262,10 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // Random perturbation: breaks symmetry, triggers wave cascades
   let noise_seed = f32(i * 1973u + params.frame_count * 9277u);
   let noise = vec3f(
-    fract(sin(noise_seed) * 43758.5) - 0.5,
-    fract(sin(noise_seed * 1.3) * 22578.1) - 0.5,
-    fract(sin(noise_seed * 0.7) * 31415.9) - 0.5
-  ) * 0.15;
+    (fract(sin(noise_seed) * 43758.5) - 0.5) * 0.15,
+    (fract(sin(noise_seed * 1.3) * 22578.1) - 0.5) * 0.08,
+    (fract(sin(noise_seed * 0.7) * 31415.9) - 0.5) * 0.15
+  );
   new_vel += noise;
 
   // Spherical boundary steering
