@@ -33,7 +33,7 @@ The benchmark uses Playwright to open Chrome, load the simulation with clustered
 Use `git revert --no-edit HEAD`. NOT `git reset --hard`.
 
 ## Results Tracking
-Append to results.tsv: `<experiment_number>\t<max_boids>\t<description>\t<kept|reverted>`
+Append to results_perf.tsv: `<experiment_number>\t<max_boids>\t<description>\t<kept|reverted>`
 
 ## Performance Analysis
 The benchmark tests with Billboard Additive + Radius mode. Current bottlenecks:

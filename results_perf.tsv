@@ -1,0 +1,6 @@
+experiment	max_boids	description	result
+39	0	reduce billboard from 6 verts (quad) to 3 verts (triangle)	reverted
+40	24000	billboard 3-vert oversized triangle	reverted
+41	18000	tighter discard threshold (0.7 -> 0.4)	reverted
+42	10000	circular billboard (system under load - invalid)	reverted
+43	118000	reduce neighbor cap 16 -> 10	reverted

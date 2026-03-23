@@ -21,6 +21,8 @@ agent_proc = None
 PORT = 8050
 CSV_FILE = "run_metrics.csv"
 TSV_FILE = "results.tsv"
+QUALITY_TSV = "results_quality.tsv"
+PERF_TSV = "results_perf.tsv"
 
 HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -216,11 +218,8 @@ async function refresh() {
     const data = await fetchData();
 
     // Filter experiments by tab
-    const isScore = e => typeof e.max_boids === 'number' && e.max_boids < 100;
-    const filtered = currentTab === 'quality'
-      ? data.experiments.filter(isScore)
-      : data.experiments.filter(e => !isScore(e));
-    const bestVal = filtered.length ? Math.max(...filtered.filter(e=>e.result==='kept').map(e=>e.max_boids), 0) : 0;
+    const filtered = currentTab === 'quality' ? (data.quality_experiments || []) : (data.perf_experiments || []);
+    const bestVal = currentTab === 'quality' ? (data.quality_best || 0) : (data.perf_best || 0);
 
     // Summary cards
     document.getElementById('best').textContent = currentTab === 'quality' ? bestVal.toFixed(4) : bestVal.toLocaleString();
@@ -419,26 +418,30 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
 
-def get_data():
-    experiments = []
-    probes = []
-
-    # Read results.tsv
-    if os.path.exists(TSV_FILE):
-        with open(TSV_FILE) as f:
+def read_tsv(filepath):
+    results = []
+    if os.path.exists(filepath):
+        with open(filepath) as f:
             reader = csv.DictReader(f, delimiter='\t')
             for row in reader:
                 try:
-                    experiments.append({
+                    val = row.get('max_boids', '0')
+                    results.append({
                         'id': int(row.get('experiment', 0)),
-                        'max_boids': float(row.get('max_boids', '0')) if '.' in row.get('max_boids', '0') else int(row.get('max_boids', 0)),
+                        'max_boids': float(val) if '.' in val else int(val),
                         'description': row.get('description', ''),
                         'result': row.get('result', ''),
                     })
                 except (ValueError, KeyError):
                     pass
+    return results
 
-    # Read run_metrics.csv
+
+def get_data():
+    quality_exps = read_tsv(QUALITY_TSV)
+    perf_exps = read_tsv(PERF_TSV)
+    probes = []
+
     if os.path.exists(CSV_FILE):
         with open(CSV_FILE) as f:
             reader = csv.DictReader(f)
@@ -453,7 +456,8 @@ def get_data():
                 except (ValueError, KeyError):
                     pass
 
-    best = max((e['max_boids'] for e in experiments), default=0)
+    quality_best = max((e['max_boids'] for e in quality_exps if e['result'] == 'kept'), default=0)
+    perf_best = max((e['max_boids'] for e in perf_exps if e['result'] == 'kept'), default=0)
 
     # Git log
     git_log = []
@@ -505,8 +509,10 @@ def get_data():
     agent_log_tail = '\n'.join(agent_log_lines[-50:])
 
     return {
-        'best': best,
-        'experiments': experiments,
+        'quality_best': quality_best,
+        'perf_best': perf_best,
+        'quality_experiments': quality_exps,
+        'perf_experiments': perf_exps,
         'probes': probes,
         'git_log': git_log,
         'agent_log': agent_log_tail,
