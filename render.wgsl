@@ -405,7 +405,13 @@ fn vs_billboard(
     let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
     t = clamp(raw / gainMul, 0.0, 1.0);
   }
-  out.color = colormap(t, camera.gradient_id);
+  // Fast 3-stop ramp (skip 10-way switch + ramp5 branches)
+  let tc = clamp(t, 0.0, 1.0);
+  out.color = select(
+    mix(vec3f(0.05, 0.0, 0.3), vec3f(0.1, 0.55, 0.55), tc * 2.0),
+    mix(vec3f(0.1, 0.55, 0.55), vec3f(1.0, 0.9, 0.15), (tc - 0.5) * 2.0),
+    tc >= 0.5
+  );
 
   return out;
 }
