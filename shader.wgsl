@@ -204,15 +204,17 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // === Apply flocking rules using topological neighbors ===
   var new_vel = boid.vel;
 
-  // Avoidance: only the 1 nearest neighbor
+  // Avoidance: nearest 2 neighbors
   var sep_force = vec3f(0.0);
-  if (n_found > 0u && nearest_d2[0] < params.separation_dist_sq) {
-    let other_pos = boids_src[nearest_idx[0]].pos;
-    let diff = boid.pos - other_pos;
-    let d2 = nearest_d2[0];
-    sep_force = diff * (1.0 - d2 / params.separation_dist_sq);
-    new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
+  for (var s = 0u; s < min(n_found, 2u); s++) {
+    if (nearest_d2[s] < params.separation_dist_sq) {
+      let other_pos = boids_src[nearest_idx[s]].pos;
+      let diff = boid.pos - other_pos;
+      let d2 = nearest_d2[s];
+      sep_force += diff * (1.0 - d2 / params.separation_dist_sq);
+    }
   }
+  new_vel += sep_force * params.separation_factor * 1.5;
 
   // Alignment + Cohesion: all K neighbors
   var ali = vec3f(0.0);
