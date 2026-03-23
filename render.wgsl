@@ -289,16 +289,9 @@ fn vs_main(
   }
   let base = colormap(t, camera.gradient_id);
 
-  // HDR bloom boost
-  let lum = dot(base, vec3f(0.299, 0.587, 0.114));
-  var hdr = base;
-  if (lum > 0.8) {
-    hdr = base * (1.0 + (lum - 0.8) * 1.5);
-  }
-
   var out: VertexOutput;
   out.pos = camera.view_proj * vec4f(world_pos, 1.0);
-  out.color = hdr;
+  out.color = base;
   out.lighting = lighting;
   out.world_normal = rotated_normal;
   out.world_pos = world_pos;
