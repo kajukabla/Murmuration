@@ -231,42 +231,28 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
   }
 
-  // === Murmuration-specific forces ===
+  // === Emergent murmuration forces ===
+  // NO roost attractor, NO predator orbit — purely local interactions
+  // The complex sweeping motion emerges from topological neighbor rules
+  // + rare perturbations that cascade through the flock
 
-  // Gravity: slight downward pull (creates the flat pancake shape)
-  new_vel.y -= 0.08;
+  // Gentle gravity (creates oblate/flat flock shape)
+  new_vel.y -= 0.03;
 
-  // Center-seeking: gentle drift toward local flock center
-  if (n_found >= 2u) {
-    let local_center = coh / f32(min(n_found, K_NEIGHBORS));
-    let to_center = local_center - boid.pos;
-    let center_dist = length(to_center);
-    if (center_dist > 0.5) {
-      new_vel += normalize(to_center) * 0.08;
-    }
+  // Rare strong perturbation: only ~3% of birds per frame
+  // This is the primary driver of non-repetitive motion —
+  // a random bird changes direction, neighbors respond via alignment,
+  // creating a wave that sweeps across the entire flock
+  let perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
+  if (perturb_hash < 0.03) {
+    let seed = f32(i * 1973u + params.frame_count * 9277u);
+    let kick = vec3f(
+      fract(sin(seed) * 43758.5) - 0.5,
+      fract(sin(seed * 1.3) * 22578.1) - 0.5,
+      fract(sin(seed * 0.7) * 31415.9) - 0.5
+    ) * 2.5;  // strong kick that cascades via topological links
+    new_vel += kick;
   }
-
-  // Roost attractor: orbiting point that guides flock into sweeping arcs
-  let time = f32(params.frame_count) * 0.002;
-  let roost = vec3f(
-    sin(time) * params.sphere_radius * 0.4,
-    cos(time * 0.7) * params.sphere_radius * 0.05,
-    cos(time) * params.sphere_radius * 0.4
-  );
-  let to_roost = roost - boid.pos;
-  let roost_dist = length(to_roost);
-  if (roost_dist > 1.0) {
-    new_vel += normalize(to_roost) * 0.3;
-  }
-
-  // Random perturbation: breaks symmetry, triggers wave cascades
-  let noise_seed = f32(i * 1973u + params.frame_count * 9277u);
-  let noise = vec3f(
-    fract(sin(noise_seed) * 43758.5) - 0.5,
-    fract(sin(noise_seed * 1.3) * 22578.1) - 0.5,
-    fract(sin(noise_seed * 0.7) * 31415.9) - 0.5
-  ) * 0.15;
-  new_vel += noise;
 
   // Spherical boundary steering
   let dist_from_center = length(boid.pos);

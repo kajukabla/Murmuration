@@ -44,8 +44,10 @@ The composite score combines 5 metrics from real murmurations:
 - `simulation.js` — compute pipeline setup
 - `program.md` — only humans edit this
 
-## CRITICAL: git revert
-Use `git revert --no-edit HEAD` to undo failed experiments. NOT `git reset --hard`.
+## CRITICAL RULES
+- Use `git revert --no-edit HEAD` to undo failed experiments. NOT `git reset --hard`.
+- Do NOT add any roost attractor, predator agent, or global force that makes the flock orbit in circles. The motion must emerge purely from local neighbor interactions + rare random perturbations.
+- Do NOT re-introduce any orbiting point or scripted trajectory.
 
 ## Results Tracking
 Append to results.tsv: `<experiment_number>\t<score>\t<description>\t<kept|reverted>`
