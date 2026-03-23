@@ -376,12 +376,15 @@ fn vs_billboard(
   let hl = sz * stretch;
   let hs = sz * 0.4;
 
-  // 3 verts for triangle (covers [-1,1] quad area with less overdraw)
+  // 6 verts for quad
   var uv: vec2f;
   switch (vid) {
-    case 0u { uv = vec2f(-1.0, -2.0); }
-    case 1u { uv = vec2f( 2.0,  1.0); }
-    case 2u { uv = vec2f(-1.0,  1.0); }
+    case 0u { uv = vec2f(-1.0, -1.0); }
+    case 1u { uv = vec2f( 1.0, -1.0); }
+    case 2u { uv = vec2f( 1.0,  1.0); }
+    case 3u { uv = vec2f(-1.0, -1.0); }
+    case 4u { uv = vec2f( 1.0,  1.0); }
+    case 5u { uv = vec2f(-1.0,  1.0); }
     default { uv = vec2f(0.0); }
   }
 

@@ -168,7 +168,7 @@ export async function createRenderer(device, context, simulation) {
         });
         pass.setPipeline(billboardPipeline);
         pass.setBindGroup(0, bg);
-        pass.draw(3, numBoids);
+        pass.draw(6, numBoids);
         pass.end();
       } else if ((renderMode === 2 || renderMode === 4) && opaqueBlbPipeline) {
         // Billboard opaque or Reflective Billboard (MSAA + depth)
@@ -186,7 +186,7 @@ export async function createRenderer(device, context, simulation) {
         });
         pass.setPipeline(opaqueBlbPipeline);
         pass.setBindGroup(0, bg);
-        pass.draw(3, numBoids);
+        pass.draw(6, numBoids);
         pass.end();
       }
     },
