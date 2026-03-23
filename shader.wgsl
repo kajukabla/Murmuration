@@ -256,7 +256,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let to_roost = roost - boid.pos;
   let roost_dist = length(to_roost);
   if (roost_dist > 1.0) {
-    new_vel += normalize(to_roost) * 0.3;
+    new_vel += normalize(to_roost) * 0.31;
   }
 
   // Random perturbation: breaks symmetry, triggers wave cascades
