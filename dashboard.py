@@ -62,7 +62,7 @@ HTML = """<!DOCTYPE html>
 </head>
 <body>
 <h1>Autoresearch Optimization Dashboard</h1>
-<div class="subtitle">WebGPU Flocking — Maximize boids @ 60 FPS</div>
+<div class="subtitle">Murmuration Quality Optimization — Score 0-1</div>
 
 <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
   <button id="startBtn" onclick="startAgent()" style="padding: 8px 20px; font-size: 14px; cursor: pointer;
@@ -73,15 +73,15 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <div class="grid">
-  <div class="card"><div class="label">Current Best</div><div class="value good" id="best">—</div></div>
-  <div class="card"><div class="label">Baseline</div><div class="value" id="baseline">170,000</div></div>
-  <div class="card"><div class="label">Experiments Run</div><div class="value" id="experiments">—</div></div>
-  <div class="card"><div class="label">Improvements Kept</div><div class="value" id="kept">—</div></div>
+  <div class="card"><div class="label">Best Score</div><div class="value good" id="best">—</div></div>
+  <div class="card"><div class="label">Baseline</div><div class="value" id="baseline">0.695</div></div>
+  <div class="card"><div class="label">Experiments</div><div class="value" id="experiments">—</div></div>
+  <div class="card"><div class="label">Kept</div><div class="value" id="kept">—</div></div>
 </div>
 
 <div class="two-col">
   <div class="chart-container">
-    <div class="chart-title">Max Boids Over Time (kept experiments)</div>
+    <div class="chart-title">Quality Score Over Time (kept experiments)</div>
     <canvas id="boidChart"></canvas>
   </div>
   <div class="chart-container">
@@ -204,7 +204,7 @@ async function refresh() {
     const data = await fetchData();
 
     // Summary cards
-    document.getElementById('best').textContent = data.best.toLocaleString();
+    document.getElementById('best').textContent = typeof data.best === 'number' && data.best < 100 ? data.best.toFixed(4) : data.best.toLocaleString();
     document.getElementById('experiments').textContent = data.experiments.length.toString();
     document.getElementById('kept').textContent = data.experiments.filter(e => e.result === 'kept').length.toString();
 
@@ -220,11 +220,15 @@ async function refresh() {
       tbody.appendChild(tr);
     }
 
-    // Boid chart (kept experiments over time)
+    // Score chart (kept experiments over time)
     const kept = data.experiments.filter(e => e.result === 'kept');
+    const isScore = kept.length > 0 && kept[kept.length-1].max_boids < 100;
     drawChart(document.getElementById('boidChart'),
       kept.map((e, i) => ({ x: i, y: e.max_boids })),
-      { line: true, color: '#6f8', yFmt: v => (v/1000).toFixed(0) + 'k', xFmt: v => '#' + Math.round(v), yMin: 0 }
+      { line: true, color: '#6f8',
+        yFmt: isScore ? (v => v.toFixed(3)) : (v => (v/1000).toFixed(0) + 'k'),
+        xFmt: v => '#' + Math.round(v),
+        yMin: isScore ? 0 : 0, yMax: isScore ? 1.0 : undefined }
     );
 
     // Time chart (all probes as scatter)
@@ -377,9 +381,10 @@ def get_data():
             reader = csv.DictReader(f, delimiter='\t')
             for row in reader:
                 try:
+                    val = row.get('max_boids', '0')
                     experiments.append({
                         'id': int(row.get('experiment', 0)),
-                        'max_boids': int(row.get('max_boids', 0)),
+                        'max_boids': float(val) if '.' in val else int(val),
                         'description': row.get('description', ''),
                         'result': row.get('result', ''),
                     })
