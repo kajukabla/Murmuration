@@ -360,23 +360,9 @@ fn vs_billboard(
     return out;
   }
 
-  // Screen direction from heading via VP matrix (avoid second mat mul)
-  var fwd = boid.heading;
-  let fl = dot(fwd, fwd);
-  if (fl < 0.001) { fwd = vec3f(1.0, 0.0, 0.0); } else { fwd = fwd * inverseSqrt(fl); }
-  // Transform direction only (w=0 trick)
-  let clip_dir = camera.view_proj * vec4f(fwd, 0.0);
-  var screen_dir = clip_dir.xy;
-  let sdl = dot(screen_dir, screen_dir);
-  if (sdl < 0.00001) { screen_dir = vec2f(1.0, 0.0); } else { screen_dir = screen_dir * inverseSqrt(sdl); }
-  let screen_perp = vec2f(-screen_dir.y, screen_dir.x);
-
-  // Scale down distant boids to reduce fragment overdraw
-  let depth_scale = 1.0 / max(clip.w * 0.01, 1.0);
+  // Simple circular billboard — no heading transform, no stretch
+  let depth_scale = 1.0 / max(clip.w * 0.015, 1.0);
   let sz = 0.004 * boid.size_factor * camera.particle_scale * depth_scale;
-  let stretch = 1.0 + min(boid.speed * 0.15, 3.0);
-  let hl = sz * stretch;
-  let hs = sz * 0.4;
 
   // 6 verts for quad
   var uv: vec2f;
@@ -390,29 +376,18 @@ fn vs_billboard(
     default { uv = vec2f(0.0); }
   }
 
-  let off = screen_dir * uv.x * hl + screen_perp * uv.y * hs;
+  let off = uv * sz;
   out.pos = clip;
   out.pos.x += off.x * clip.w;
   out.pos.y += off.y * clip.w;
   out.uv = uv;
 
-  // Simplified color: skip gain pow() by using linear approximation
-  let raw = get_color_raw(boid, iid, camera.color_source);
-  var t = clamp(raw, 0.0, 1.0);
-  if (camera.auto_range > 0u) {
-    let range = camera.auto_max - camera.auto_min;
-    if (range > 0.0001) { t = clamp((raw - camera.auto_min) / range, 0.0, 1.0); }
-  } else {
-    // Linear gain: map [0,1] slider to [0.01, 100] multiplier
-    let gainMul = pow(10.0, (0.5 - camera.gain) * 4.0);
-    t = clamp(raw / gainMul, 0.0, 1.0);
-  }
-  // Fast 3-stop ramp (skip 10-way switch + ramp5 branches)
-  let tc = clamp(t, 0.0, 1.0);
+  // Fast color: use instance ID for variety, skip get_color_raw and auto-range
+  let t = fract(f32(iid) * 0.618034);
   out.color = select(
-    mix(vec3f(0.05, 0.0, 0.3), vec3f(0.1, 0.55, 0.55), tc * 2.0),
-    mix(vec3f(0.1, 0.55, 0.55), vec3f(1.0, 0.9, 0.15), (tc - 0.5) * 2.0),
-    tc >= 0.5
+    mix(vec3f(0.05, 0.0, 0.3), vec3f(0.1, 0.55, 0.55), t * 2.0),
+    mix(vec3f(0.1, 0.55, 0.55), vec3f(1.0, 0.9, 0.15), (t - 0.5) * 2.0),
+    t >= 0.5
   );
 
   return out;
