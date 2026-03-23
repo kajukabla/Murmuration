@@ -72,11 +72,23 @@ HTML = """<!DOCTYPE html>
   <span id="agentStatus" style="color: #667; font-size: 13px; margin-left: 8px;">Agent idle</span>
 </div>
 
+<!-- Tab bar -->
+<div style="display: flex; gap: 2px; margin-bottom: 20px;">
+  <button class="tab-btn active" onclick="switchTab('quality')" id="tab-quality"
+    style="padding: 8px 20px; font-size: 13px; cursor: pointer; background: rgba(40,40,80,0.9);
+    color: #aac; border: 1px solid rgba(100,100,160,0.3); border-radius: 6px 6px 0 0; border-bottom: none;">
+    Quality Optimization</button>
+  <button class="tab-btn" onclick="switchTab('perf')" id="tab-perf"
+    style="padding: 8px 20px; font-size: 13px; cursor: pointer; background: rgba(20,20,40,0.5);
+    color: #667; border: 1px solid rgba(100,100,160,0.15); border-radius: 6px 6px 0 0; border-bottom: none;">
+    Performance (Max Boids)</button>
+</div>
+
 <div class="grid">
-  <div class="card"><div class="label">Best Score</div><div class="value good" id="best">—</div></div>
-  <div class="card"><div class="label">Baseline</div><div class="value" id="baseline">0.695</div></div>
-  <div class="card"><div class="label">Experiments Run</div><div class="value" id="experiments">—</div></div>
-  <div class="card"><div class="label">Improvements Kept</div><div class="value" id="kept">—</div></div>
+  <div class="card"><div class="label" id="bestLabel">Best Score</div><div class="value good" id="best">—</div></div>
+  <div class="card"><div class="label" id="baselineLabel">Baseline</div><div class="value" id="baseline">0.695</div></div>
+  <div class="card"><div class="label">Experiments</div><div class="value" id="experiments">—</div></div>
+  <div class="card"><div class="label">Kept</div><div class="value" id="kept">—</div></div>
 </div>
 
 <div class="two-col">
@@ -95,7 +107,7 @@ HTML = """<!DOCTYPE html>
     <div class="chart-title">Experiment Log</div>
     <div style="max-height: 280px; overflow-y: auto;">
     <table>
-      <thead><tr><th>#</th><th>Max Boids</th><th>Description</th><th>Result</th></tr></thead>
+      <thead><tr><th>#</th><th id="valueHeader">Score</th><th>Description</th><th>Result</th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
     </div>
@@ -203,25 +215,33 @@ async function refresh() {
   try {
     const data = await fetchData();
 
-    // Summary cards
-    document.getElementById('best').textContent = data.best < 100 ? data.best.toFixed(4) : data.best.toLocaleString();
-    document.getElementById('experiments').textContent = data.experiments.length.toString();
-    document.getElementById('kept').textContent = data.experiments.filter(e => e.result === 'kept').length.toString();
+    // Filter experiments by tab
+    const isScore = e => typeof e.max_boids === 'number' && e.max_boids < 100;
+    const filtered = currentTab === 'quality'
+      ? data.experiments.filter(isScore)
+      : data.experiments.filter(e => !isScore(e));
+    const bestVal = filtered.length ? Math.max(...filtered.filter(e=>e.result==='kept').map(e=>e.max_boids), 0) : 0;
 
-    // Experiment log table
+    // Summary cards
+    document.getElementById('best').textContent = currentTab === 'quality' ? bestVal.toFixed(4) : bestVal.toLocaleString();
+    document.getElementById('experiments').textContent = filtered.length.toString();
+    document.getElementById('kept').textContent = filtered.filter(e => e.result === 'kept').length.toString();
+
+    // Experiment log table (filtered by tab)
     const tbody = document.getElementById('logBody');
     tbody.innerHTML = '';
-    for (const exp of [...data.experiments].reverse()) {
+    for (const exp of [...filtered].reverse()) {
       const tr = document.createElement('tr');
       tr.className = exp.result;
-      tr.innerHTML = `<td>${exp.id}</td><td>${exp.max_boids.toLocaleString()}</td>` +
+      const valStr = currentTab === 'quality' ? exp.max_boids.toFixed(4) : exp.max_boids.toLocaleString();
+      tr.innerHTML = `<td>${exp.id}</td><td>${valStr}</td>` +
         `<td>${exp.description}</td>` +
         `<td><span class="status-dot ${exp.result}"></span>${exp.result}</td>`;
       tbody.appendChild(tr);
     }
 
-    // Boid chart (kept experiments over time)
-    const kept = data.experiments.filter(e => e.result === 'kept');
+    // Chart (kept experiments over time, filtered by tab)
+    const kept = filtered.filter(e => e.result === 'kept');
     drawChart(document.getElementById('boidChart'),
       kept.map((e, i) => ({ x: i, y: e.max_boids })),
       { line: true, color: '#6f8', yFmt: v => v < 100 ? v.toFixed(2) : (v/1000).toFixed(0) + 'k', xFmt: v => '#' + Math.round(v), yMin: 0 }
@@ -277,6 +297,26 @@ function updateAgentUI(running) {
   document.getElementById('stopBtn').disabled = !running;
   document.getElementById('agentStatus').textContent = running ? 'Agent running...' : 'Agent idle';
   document.getElementById('agentStatus').style.color = running ? '#6f8' : '#667';
+}
+
+let currentTab = 'quality';
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.style.background = 'rgba(20,20,40,0.5)'; b.style.color = '#667';
+  });
+  const btn = document.getElementById('tab-' + tab);
+  btn.style.background = 'rgba(40,40,80,0.9)'; btn.style.color = '#aac';
+  if (tab === 'quality') {
+    document.getElementById('bestLabel').textContent = 'Best Score';
+    document.getElementById('baselineLabel').textContent = 'Baseline';
+    document.getElementById('baseline').textContent = '0.695';
+  } else {
+    document.getElementById('bestLabel').textContent = 'Max Boids';
+    document.getElementById('baselineLabel').textContent = 'Baseline';
+    document.getElementById('baseline').textContent = '170,000';
+  }
+  refresh();
 }
 
 refresh();
