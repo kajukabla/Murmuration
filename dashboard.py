@@ -73,15 +73,15 @@ HTML = """<!DOCTYPE html>
 
 <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
   <button id="startBtn" onclick="startAgent()" style="padding: 8px 20px; font-size: 14px; cursor: pointer;
-    background: #2a4; color: #fff; border: none; border-radius: 6px; font-weight: 600;">Start Agent</button>
+    background: #2a4; color: #fff; border: none; border-radius: 6px; font-weight: 600; position: relative; z-index: 10;">Start Agent</button>
   <button id="stopBtn" onclick="stopAgent()" style="padding: 8px 20px; font-size: 14px; cursor: pointer;
-    background: #c44; color: #fff; border: none; border-radius: 6px; font-weight: 600;" disabled>Stop Agent</button>
+    background: #c44; color: #fff; border: none; border-radius: 6px; font-weight: 600; position: relative; z-index: 10;" disabled>Stop Agent</button>
   <span id="agentStatus" style="color: #667; font-size: 13px; margin-left: 8px;">Agent idle</span>
   <span id="agentLastAction" style="color: #556; font-size: 12px; margin-left: 12px; font-family: monospace;"></span>
 </div>
 <div id="agentLogInline" style="background: rgba(10,10,25,0.7); border: 1px solid rgba(100,100,160,0.15);
   border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; max-height: 120px; overflow-y: auto;
-  font: 11px/1.5 monospace; color: #778; white-space: pre-wrap; display: none;"></div>
+  font: 11px/1.5 monospace; color: #778; white-space: pre-wrap; display: none; pointer-events: none; position: relative; z-index: 0;"></div>
 
 <!-- Tab bar -->
 <div style="display: flex; gap: 2px; margin-bottom: 20px;">
