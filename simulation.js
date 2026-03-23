@@ -10,7 +10,10 @@ export async function createSimulation(device, {
 } = {}) {
   // Auto-scale grid: ~1-2 boids per cell on average
   if (gridSize <= 0) {
-    gridSize = Math.max(8, Math.min(128, Math.round(Math.cbrt(numBoids) * 0.8)));
+    // Cell size = worldSize/gridSize. The 3x3x3 search covers 3*cellSize.
+    // For visual range V, need cellSize >= V/1.5 → gridSize <= worldSize*1.5/V.
+    // Use gridSize=16 (cellSize=6.25) as a good default — covers ~18.75 units.
+    gridSize = 16;
   }
   const GRID_CELLS = gridSize ** 3;
   const cellSize = worldSize / gridSize;

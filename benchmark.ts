@@ -19,7 +19,7 @@ const simCode = await Deno.readTextFile("simulation.js");
 const WORKGROUP_SIZE = parseInt(simCode.match(/const WORKGROUP_SIZE\s*=\s*(\d+)/)?.[1] ?? "64");
 const PARAMS_SIZE = parseInt(simCode.match(/const PARAMS_SIZE\s*=\s*(\d+)/)?.[1] ?? "96");
 
-const GRID_SIZE = Math.max(8, Math.min(128, Math.round(Math.cbrt(NUM_BOIDS) * 0.8)));
+const GRID_SIZE = 16;
 const GRID_CELLS = GRID_SIZE ** 3;
 const WORLD_SIZE = 100.0;
 const CELL_SIZE = WORLD_SIZE / GRID_SIZE;
