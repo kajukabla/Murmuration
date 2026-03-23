@@ -383,7 +383,6 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
-  boids_dst[i].heading = final_dir;
 }
 
 // === Auto-range stats ===
