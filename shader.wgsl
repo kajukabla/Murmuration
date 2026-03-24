@@ -524,7 +524,13 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let final_speed = clamp(mix(old_spd, new_spd, 0.15), params.min_speed, params.max_speed);
   new_vel = final_dir * final_speed;
 
-  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, boid.size_factor, new_vel, final_speed, final_dir, f32(n_align), 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0), 1.0, 0.0, f32(n_align) * 0.5);
+  // Compute flock alignment metric
+  let vel_d2 = dot(boid.vel, boid.vel);
+  let avg_vel = select(vec3f(0.0), ali / max(f32(n_align), 1.0), n_align > 0u);
+  let avg_d2 = dot(avg_vel, avg_vel);
+  let flock_ali = select(0.0, dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), vel_d2 > 0.001 && avg_d2 > 0.001);
+
+  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, boid.size_factor, new_vel, final_speed, final_dir, f32(n_align), 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0), flock_ali, length(sep), f32(n_align) * 0.5);
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
