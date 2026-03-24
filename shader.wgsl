@@ -428,7 +428,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
   var j = atomicLoad(&cell_counts[my_ci]);
   for (var k = 0u; k < 6u && j != 0xFFFFFFFFu; k++) {
-    let next_j = boid_cells[j]; // prefetch next pointer
     if (j != i) {
       let other_pos = boids_src[j].pos;
       let diff = boid.pos - other_pos;
@@ -439,7 +438,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
       let in_sep = f32(d2 < params.separation_dist_sq);
       sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
     }
-    j = next_j;
+    j = boid_cells[j];
   }
 
   var new_vel = boid.vel;
