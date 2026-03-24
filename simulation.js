@@ -183,7 +183,7 @@ export async function createSimulation(device, {
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
-  const flockRadiusWG = Math.ceil(numBoids / 128); // flock_radius uses workgroup_size(128)
+  const flockRadiusWG = boidWG; // flock_radius uses workgroup_size(64), same as WORKGROUP_SIZE
 
   // --- Auto-range stats ---
   const statsBuf = device.createBuffer({
