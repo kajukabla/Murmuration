@@ -381,20 +381,19 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel *= max_spd * inverseSqrt(spd_sq);
   }
 
-  boids_dst[i].pos = boid.pos + new_vel * params.dt;
-  boids_dst[i].vel = new_vel;
-  boids_dst[i].size_factor = boid.size_factor;
-
-  // Heading: just use velocity direction (skip smoothing — flock runs 1/16 frames)
-  boids_dst[i].heading = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
-
-  // Viz metrics (constants — skip expensive sqrt/inverseSqrt per boid)
-  boids_dst[i].speed = max_spd;
-  boids_dst[i].neighbor_count = f32(n_align);
-  boids_dst[i].dir_change = 0.0;
-  boids_dst[i].flock_alignment = 1.0;
-  boids_dst[i].sep_pressure = 0.0;
-  boids_dst[i].density = f32(n_align) * 0.125;
+  // Bulk struct write: single coalesced store instead of 10+ individual field writes
+  var out: Boid;
+  out.pos = boid.pos + new_vel * params.dt;
+  out.vel = new_vel;
+  out.size_factor = boid.size_factor;
+  out.heading = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
+  out.speed = max_spd;
+  out.neighbor_count = f32(n_align);
+  out.dir_change = 0.0;
+  out.flock_alignment = 1.0;
+  out.sep_pressure = 0.0;
+  out.density = f32(n_align) * 0.125;
+  boids_dst[i] = out;
 }
 
 // === Linked-list flock_radius: walk cell linked list instead of sorted array ===
