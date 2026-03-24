@@ -253,14 +253,15 @@ def read_tsv(filepath):
             reader = csv.DictReader(f, delimiter='\t')
             for row in reader:
                 try:
-                    val = row.get('max_boids', '0')
+                    val = row.get('max_boids', '0') or '0'
+                    exp_id = row.get('experiment', '0') or '0'
                     results.append({
-                        'id': int(row.get('experiment', 0)),
+                        'id': int(exp_id),
                         'max_boids': float(val) if '.' in val else int(val),
                         'description': row.get('description', ''),
                         'result': row.get('result', ''),
                     })
-                except (ValueError, KeyError):
+                except (ValueError, KeyError, TypeError):
                     pass
     return results
 
@@ -287,12 +288,12 @@ def get_data():
             for row in reader:
                 try:
                     probes.append({
-                        'boids': int(row.get('Particle_Count', 0)),
-                        'avg_ms': float(row.get('Avg_Frame_Time', 0)),
-                        'p99_ms': float(row.get('P99_Frame_Time', 0)),
+                        'boids': int(row.get('Particle_Count') or 0),
+                        'avg_ms': float(row.get('Avg_Frame_Time') or 0),
+                        'p99_ms': float(row.get('P99_Frame_Time') or 0),
                         'passed': row.get('Result', '') == 'Pass',
                     })
-                except (ValueError, KeyError):
+                except (ValueError, KeyError, TypeError):
                     pass
 
     quality_best = all_bests.get('topo_quality', 0)
