@@ -249,15 +249,20 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
       const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
-      // Single compute pass with all dispatches (implicit ordering within pass)
-      const p = encoder.beginComputePass();
-      p.setBindGroup(0, bg);
-      p.setPipeline(clearPipe);   p.dispatchWorkgroups(gridWG);
-      p.setPipeline(assignPipe);  p.dispatchWorkgroups(boidWG);
-      p.setPipeline(prefixPipe);  p.dispatchWorkgroups(1);
-      p.setPipeline(scatterPipe); p.dispatchWorkgroups(boidWG);
-      p.setPipeline(activeFlock); p.dispatchWorkgroups(boidWG);
-      p.end();
+      const passes = [
+        [clearPipe,   gridWG],
+        [assignPipe,  boidWG],
+        [prefixPipe,  1],
+        [scatterPipe, boidWG],
+        [activeFlock, boidWG],
+      ];
+      for (const [pipeline, wg] of passes) {
+        const p = encoder.beginComputePass();
+        p.setPipeline(pipeline);
+        p.setBindGroup(0, bg);
+        p.dispatchWorkgroups(wg);
+        p.end();
+      }
 
       // Only compute stats on the last step of the frame (avoids races with multi-step)
       if (false && autoRangeEnabled && lastStep && !statsReading) {
