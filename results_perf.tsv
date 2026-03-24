@@ -4,3 +4,5 @@ experiment	max_boids	description	result
 41	18000	tighter discard threshold (0.7 -> 0.4)	reverted
 42	10000	circular billboard (system under load - invalid)	reverted
 43	118000	reduce neighbor cap 16 -> 10	reverted
+64	476000	cache neighbor boid load + skip heading normalization	reverted
+64	1300000	baseline with branchless accumulation + own-cell-first (tight cluster benchmark)	kept
