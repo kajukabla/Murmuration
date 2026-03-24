@@ -327,7 +327,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
         let start = cell_offsets[nc];
         let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
         if (start >= end_val) { continue; }
-        let cell_end = min(end_val, start + 8u); // cap per-cell iteration
+        let cell_end = min(end_val, start + 12u); // cap per-cell iteration
         for (var j = start; j < cell_end; j++) {
           let other_idx = sorted_indices[j];
           if (other_idx == i) { continue; }
