@@ -475,10 +475,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= boid.pos.y * 0.03;
   new_vel *= 0.995; // gentle drag
 
-  // Slowly rotating horizontal wind — stretches flock along wind direction
-  let wind_angle = f32(params.frame_count) * 0.005;
-  new_vel.x += sin(wind_angle) * 2.0;
-  new_vel.z += cos(wind_angle) * 2.0;
+  // Rotating horizontal wind — faster rotation for more visual movement
+  let wind_angle = f32(params.frame_count) * 0.01;
+  new_vel.x += sin(wind_angle) * 3.0;
+  new_vel.z += cos(wind_angle) * 3.0;
 
   // Spherical boundary containment
   let dist_r = length(boid.pos);
