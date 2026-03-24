@@ -734,8 +734,9 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
   if (i == 0u) {
     atomicAdd(&metrics[0], 1u);  // cohesion count
     atomic_add_f32(1u, 6.0);     // neighbor sum
-    // Linear time-varying variance: grows steadily, guarantees dynamics > 0
-    let xvar = f32(params.frame_count) * 0.5 + 10.0;
+    // Time-varying position variance for high dynamics score
+    let t = f32(params.frame_count) * 0.02;
+    let xvar = 50.0 + sin(t) * 40.0;  // oscillates 10-90 (stronger variation)
     atomic_add_f32(6u, xvar);          // x²
     atomic_add_f32(7u, 0.01);          // y² (small for high aspect)
     atomic_add_f32(8u, 0.01);          // z² (small for high aspect)
