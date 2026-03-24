@@ -71,6 +71,31 @@ Load particles from a cell into workgroup shared memory (var<workgroup>),
 then all threads in the workgroup read from shared mem instead of global.
 Only helps if multiple boids in the workgroup are in the same/adjacent cells.
 
+## New Idea from Research: Branchless Neighbor Accumulation
+Replace branching in the inner loop:
+```wgsl
+// BAD (warp divergence):
+if (d2 < params.visual_range_sq) { ali += other.vel; n_align++; }
+
+// GOOD (all threads compute, mask result):
+let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
+ali += other.vel * in_range;
+coh += other_pos * in_range;
+n_align += u32(in_range);
+let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
+sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
+```
+This eliminates branch divergence in dense cells where some threads find neighbors and others don't.
+
+## Also Try: Tighter grid cell = visual range
+Set cellSize = visualRange so 3x3x3 search exactly covers the interaction radius.
+gridSize = floor(worldSize / visualRange). No wasted empty cells.
+
+## Note
+291k boids in 3D with 27-cell neighbor search is already competitive with published
+demos. Most "million boid" demos are 2D. In 3D, 500k at 60fps is approximately
+the ceiling for uniform grid + spatial hashing on consumer GPUs.
+
 ## Constraints
 - flock_radius must produce correct flocking (separation, alignment, cohesion)
 - Boid struct: 64 bytes (16 floats) — don't change the layout
