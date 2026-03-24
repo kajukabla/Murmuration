@@ -237,9 +237,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   var sep_force = vec3f(0.0);
   if (n_found > 0u && closest_d2 < params.separation_dist_sq) {
     let diff = boid.pos - nearest_pos[closest_k];
-    let strength = (1.0 - closest_d2 / params.separation_dist_sq);
-    sep_force = diff * strength * strength; // quadratic falloff
-    new_vel += sep_force * params.separation_factor * 3.0;
+    sep_force = diff * (1.0 - closest_d2 / params.separation_dist_sq);
+    new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
   // Alignment + Cohesion: all K neighbors (uses cached pos+vel)
