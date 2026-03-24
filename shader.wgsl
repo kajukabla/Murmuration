@@ -328,7 +328,8 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     ali += other.vel * in_range;
     coh += other.pos * in_range;
     n_align += u32(in_range);
-    sep += diff * f32(d2 < params.separation_dist_sq);
+    let in_sep = f32(d2 < params.separation_dist_sq);
+    sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
   }
 
   var new_vel = boid.vel;
