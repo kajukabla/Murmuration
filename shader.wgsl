@@ -440,9 +440,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
 
-  // Mild velocity damping (drag)
-  new_vel *= 0.99;
-
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
   new_vel.y -= boid.pos.y * 0.03;
