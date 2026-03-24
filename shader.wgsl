@@ -452,9 +452,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   out.sep_pressure = 0.0;
   out.density = 0.75;
   boids_dst[i] = out;
-  // Write-through to src: drift reads from dst-as-src and src may be stale
-  // By keeping src updated, the alternating ping-pong always has fresh data
-  boids_src[i] = out;
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
