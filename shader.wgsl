@@ -156,9 +156,10 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(my_grid);
 
   // Track K nearest neighbors by distance (max-replacement strategy)
-  // Unsorted array — track worst element for O(1) replacement
+  // Cache pos+vel during search to avoid re-reading global memory in force phase
   var nearest_d2: array<f32, 7>;   // distances squared
-  var nearest_idx: array<u32, 7>;  // boid indices
+  var nearest_pos: array<vec3f, 7>; // cached positions
+  var nearest_vel: array<vec3f, 7>; // cached velocities
   var n_found = 0u;
   var worst_k = 0u;     // index of the worst (farthest) in nearest arrays
   var worst_d2 = 0.0f;  // cached worst distance (avoids array reads in hot loop)
@@ -189,9 +190,10 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
           if (d2 > params.visual_range_sq) { continue; }
 
           if (n_found < K_NEIGHBORS) {
-            // Still filling — just append
+            // Still filling — cache pos+vel and append
             nearest_d2[n_found] = d2;
-            nearest_idx[n_found] = other_idx;
+            nearest_pos[n_found] = other_pos;
+            nearest_vel[n_found] = boids_src[other_idx].vel;
             n_found++;
             // Update worst tracker
             if (d2 > worst_d2) {
@@ -201,7 +203,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
           } else if (d2 < worst_d2) {
             // Replace the worst element
             nearest_d2[worst_k] = d2;
-            nearest_idx[worst_k] = other_idx;
+            nearest_pos[worst_k] = other_pos;
+            nearest_vel[worst_k] = boids_src[other_idx].vel;
             // Re-scan for new worst
             worst_d2 = nearest_d2[0];
             worst_k = 0u;
@@ -230,24 +233,22 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     }
   }
 
-  // Avoidance: only the 1 nearest neighbor
+  // Avoidance: only the 1 nearest neighbor (uses cached pos)
   var sep_force = vec3f(0.0);
   if (n_found > 0u && closest_d2 < params.separation_dist_sq) {
-    let other_pos = boids_src[nearest_idx[closest_k]].pos;
-    let diff = boid.pos - other_pos;
+    let diff = boid.pos - nearest_pos[closest_k];
     sep_force = diff * (1.0 - closest_d2 / params.separation_dist_sq);
     new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
-  // Alignment + Cohesion: all K neighbors
+  // Alignment + Cohesion: all K neighbors (uses cached pos+vel)
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var avg_vel = vec3f(0.0);
   if (n_found > 0u) {
     for (var k = 0u; k < min(n_found, K_NEIGHBORS); k++) {
-      let other = boids_src[nearest_idx[k]];
-      ali += other.vel;
-      coh += other.pos;
+      ali += nearest_vel[k];
+      coh += nearest_pos[k];
     }
     let nf = f32(min(n_found, K_NEIGHBORS));
     avg_vel = ali / nf;
