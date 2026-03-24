@@ -143,7 +143,7 @@ fn scatter(@builtin(global_invocation_id) id: vec3u) {
 // Find the K nearest neighbors (K=7 for alignment/cohesion, closest 1 for avoidance)
 // Uses the spatial hash to find candidates, then keeps only the K closest.
 
-const K_NEIGHBORS: u32 = 7u;
+const K_NEIGHBORS: u32 = 10u;
 
 @compute @workgroup_size(128)
 fn flock(@builtin(global_invocation_id) id: vec3u) {
@@ -157,9 +157,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 
   // Track K nearest neighbors by distance (max-replacement strategy)
   // Cache pos+vel during search to avoid re-reading global memory in force phase
-  var nearest_d2: array<f32, 7>;   // distances squared
-  var nearest_pos: array<vec3f, 7>; // cached positions
-  var nearest_vel: array<vec3f, 7>; // cached velocities
+  var nearest_d2: array<f32, 10>;   // distances squared
+  var nearest_pos: array<vec3f, 10>; // cached positions
+  var nearest_vel: array<vec3f, 10>; // cached velocities
   var n_found = 0u;
   var worst_k = 0u;     // index of the worst (farthest) in nearest arrays
   var worst_d2 = 0.0f;  // cached worst distance (avoids array reads in hot loop)
