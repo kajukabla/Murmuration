@@ -323,7 +323,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let my_start = cell_offsets[my_ci];
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
   if (my_start < my_end) {
-    let cell_end = min(my_end, my_start + 6u);
+    let cell_end = min(my_end, my_start + 4u);
     for (var j = my_start; j < cell_end; j++) {
       let other_idx = sorted_indices[j];
       if (other_idx == i) { continue; }
@@ -340,7 +340,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Only search 26 neighbor cells if own cell didn't provide enough
-  if (n_align < 6u) {
+  if (n_align < 4u) {
     for (var nz = lo.z; nz <= hi.z; nz++) {
       let zoff = u32(nz) * params.grid_size * params.grid_size;
       for (var ny = lo.y; ny <= hi.y; ny++) {
