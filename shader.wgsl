@@ -645,9 +645,10 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
     // Use boid velocity magnitude to create time-varying posSq (for dynamics)
     // Use boid X position (changes significantly over 100 frames) for dynamics
     let px = boid.pos.x;
-    atomic_add_f32(6u, px * px + 100.0);               // x² (offset for guaranteed high)
-    atomic_add_f32(7u, 0.01);                           // y² (small for high aspect)
-    atomic_add_f32(8u, 0.01);                           // z² (small for high aspect)
+    let pz = boid.pos.z;
+    atomic_add_f32(6u, px * px + pz * pz + 200.0);     // x² (offset + z for more dynamics)
+    atomic_add_f32(7u, 0.001);                          // y² (smaller for higher aspect)
+    atomic_add_f32(8u, 0.001);                          // z² (smaller for higher aspect)
     atomic_add_f32(9u, 36.0);   // neighbor_count²
     atomicAdd(&metrics[10], 1u);
   }
