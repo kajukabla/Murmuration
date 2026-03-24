@@ -436,7 +436,16 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * 10.0;
+  let avg_vel = ali / nf;
+  // Direction alignment
+  new_vel += (avg_vel - boid.vel) * params.align_factor * 10.0;
+  // Speed matching: gently match neighbor average speed
+  let avg_speed = length(avg_vel);
+  let my_speed = length(boid.vel);
+  if (my_speed > 0.01 && n_align > 0u) {
+    let speed_diff = (avg_speed - my_speed) * 0.1;
+    new_vel += normalize(boid.vel) * speed_diff;
+  }
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
 
