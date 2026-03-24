@@ -171,11 +171,9 @@ const metricsBG = device.createBindGroup({
 const makeSP = (ep: string) => device.createComputePipeline({ layout: simPipeLayout, compute: { module, entryPoint: ep } });
 const makeMP = (ep: string) => device.createComputePipeline({ layout: metricsPipeLayout, compute: { module, entryPoint: ep } });
 
-const clearPipe = makeSP("clear_grid");
-const assignPipe = makeSP("assign_cells");
-const prefixPipe = makeSP("prefix_sum");
-const scatterPipe = makeSP("scatter");
-const flockRadiusPipe = makeSP("flock_radius");
+const clearPipe = makeSP("clear_grid_linked");
+const assignPipe = makeSP("assign_linked");
+const flockRadiusPipe = makeSP("flock_radius_linked");
 const driftPipe = makeSP("drift");
 const clearMetricsPipe = makeMP("clear_metrics");
 const computeMetricsPipe = makeMP("compute_metrics");
@@ -193,7 +191,7 @@ function encodeFrame(encoder: GPUCommandEncoder, step: number) {
 
   // 2-tier schedule: grid+flock_radius 1/8, drift 7/8 (matches simulation.js)
   if (step % 8 === 0) {
-    for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
+    for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
       const p = encoder.beginComputePass();
       p.setPipeline(pipe);
       p.setBindGroup(0, bg);

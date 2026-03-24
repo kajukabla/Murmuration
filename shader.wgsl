@@ -82,6 +82,25 @@ fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
   atomicAdd(&cell_counts[cell], 1u);
 }
 
+// Linked-list grid: clear heads to sentinel
+@compute @workgroup_size(64)
+fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.grid_cells) { return; }
+  atomicStore(&cell_counts[i], 0xFFFFFFFFu); // cell_counts used as cell_heads
+}
+
+// Linked-list grid: assign boids to cells via atomic exchange
+@compute @workgroup_size(64)
+fn assign_linked(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  let cell = cell_index(get_cell(boids_src[i].pos));
+  // boid_cells[i] stores the next pointer (previous head of this cell)
+  let prev_head = atomicExchange(&cell_counts[cell], i);
+  boid_cells[i] = prev_head;
+}
+
 const SCAN_WG: u32 = 256u;
 var<workgroup> scan_sums: array<u32, 256>;
 
@@ -370,6 +389,81 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
 
   // Viz metrics
+  boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
+  boids_dst[i].neighbor_count = f32(n_align);
+  boids_dst[i].dir_change = 0.0;
+  boids_dst[i].flock_alignment = 0.0;
+  boids_dst[i].sep_pressure = 0.0;
+  boids_dst[i].density = f32(n_align) * 0.125;
+}
+
+// === Linked-list flock_radius: walk cell linked list instead of sorted array ===
+@compute @workgroup_size(64)
+fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+
+  let boid = boids_src[i];
+
+  var sep = vec3f(0.0);
+  var ali = vec3f(0.0);
+  var coh = vec3f(0.0);
+  var n_align = 0u;
+
+  let mg = vec3i(get_cell(boid.pos));
+  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
+
+  // Walk linked list for own cell (cell_counts used as cell_heads, boid_cells as next pointers)
+  let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
+  var j = atomicLoad(&cell_counts[my_ci]);
+  for (var k = 0u; k < 6u && j != 0xFFFFFFFFu; k++) {
+    if (j != i) {
+      let other_pos = boids_src[j].pos;
+      let diff = boid.pos - other_pos;
+      let d2 = dot(diff, diff);
+      ali += boids_src[j].vel;
+      coh += other_pos;
+      n_align += 1u;
+      let in_sep = f32(d2 < params.separation_dist_sq);
+      sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+    }
+    j = boid_cells[j];
+  }
+
+  var new_vel = boid.vel;
+  let nf = max(f32(n_align), 1.0);
+  new_vel += (ali / nf - boid.vel) * params.align_factor;
+  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  new_vel += sep * params.separation_factor;
+
+  // Spherical boundary
+  let center_d2 = dot(boid.pos, boid.pos);
+  let r = params.sphere_radius;
+  let threshold = r - r * 0.15;
+  if (center_d2 > threshold * threshold) {
+    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
+    let dist = center_d2 * inv_dist;
+    let penetration = (dist - threshold) / (r * 0.15);
+    new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
+  }
+
+  // Speed clamp
+  let spd_sq = dot(new_vel, new_vel);
+  let max_spd = params.max_speed;
+  if (spd_sq > max_spd * max_spd) {
+    new_vel *= max_spd * inverseSqrt(spd_sq);
+  }
+
+  boids_dst[i].pos = boid.pos + new_vel * params.dt;
+  boids_dst[i].vel = new_vel;
+  boids_dst[i].size_factor = boid.size_factor;
+
+  let vel_dir = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
+  var old_h = boid.heading;
+  let hl = dot(old_h, old_h);
+  if (hl < 0.25) { old_h = vel_dir; } else { old_h = old_h * inverseSqrt(hl); }
+  boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
+
   boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
   boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = 0.0;
