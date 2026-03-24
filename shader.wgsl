@@ -459,7 +459,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     let dist = center_d2 * inv_dist;
     let penetration = (dist - threshold) / (r * 0.15);
     // Push back along scaled gradient (stronger push in Y)
-    new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
+    new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 5.0));
   }
 
   // Turn rate limiter (smooth heading changes)
