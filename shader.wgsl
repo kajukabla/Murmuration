@@ -401,8 +401,51 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
-  // No-op: just copy src to dst (measuring dispatch floor)
-  boids_dst[i] = boids_src[i];
+
+  let boid = boids_src[i];
+
+  var ali = vec3f(0.0);
+  var coh = vec3f(0.0);
+  var n_align = 0u;
+
+  let mg = vec3i(get_cell(boid.pos));
+  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
+
+  // Walk linked list — prefetch next pointer before reading data
+  var sep = vec3f(0.0);
+  let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
+  var j = atomicLoad(&cell_counts[my_ci]);
+  for (var iter = 0u; iter < 2u; iter++) {
+    if (j == 0xFFFFFFFFu) { break; }
+    let next = boid_cells[j];  // prefetch next before reading boid data
+    let opos = boids_src[j].pos;
+    let diff = boid.pos - opos;
+    let d2 = dot(diff, diff);
+    coh += opos; ali += boids_src[j].vel; n_align += 1u;
+    let in_sep = f32(d2 < params.separation_dist_sq);
+    sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+    j = next;
+  }
+
+  // Combined alignment + cohesion + separation in single pass
+  var new_vel = boid.vel;
+  if (n_align > 0u) {
+    let inv_n = 1.0 / f32(n_align);
+    new_vel += (ali * inv_n - boid.vel) * (params.align_factor * 12.0) + (coh * inv_n - boid.pos) * (params.cohesion_factor * 16.0);
+    new_vel += sep * params.separation_factor;
+  }
+
+  // Gravity + Y-spring: compresses flock toward horizontal plane
+  new_vel.y -= 0.25;
+  new_vel.y -= boid.pos.y * 0.03;
+
+  // Slowly rotating horizontal wind — stretches flock along wind direction
+  let wind_angle = f32(params.frame_count) * 0.005;
+  new_vel.x += sin(wind_angle) * 2.0;
+  new_vel.z += cos(wind_angle) * 2.0;
+
+  // Direct constructor output
+  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, 0.0, new_vel, 0.0, vec3f(0.0), 0.0, 0.0, 0.0, 0.0, 0.0);
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
