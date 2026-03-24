@@ -449,18 +449,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 0.8;
   new_vel.z += cos(wind_angle) * 0.8;
 
-  // Rare perturbation (~7% of boids) — drives dynamics and shape change
-  let linked_perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
-  if (linked_perturb_hash < 0.03) {
-    let linked_seed = f32(i * 1973u + params.frame_count * 9277u);
-    let kick = vec3f(
-      fract(sin(linked_seed) * 43758.5) - 0.5,
-      fract(sin(linked_seed * 1.3) * 22578.1) - 0.5,
-      fract(sin(linked_seed * 0.7) * 31415.9) - 0.5
-    ) * 1.0;
-    new_vel += kick;
-  }
-
   // Ellipsoidal boundary — oblate (Y compressed 2x) for higher aspect ratio
   let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(scaled_pos, scaled_pos);
