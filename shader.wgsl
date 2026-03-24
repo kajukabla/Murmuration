@@ -272,12 +272,15 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
   if (perturb_hash < 0.07) {
     let seed = f32(i * 1973u + params.frame_count * 9277u);
-    let kick = vec3f(
+    // Perturbation aligned with average neighbor velocity
+    let kick_base = vec3f(
       fract(sin(seed) * 43758.5) - 0.5,
       fract(sin(seed * 1.3) * 22578.1) - 0.5,
       fract(sin(seed * 0.7) * 31415.9) - 0.5
-    ) * 3.5;  // strong kick via topological links
-    new_vel += kick;
+    );
+    // Blend random direction with neighbor average for more coherent cascades
+    let kick_dir = select(kick_base, mix(kick_base, normalize(avg_vel + vec3f(0.001)), 0.3), n_found > 0u);
+    new_vel += kick_dir * 4.0;
   }
 
   // Spherical boundary steering
