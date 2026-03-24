@@ -317,7 +317,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   // Own-cell-only: 3 neighbors max (no 27-cell search = lower register pressure)
   let my_start = cell_offsets[my_ci];
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
-  let cell_end = min(my_end, my_start + 3u);
+  let cell_end = min(my_end, my_start + 5u);
   for (var j = my_start; j < cell_end; j++) {
     let other_idx = sorted_indices[j];
     if (other_idx == i) { continue; }
