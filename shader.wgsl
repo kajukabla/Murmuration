@@ -362,16 +362,6 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].vel = new_vel;
 }
 
-// === Drift-only pass: advance positions without recomputing flocking ===
-@compute @workgroup_size(64)
-fn drift(@builtin(global_invocation_id) id: vec3u) {
-  let i = id.x;
-  if (i >= params.num_boids) { return; }
-  let boid = boids_src[i];
-  boids_dst[i].pos = boid.pos + boid.vel * params.dt;
-  boids_dst[i].vel = boid.vel;
-}
-
 // === Auto-range stats ===
 @group(1) @binding(0) var<storage, read_write> stats: array<atomic<u32>, 2>;
 
