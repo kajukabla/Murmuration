@@ -303,7 +303,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 
   // Speed with drag
   let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
-  var final_speed = mix(old_speed, desired_speed, 0.20);
+  var final_speed = mix(old_speed, desired_speed, 0.15);
   final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
   new_vel = final_dir * final_speed;
 
