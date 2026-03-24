@@ -21,7 +21,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
   }
 }
 const NUM_BOIDS = args.boids || 40000;
-const TIMEOUT = args.timeout || 60;
+const TIMEOUT = args.timeout || 90; // 30s warmup + 120 frames measurement + margin
 
 const DIR = __dirname;
 const REQUEST_FILE = path.join(DIR, 'bench_request.json');

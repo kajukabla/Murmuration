@@ -19,14 +19,14 @@ CSV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_metrics
 TARGET_MS = 16.6  # 60 FPS
 
 LO = 10   # 10k
-HI = 300  # 300k
+HI = 1000  # 300k
 
 
 def run_benchmark(num_boids: int) -> dict | None:
     try:
         result = subprocess.run(
-            ["node", BENCH_SCRIPT, "--boids", str(num_boids), "--timeout", "45"],
-            capture_output=True, text=True, timeout=60,
+            ["node", BENCH_SCRIPT, "--boids", str(num_boids), "--timeout", "80"],
+            capture_output=True, text=True, timeout=120,
         )
         if result.returncode != 0:
             print(f"  failed: {result.stderr[:200]}", file=sys.stderr)
