@@ -548,9 +548,15 @@ fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   let inv_zone = 1.0 / (r * 0.15);
   let thresh_sq = threshold * threshold;
 
-  // 16 physics steps in a loop (reduced shader code size)
+  // Wind angle for all steps
+  let wa = f32(params.frame_count) * 0.01;
+
+  // 16 physics steps in a loop
   for (var step = 0u; step < 16u; step++) {
     vel.y -= 0.03 + pos.y * 0.03;
+    // Add wind
+    vel.x += sin(wa) * 0.1;
+    vel.z += cos(wa) * 0.1;
     let sp = pos * vec3f(1.0, 2.5, 1.0);
     let cd = dot(sp, sp);
     if (cd > thresh_sq) {
