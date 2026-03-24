@@ -347,7 +347,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let own_start = cell_offsets[my_ci];
   let own_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
-  for (var j = own_start; j < min(own_end, own_start + 6u); j++) {
+  for (var j = own_start; j < min(own_end, own_start + 4u); j++) {
     let oi = sorted_indices[j];
     if (oi == i) { continue; }
     let other_pos = boids_src[oi].pos;
