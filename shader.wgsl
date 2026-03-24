@@ -462,30 +462,23 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Turn rate limiter (smooth heading changes)
-  let linked_old_speed = length(boid.vel);
-  var linked_old_dir = boid.vel;
-  if (linked_old_speed > 0.001) { linked_old_dir = linked_old_dir / linked_old_speed; }
-  else { linked_old_dir = vec3f(1.0, 0.0, 0.0); }
-  let linked_desired_speed = length(new_vel);
-  var linked_desired_dir = new_vel;
-  if (linked_desired_speed > 0.001) { linked_desired_dir = linked_desired_dir / linked_desired_speed; }
-  else { linked_desired_dir = linked_old_dir; }
-  let linked_final_dir = normalize(mix(linked_old_dir, linked_desired_dir, 0.30));
-
-  // Speed clamp with smoothing
-  var linked_final_speed = mix(linked_old_speed, linked_desired_speed, 0.15);
-  linked_final_speed = clamp(linked_final_speed, params.min_speed, params.max_speed);
-  new_vel = linked_final_dir * linked_final_speed;
-
-  // Direction change metric
-  let linked_dir_change = 1.0 - clamp(dot(linked_old_dir, linked_final_dir), -1.0, 1.0);
+  // Speed clamp
+  let spd_sq = dot(new_vel, new_vel);
+  let max_spd = params.max_speed;
+  if (spd_sq > max_spd * max_spd) {
+    new_vel *= max_spd * inverseSqrt(spd_sq);
+  }
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
-  boids_dst[i].heading = linked_final_dir;
+  // Heading: smooth velocity direction tracking
+  let vel_dir = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
+  var old_h = boid.heading;
+  let hl = dot(old_h, old_h);
+  if (hl < 0.25) { old_h = vel_dir; } else { old_h = old_h * inverseSqrt(hl); }
+  boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
 
   boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
   boids_dst[i].neighbor_count = f32(n_align);
