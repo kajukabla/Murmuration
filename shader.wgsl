@@ -435,8 +435,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
       ali += boids_src[j].vel;
       coh += other_pos;
       n_align += 1u;
-      let in_sep = f32(d2 < params.separation_dist_sq);
-      sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+      sep += diff * max(1.0 - d2 * inv_sep_d2, 0.0);
     }
     j = boid_cells[j];
   }
