@@ -59,19 +59,30 @@ def main():
 
     print(f"Browser perf: binary search for max boids", file=sys.stderr)
 
+    # Quick GPU error check — test with small count first
+    print(f"  GPU error check...", end="", file=sys.stderr, flush=True)
+    err_check = run_benchmark(1000)
+    if err_check is None or 'error' in (err_check or {}):
+        print(f" BROKEN (GPU error or page crash)", file=sys.stderr)
+        print(f"max_boids: 0")
+        return
+    print(f" OK", file=sys.stderr)
+
     # Read previous best from results_perf.tsv
     prev_best = 0
-    perf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results_perf.tsv")
-    if os.path.exists(perf_file):
-        with open(perf_file) as f:
-            for line in f:
-                parts = line.strip().split('\t')
-                if len(parts) >= 4 and parts[3] == 'kept':
-                    try:
-                        val = int(parts[1])
-                        prev_best = max(prev_best, val)
-                    except ValueError:
-                        pass
+    # Check multiple results files for previous best
+    for fname in ["results_classic_perf.tsv", "results_perf.tsv", "results_topo_perf.tsv"]:
+        perf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), fname)
+        if os.path.exists(perf_file):
+            with open(perf_file) as f:
+                for line in f:
+                    parts = line.strip().split('\t')
+                    if len(parts) >= 4 and parts[3] == 'kept':
+                        try:
+                            val = int(parts[1])
+                            prev_best = max(prev_best, val)
+                        except ValueError:
+                            pass
 
     # Quick check: test at previous best first. If it fails, skip full search.
     if prev_best > 0:

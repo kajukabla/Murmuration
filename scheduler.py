@@ -99,12 +99,17 @@ def generate_program_md(phase: dict) -> str:
 1. Read `shader.wgsl` and `simulation.js`
 2. Pick ONE optimization for the `{editable}` function (or supporting code)
 3. Edit the file(s)
-4. `git add {git_add_files} && git commit -m "experiment: <description>"`
-5. Run: `{evaluate_cmd}`
-6. {_metric_parse_hint(phase)}
-7. If {metric} improves over previous best -> KEEP, append result to `{results_file}`
-8. If {metric} does not improve -> `git revert --no-edit HEAD`, append result to `{results_file}`
-9. REPEAT. Do NOT pause. Loop until interrupted.
+4. **VALIDATE before committing:**
+   - Run: `PATH=$HOME/.deno/bin:$PATH deno eval --unstable-webgpu "const a=await navigator.gpu.requestAdapter();const d=await a.requestDevice();const m=d.createShaderModule({{code:await Deno.readTextFile('shader.wgsl')}});const i=await m.getCompilationInfo();if(i.messages.length>0){{console.log('SHADER ERROR');Deno.exit(1)}}console.log('OK');d.destroy()"`
+   - If it prints SHADER ERROR: undo your edit and try something else. Do NOT commit broken code.
+5. `git add {git_add_files} && git commit -m "experiment: <description>"`
+6. Run: `{evaluate_cmd}`
+7. {_metric_parse_hint(phase)}
+8. If the result is 0 or contains "error": the experiment BROKE something. `git revert --no-edit HEAD` immediately.
+9. If {metric} improves over previous best -> KEEP, append result to `{results_file}`
+10. If {metric} does not improve -> `git revert --no-edit HEAD`, append result to `{results_file}`
+11. **After reverting, verify the app still works** by running the validate command from step 4.
+12. REPEAT. Do NOT pause. Loop until interrupted.
 
 ## What You Can Edit
 {editable_list}
