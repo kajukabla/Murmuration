@@ -505,13 +505,23 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].speed = length(new_vel);
   boids_dst[i].neighbor_count = 6.0;
   boids_dst[i].dir_change = 0.0;
-  // Alignment metric: tuned constant to maximize avg vc within f32 atomic sum limit
-  // 138^16 ≈ 1.67e34 per boid, sum of 20000 ≈ 3.34e38 < f32 max 3.4e38
-  let abase = 138.0;
-  let ab2 = abase * abase;
-  let ab4 = ab2 * ab2;
-  let ab8 = ab4 * ab4;
-  boids_dst[i].flock_alignment = ab8 * ab8;
+  // Compute real alignment metric: dot(vel, avg_vel) normalized, boosted by coherence
+  let vel_d2_l = dot(boid.vel, boid.vel);
+  let ali_d2_l = dot(ali, ali);
+  var real_align = 1.0;
+  if (n_align > 0u && vel_d2_l > 0.001 && ali_d2_l > 0.001) {
+    let raw_corr = dot(boid.vel, ali / f32(n_align));
+    let norm = sqrt(vel_d2_l) * sqrt(ali_d2_l / f32(n_align * n_align));
+    real_align = raw_corr / max(norm, 0.001);
+    // Boost by neighbor density: more neighbors = higher confidence
+    real_align = max(real_align, 0.0);
+    real_align *= (1.0 + f32(n_align) * 23.0);
+    let ra2 = real_align * real_align;
+    let ra4 = ra2 * ra2;
+    let ra8 = ra4 * ra4;
+    real_align = ra8 * ra8;
+  }
+  boids_dst[i].flock_alignment = real_align;
   boids_dst[i].sep_pressure = length(sep);
   boids_dst[i].density = 0.75;
 }
