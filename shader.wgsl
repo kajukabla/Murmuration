@@ -439,18 +439,12 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= 0.25;
   new_vel.y -= boid.pos.y * 0.03;
 
-  // Slowly rotating horizontal wind
+  // Slowly rotating horizontal wind — stretches flock along wind direction
   let wind_angle = f32(params.frame_count) * 0.005;
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
-  // Speed clamp to prevent runaway velocities
-  let spd_sq = dot(new_vel, new_vel);
-  let max_spd = params.max_speed;
-  if (spd_sq > max_spd * max_spd) {
-    new_vel *= max_spd * inverseSqrt(spd_sq);
-  }
-
+  // Direct constructor output
   boids_dst[i] = Boid(boid.pos + new_vel * params.dt, 0.0, new_vel, 0.0, vec3f(0.0), 0.0, 0.0, 0.0, 0.0, 0.0);
 }
 
