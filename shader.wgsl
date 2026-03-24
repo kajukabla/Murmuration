@@ -437,10 +437,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
   new_vel += (ali / nf - boid.vel) * params.align_factor * 10.0;
-  // Velocity-relative cohesion: steer toward where neighbors WILL be
-  let predicted_center = coh / nf + ali / nf * params.dt;
-  let predicted_pos = boid.pos + boid.vel * params.dt;
-  new_vel += (predicted_center - predicted_pos) * params.cohesion_factor;
+  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
