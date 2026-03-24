@@ -403,11 +403,12 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel += kick_dir * 4.0;
   }
 
-  // Spherical boundary
-  let dist = length(boid.pos);
+  // Oblate ellipsoidal boundary (matching flock_radius_linked)
+  let scaled_pos_r = boid.pos * vec3f(1.0, 2.5, 1.0);
+  let dist = length(scaled_pos_r);
   let r = params.sphere_radius;
   if (dist > r * 0.85 && dist > 0.001) {
-    new_vel -= normalize(boid.pos) * params.turn_factor * min((dist - r * 0.85) / (r * 0.15), 3.0);
+    new_vel -= normalize(scaled_pos_r) * vec3f(1.0, 2.5, 1.0) * params.turn_factor * min((dist - r * 0.85) / (r * 0.15), 3.0);
   }
 
   // Turn rate limiter for smooth heading
