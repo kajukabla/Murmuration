@@ -6,3 +6,23 @@ experiment	max_boids	description	result
 43	118000	reduce neighbor cap 16 -> 10	reverted
 64	476000	cache neighbor boid load + skip heading normalization	reverted
 64	1300000	baseline with branchless accumulation + own-cell-first (tight cluster benchmark)	kept
+65	1400000	remove redundant d2>0.0001 check (tight cluster benchmark)	kept
+65	970000	skip size_factor copy + heading normalization (timeout at 985k)	reverted
+66	1500000	reduce neighbor per-cell cap 6->4	reverted
+67	1400000	precompute 1/sep_dist_sq (no improvement)	reverted
+66	349000	coarser grid cbrt(N/16)	reverted
+68	1500000	reduce neighbor search total cap 4->3	reverted
+69	1800000	reduce neighbor threshold to 2 (external agent change)	kept
+70	1900000	reuse inverseSqrt for heading (1.9M@57fps, marginal gain)	kept
+67	624000	lower neighbor threshold 3->2 + linter changes	reverted
+71	1900000	branching own-cell loop	reverted
+72	1800000	own-cell-only search (no neighbor cells) + dead code cleanup	kept
+68	497000	own-cell only cap 8 (linter rewrote to cap 3 + neighbor search)	reverted
+73	2000000	reduce own-cell cap to 2 (instability)	reverted
+74	1800000	own-cell-only cap 3, no neighbor search (same as cap 4 + search)	kept
+75	999000	reuse inverseSqrt for heading + skip size_factor write (benchmark cap 1M)	kept
+75	876000	evaluate.py baseline (with neighbor search, tight cluster)	baseline
+76	738000	own-cell cap 5 (more reads hurt more than stability helps)	reverted
+77	952000	combined opts + concurrent mods (noisy, cap changed during bench)	reverted
+78	968000	single boid struct load (noisy, cap changed during bench)	reverted
+71	871000	skip grid rebuild every other frame	reverted

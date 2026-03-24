@@ -142,13 +142,10 @@ export async function createSimulation(device, {
   const boidCells       = makeGridBuf('boid-cells', numBoids);
   const sortedIndices   = makeGridBuf('sorted-idx', numBoids);
   const scatterCounters = makeGridBuf('scatter-ctr', GRID_CELLS);
-  // Sorted pos/vel buffers for cache-coherent neighbor reads (vec4f = 16 bytes each)
-  const sortedPos       = makeGridBuf('sorted-pos', numBoids * 4); // vec4f = 4 u32s
-  const sortedVel       = makeGridBuf('sorted-vel', numBoids * 4);
 
   // --- Bind group layout ---
   const bgl = device.createBindGroupLayout({
-    entries: Array.from({ length: 10 }, (_, i) => ({
+    entries: Array.from({ length: 8 }, (_, i) => ({
       binding: i,
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type: i === 0 ? 'uniform' : 'storage' },
@@ -167,8 +164,6 @@ export async function createSimulation(device, {
       { binding: 5, resource: { buffer: boidCells } },
       { binding: 6, resource: { buffer: sortedIndices } },
       { binding: 7, resource: { buffer: scatterCounters } },
-      { binding: 8, resource: { buffer: sortedPos } },
-      { binding: 9, resource: { buffer: sortedVel } },
     ],
   });
   const bgA = makeBG(boidA, boidB);
@@ -254,30 +249,18 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
       const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
-
-      // Rebuild grid every other frame — boids move little in 16ms
-      const rebuildGrid = step % 2 === 0;
-      if (rebuildGrid) {
-        const gridPasses = [
-          [clearPipe,   gridWG],
-          [assignPipe,  boidWG],
-          [prefixPipe,  1],
-          [scatterPipe, boidWG],
-        ];
-        for (const [pipeline, wg] of gridPasses) {
-          const p = encoder.beginComputePass();
-          p.setPipeline(pipeline);
-          p.setBindGroup(0, bg);
-          p.dispatchWorkgroups(wg);
-          p.end();
-        }
-      }
-      // Always run flock
-      {
+      const passes = [
+        [clearPipe,   gridWG],
+        [assignPipe,  boidWG],
+        [prefixPipe,  1],
+        [scatterPipe, boidWG],
+        [activeFlock, boidWG],
+      ];
+      for (const [pipeline, wg] of passes) {
         const p = encoder.beginComputePass();
-        p.setPipeline(activeFlock);
+        p.setPipeline(pipeline);
         p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(boidWG);
+        p.dispatchWorkgroups(wg);
         p.end();
       }
 
