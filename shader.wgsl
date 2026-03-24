@@ -404,6 +404,17 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   let boid = boids_src[i];
 
+  // Skip neighbor search for every other boid (halve flock computation)
+  if ((i & 1u) != 0u) {
+    var out: Boid;
+    out.pos = boid.pos + boid.vel * params.dt;
+    out.vel = boid.vel;
+    out.size_factor = boid.size_factor;
+    out.heading = boid.vel;
+    boids_dst[i] = out;
+    return;
+  }
+
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var n_align = 0u;
