@@ -412,19 +412,27 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
   // Walk linked list — prefetch next pointer before reading data
+  var sep = vec3f(0.0);
+  let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
   var j = atomicLoad(&cell_counts[my_ci]);
   for (var iter = 0u; iter < 2u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
-    let next = boid_cells[j];
-    coh += boids_src[j].pos; ali += boids_src[j].vel; n_align += 1u;
+    let next = boid_cells[j];  // prefetch next before reading boid data
+    let opos = boids_src[j].pos;
+    let diff = boid.pos - opos;
+    let d2 = dot(diff, diff);
+    coh += opos; ali += boids_src[j].vel; n_align += 1u;
+    let in_sep = f32(d2 < params.separation_dist_sq);
+    sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
     j = next;
   }
 
-  // Combined alignment + cohesion
+  // Combined alignment + cohesion + separation in single pass
   var new_vel = boid.vel;
   if (n_align > 0u) {
     let inv_n = 1.0 / f32(n_align);
     new_vel += (ali * inv_n - boid.vel) * (params.align_factor * 12.0) + (coh * inv_n - boid.pos) * params.cohesion_factor;
+    new_vel += sep * params.separation_factor;
   }
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
