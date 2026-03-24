@@ -188,6 +188,7 @@ export async function createSimulation(device, {
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
   const flockWG = Math.ceil(numBoids / 128); // flock uses workgroup_size(128)
   const flockRadiusWG = Math.ceil(numBoids / 256); // flock_radius uses workgroup_size(256)
+  const driftWG = Math.ceil(numBoids / 256); // drift uses workgroup_size(256)
   const gridWG128 = Math.ceil(GRID_CELLS / 128); // linked-list clear uses workgroup_size(128)
   const boidWG128 = Math.ceil(numBoids / 128);   // linked-list assign uses workgroup_size(128)
 
@@ -292,7 +293,7 @@ export async function createSimulation(device, {
         const p = encoder.beginComputePass();
         p.setPipeline(driftPipe);
         p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(boidWG);
+        p.dispatchWorkgroups(driftWG);
         p.end();
       }
 
