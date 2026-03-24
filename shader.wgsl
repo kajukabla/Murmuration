@@ -525,7 +525,7 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i] = boid;
 }
 
-// === In-place drift: 2 physics steps per dispatch to halve memory traffic ===
+// === In-place drift: 4 physics steps per dispatch to reduce dispatch overhead ===
 @compute @workgroup_size(256)
 fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
@@ -536,24 +536,45 @@ fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   let r = params.sphere_radius;
   let threshold = r - r * 0.15;
   let inv_zone = 1.0 / (r * 0.15);
+  let thresh_sq = threshold * threshold;
 
   // Step 1
   vel.y -= 0.03 + pos.y * 0.03;
-  let sp1 = pos * vec3f(1.0, 2.5, 1.0);
-  let cd1 = dot(sp1, sp1);
-  if (cd1 > threshold * threshold) {
-    let inv_d = inverseSqrt(max(cd1, 1e-6));
-    vel -= sp1 * (inv_d * params.turn_factor * min((cd1 * inv_d - threshold) * inv_zone, 3.0));
+  var sp = pos * vec3f(1.0, 2.5, 1.0);
+  var cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
   }
   pos += vel * dt;
 
   // Step 2
   vel.y -= 0.03 + pos.y * 0.03;
-  let sp2 = pos * vec3f(1.0, 2.5, 1.0);
-  let cd2 = dot(sp2, sp2);
-  if (cd2 > threshold * threshold) {
-    let inv_d = inverseSqrt(max(cd2, 1e-6));
-    vel -= sp2 * (inv_d * params.turn_factor * min((cd2 * inv_d - threshold) * inv_zone, 3.0));
+  sp = pos * vec3f(1.0, 2.5, 1.0);
+  cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+  }
+  pos += vel * dt;
+
+  // Step 3
+  vel.y -= 0.03 + pos.y * 0.03;
+  sp = pos * vec3f(1.0, 2.5, 1.0);
+  cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+  }
+  pos += vel * dt;
+
+  // Step 4
+  vel.y -= 0.03 + pos.y * 0.03;
+  sp = pos * vec3f(1.0, 2.5, 1.0);
+  cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
   }
   pos += vel * dt;
 

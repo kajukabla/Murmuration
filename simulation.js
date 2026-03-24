@@ -252,8 +252,8 @@ export async function createSimulation(device, {
       frameCount++;
 
       const mod128 = frameCount % 128;
-      // Skip 3/4 of non-flock frames: drift does 2 steps per dispatch
-      if (mod128 !== 0 && (mod128 & 3) !== 1) {
+      // Skip 7/8 of non-flock frames: drift does 4 steps per dispatch
+      if (mod128 !== 0 && (mod128 & 7) !== 1) {
         return;
       }
 
