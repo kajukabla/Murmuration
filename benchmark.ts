@@ -13,7 +13,7 @@
 const args = parseArgs(Deno.args);
 const NUM_BOIDS = args.boids ?? 20000;
 const NUM_FRAMES = args.frames ?? 60;
-const WARMUP_FRAMES = 200; // enough for compute-only steady state
+const WARMUP_FRAMES = 3750; // ~1 minute sim time at dt=0.016
 
 const simCode = await Deno.readTextFile("simulation.js");
 const WORKGROUP_SIZE = parseInt(simCode.match(/const WORKGROUP_SIZE\s*=\s*(\d+)/)?.[1] ?? "64");
@@ -173,8 +173,7 @@ const clearPipe = makeSP("clear_grid");
 const assignPipe = makeSP("assign_cells");
 const prefixPipe = makeSP("prefix_sum");
 const scatterPipe = makeSP("scatter");
-const flockRadiusPipe = makeSP("flock_radius");
-const driftPipe = makeSP("drift");
+const flockPipe = makeSP("flock");
 const clearMetricsPipe = makeMP("clear_metrics");
 const computeMetricsPipe = makeMP("compute_metrics");
 
@@ -187,21 +186,11 @@ function encodeFrame(encoder: GPUCommandEncoder, step: number) {
   device.queue.writeBuffer(paramsBuffer, 0, new Uint8Array(paramsData));
 
   const bg = step % 2 === 0 ? bgA : bgB;
-
-  // 2-tier schedule: grid+flock_radius 1/5, drift 4/5 (matches simulation.js)
-  if (step % 5 === 0) {
-    for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
-      const p = encoder.beginComputePass();
-      p.setPipeline(pipe);
-      p.setBindGroup(0, bg);
-      p.dispatchWorkgroups(wg);
-      p.end();
-    }
-  } else {
+  for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [flockPipe, boidWG]] as [GPUComputePipeline, number][]) {
     const p = encoder.beginComputePass();
-    p.setPipeline(driftPipe);
+    p.setPipeline(pipe);
     p.setBindGroup(0, bg);
-    p.dispatchWorkgroups(boidWG);
+    p.dispatchWorkgroups(wg);
     p.end();
   }
 }
@@ -343,14 +332,12 @@ const avg = frameTimes.reduce((a,b) => a+b, 0) / frameTimes.length;
 
 const result = computeScore(metrics1, metrics2);
 
-const max_boids = Math.round(NUM_BOIDS * (16.6 / avg) / 1000) * 1000;
 console.log(JSON.stringify({
   num_boids: NUM_BOIDS,
   avg_ms: +avg.toFixed(2),
   p99_ms: +frameTimes[Math.floor(frameTimes.length * 0.99)].toFixed(2),
   ...result,
 }));
-console.log(`max_boids: ${max_boids}`);
 
 device.destroy();
 Deno.exit(0);

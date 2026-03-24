@@ -363,8 +363,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].size_factor = boid.size_factor;
 
   // Update heading for rendering (smooth tracking of velocity direction)
-  let vel_dir = new_vel * inverseSqrt(max(spd_sq, 0.0001));
-  boids_dst[i].heading = mix(boid.heading, vel_dir, 0.12);
+  let vel_dir = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
+  var old_h = boid.heading;
+  let hl = dot(old_h, old_h);
+  if (hl < 0.25) { old_h = vel_dir; } else { old_h = old_h * inverseSqrt(hl); }
+  boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
 
   // Viz metrics
   boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
