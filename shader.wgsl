@@ -330,7 +330,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
       let other_pos = boids_src[other_idx].pos;
       let diff = boid.pos - other_pos;
       let d2 = dot(diff, diff);
-      let in_range = f32(d2 < params.visual_range_sq);
+      let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
       ali += boids_src[other_idx].vel * in_range;
       coh += other_pos * in_range;
       n_align += u32(in_range);
@@ -340,7 +340,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Only search 26 neighbor cells if own cell didn't provide enough
-  if (n_align < 2u) {
+  if (n_align < 4u) {
     for (var nz = lo.z; nz <= hi.z; nz++) {
       let zoff = u32(nz) * params.grid_size * params.grid_size;
       for (var ny = lo.y; ny <= hi.y; ny++) {
@@ -358,18 +358,18 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             let other_pos = boids_src[other_idx].pos;
             let diff = boid.pos - other_pos;
             let d2 = dot(diff, diff);
-            let in_range = f32(d2 < params.visual_range_sq);
+            let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
             ali += boids_src[other_idx].vel * in_range;
             coh += other_pos * in_range;
             n_align += u32(in_range);
             let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
             sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
           }
-          if (n_align >= 2u) { break; }
+          if (n_align >= 3u) { break; }
         }
-        if (n_align >= 2u) { break; }
+        if (n_align >= 3u) { break; }
       }
-      if (n_align >= 2u) { break; }
+      if (n_align >= 3u) { break; }
     }
   }
 
@@ -392,22 +392,20 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Speed clamp + compute heading in one pass
+  // Speed clamp only — skip smoothing mix to reduce ALU
   let spd_sq = dot(new_vel, new_vel);
-  var inv_spd = inverseSqrt(max(spd_sq, 1e-6));
   let max_spd = params.max_speed;
   if (spd_sq > max_spd * max_spd) {
-    new_vel *= max_spd * inv_spd;
-    inv_spd = 1.0 / max_spd;  // heading = new_vel * inv_spd = clamped_vel / max_spd
+    new_vel *= max_spd * inverseSqrt(spd_sq);
   } else if (spd_sq < params.min_speed * params.min_speed) {
-    new_vel *= params.min_speed * inv_spd;
-    inv_spd = 1.0 / params.min_speed;
+    new_vel *= params.min_speed * inverseSqrt(max(spd_sq, 1e-6));
   }
 
+  // Write minimal fields
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
-  boids_dst[i].heading = new_vel * inv_spd;
+  boids_dst[i].heading = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 1e-6));
 }
 
 // === Auto-range stats ===
