@@ -436,7 +436,9 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * 10.0;
+  // Adaptive alignment: stronger with fewer neighbors to maintain flock integrity
+  let adapt_align = mix(15.0, 8.0, min(nf, 6.0) / 6.0);
+  new_vel += (ali / nf - boid.vel) * params.align_factor * adapt_align;
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
 
