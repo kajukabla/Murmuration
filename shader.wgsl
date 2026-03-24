@@ -449,10 +449,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
-  // Vertical undulation based on horizontal position (wave through flock)
-  let wave_phase = dot(boid.pos.xz, vec2f(cos(wind_angle), sin(wind_angle))) * 0.05 + wind_angle * 3.0;
-  new_vel.y += sin(wave_phase) * 0.3;
-
   // Ellipsoidal boundary — oblate (Y compressed 2x) for higher aspect ratio
   let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(scaled_pos, scaled_pos);
