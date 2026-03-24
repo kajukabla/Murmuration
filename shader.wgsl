@@ -329,7 +329,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
         let start = cell_offsets[nc];
         let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
         if (start >= end_val) { continue; }
-        for (var j = start; j < min(end_val, start + 8u); j++) {
+        for (var j = start; j < min(end_val, start + 6u); j++) {
           let oi = sorted_indices[j];
           if (oi == i) { continue; }
           let other = boids_src[oi];
@@ -342,11 +342,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
           let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
           sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
         }
-        if (n_align >= 8u) { break; }
+        if (n_align >= 6u) { break; }
       }
-      if (n_align >= 8u) { break; }
+      if (n_align >= 6u) { break; }
     }
-    if (n_align >= 8u) { break; }
+    if (n_align >= 6u) { break; }
   }
 
   var new_vel = boid.vel;
