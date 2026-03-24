@@ -336,41 +336,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     }
   }
 
-  // Search 3x3x3 neighbor cells only if own cell didn't have enough
-  if (n_align < 6u) {
-    let lo = max(mg - vec3i(1), vec3i(0));
-    let hi = min(mg + vec3i(1), vec3i(gs - 1));
-    for (var nz = lo.z; nz <= hi.z; nz++) {
-      let zoff = u32(nz) * params.grid_size * params.grid_size;
-      for (var ny = lo.y; ny <= hi.y; ny++) {
-        let yzoff = u32(ny) * params.grid_size + zoff;
-        for (var nx = lo.x; nx <= hi.x; nx++) {
-          let nc = u32(nx) + yzoff;
-          if (nc == my_ci) { continue; }  // already searched
-          let start = cell_offsets[nc];
-          let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
-          if (start >= end_val) { continue; }
-          for (var j = start; j < min(end_val, start + 6u); j++) {
-            let oi = sorted_indices[j];
-            let other_pos = boids_src[oi].pos;
-            let diff = boid.pos - other_pos;
-            let d2 = dot(diff, diff);
-            if (d2 < params.visual_range_sq && d2 > 0.0001) {
-              ali += boids_src[oi].vel;
-              coh += other_pos;
-              n_align += 1u;
-              if (d2 < params.separation_dist_sq) {
-                sep += diff * (1.0 - d2 / params.separation_dist_sq);
-              }
-            }
-          }
-          if (n_align >= 6u) { break; }
-        }
-        if (n_align >= 6u) { break; }
-      }
-      if (n_align >= 6u) { break; }
-    }
-  }
+  // Own-cell only: neighbor cells skipped for max throughput
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
