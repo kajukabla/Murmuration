@@ -401,19 +401,18 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Speed clamp only — skip smoothing mix to reduce ALU
+  // Blend with old velocity for smooth turns + speed clamp
+  new_vel = mix(boid.vel, new_vel, params.smoothing);
   let spd_sq = dot(new_vel, new_vel);
-  let max_spd = params.max_speed;
-  if (spd_sq > max_spd * max_spd) {
-    new_vel *= max_spd * inverseSqrt(spd_sq);
-  } else if (spd_sq < params.min_speed * params.min_speed) {
-    new_vel *= params.min_speed * inverseSqrt(max(spd_sq, 1e-6));
-  }
+  let spd_inv = inverseSqrt(max(spd_sq, 1e-6));
+  let final_dir = new_vel * spd_inv;
+  let final_speed = clamp(spd_sq * spd_inv, params.min_speed, params.max_speed);
+  new_vel = final_dir * final_speed;
 
-  // Write only essential fields (billboard doesn't use heading)
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
+  boids_dst[i].heading = final_dir;
 }
 
 // === Auto-range stats ===
