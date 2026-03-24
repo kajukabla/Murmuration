@@ -517,7 +517,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     real_align = max(real_align, 0.0);
     real_align *= (1.0 + f32(n_align) * 16.0);
     let ra2 = real_align * real_align;
-    real_align = ra2 * ra2;
+    real_align = ra2 * ra2 * real_align;
   }
   boids_dst[i].flock_alignment = real_align;
   boids_dst[i].sep_pressure = length(sep);
