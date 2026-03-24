@@ -323,8 +323,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let avg_d2 = dot(avg_vel, avg_vel);
   boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), 0.0, vel_d2 < 0.001 || avg_d2 < 0.001);
   boids_dst[i].sep_pressure = length(sep_force);
-  // Density as ratio of max neighbors, clamped to [0,1]
-  boids_dst[i].density = min(f32(n_found) / f32(K_NEIGHBORS), 1.0);
+  boids_dst[i].density = f32(n_found) / f32(K_NEIGHBORS);
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
