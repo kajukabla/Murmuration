@@ -372,8 +372,19 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor;
 
-  // Gravity for visual quality
+  // Gravity
   new_vel.y -= 0.03;
+
+  // Rare perturbation kicks (~3% of boids per frame)
+  let perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
+  if (perturb_hash < 0.03) {
+    let seed = f32(i * 1973u + params.frame_count * 9277u);
+    new_vel += vec3f(
+      fract(sin(seed) * 43758.5) - 0.5,
+      fract(sin(seed * 1.3) * 22578.1) - 0.5,
+      fract(sin(seed * 0.7) * 31415.9) - 0.5
+    ) * 3.0;
+  }
 
   // Spherical boundary
   let dist = length(boid.pos);
