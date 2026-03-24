@@ -307,8 +307,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
   new_vel = final_dir * final_speed;
 
-  // Direction change metric
-  let dir_change_val = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
   let effective_dt = params.dt;
 
   // Write outputs
@@ -318,7 +316,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].heading = final_dir;
   boids_dst[i].speed = final_speed;
   boids_dst[i].neighbor_count = f32(n_found);
-  boids_dst[i].dir_change = dir_change_val;
+  boids_dst[i].dir_change = 0.0;
   let vel_d2 = dot(boid.vel, boid.vel);
   let avg_d2 = dot(avg_vel, avg_vel);
   boids_dst[i].flock_alignment = select(dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), 0.0, vel_d2 < 0.001 || avg_d2 < 0.001);
