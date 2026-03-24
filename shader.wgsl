@@ -485,11 +485,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].heading = linked_final_dir;
 
   boids_dst[i].speed = length(new_vel);
-  boids_dst[i].neighbor_count = 6.0;
+  boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = 0.0;
   boids_dst[i].flock_alignment = 1.0;
   boids_dst[i].sep_pressure = length(sep);
-  boids_dst[i].density = 0.75;
+  boids_dst[i].density = f32(n_align) * 0.125;
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
