@@ -457,7 +457,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
       fract(sin(linked_seed) * 43758.5) - 0.5,
       fract(sin(linked_seed * 1.3) * 22578.1) - 0.5,
       fract(sin(linked_seed * 0.7) * 31415.9) - 0.5
-    ) * 2.0;
+    ) * 1.0;
     new_vel += kick;
   }
 
