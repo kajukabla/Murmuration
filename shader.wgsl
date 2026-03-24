@@ -498,8 +498,21 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
   let src = boids_src[i];
+  var vel = src.vel;
+  // Gravity + boundary steering during drift for containment
+  vel.y -= 0.03;
+  let dist = length(src.pos);
+  let r = params.sphere_radius;
+  if (dist > r * 0.85 && dist > 0.001) {
+    vel -= normalize(src.pos) * params.turn_factor * min((dist - r * 0.85) / (r * 0.15), 3.0);
+  }
   var dst = src;
-  dst.pos += src.vel * params.dt;
+  dst.vel = vel;
+  dst.pos = src.pos + vel * params.dt;
+  // Update heading to match velocity
+  let spd = length(vel);
+  dst.heading = select(src.heading, vel / spd, spd > 0.001);
+  dst.speed = spd;
   boids_dst[i] = dst;
 }
 
