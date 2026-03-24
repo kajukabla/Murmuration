@@ -185,13 +185,14 @@ const boidWG = Math.ceil(NUM_BOIDS / WORKGROUP_SIZE);
 
 const frameCountBuf = new Uint32Array(1);
 function encodeFrame(encoder: GPUCommandEncoder, step: number) {
+  // Update only frame_count (4 bytes at offset 92) instead of full 96-byte buffer
+  frameCountBuf[0] = step;
+  device.queue.writeBuffer(paramsBuffer, 92, frameCountBuf);
+
   const bg = step % 2 === 0 ? bgA : bgB;
 
   // 2-tier schedule: grid+flock_radius 1/8, drift 7/8 (matches simulation.js)
   if (step % 8 === 0) {
-    // Write frame_count only on flock frames (drift doesn't use it)
-    frameCountBuf[0] = step;
-    device.queue.writeBuffer(paramsBuffer, 92, frameCountBuf);
     for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
       const p = encoder.beginComputePass();
       p.setPipeline(pipe);
