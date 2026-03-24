@@ -426,9 +426,9 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   }
 
   var new_vel = boid.vel;
-  let inv3 = 0.333333;
-  new_vel += (ali * inv3 - boid.vel) * params.align_factor * 12.0;
-  new_vel += (coh * inv3 - boid.pos) * params.cohesion_factor;
+  let nf = max(f32(n_align), 1.0);
+  new_vel += (ali / nf - boid.vel) * params.align_factor * 12.0;
+  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
