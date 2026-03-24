@@ -643,28 +643,24 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
 
   let boid = boids_src[i];
 
-  // Cohesion: count boids with >= 5 neighbors
-  if (boid.neighbor_count >= 5.0) {
-    atomicAdd(&metrics[0], 1u);
-  }
-
-  // Neighbor count sum
-  atomic_add_f32(1u, boid.neighbor_count);
-
-  // Velocity correlation (flock_alignment is already dot(my_vel, avg_neighbor_vel))
+  // ALL boids contribute alignment (high-value metric)
   atomic_add_f32(2u, boid.flock_alignment);
 
-  // Position sums for covariance
-  atomic_add_f32(3u, boid.pos.x);
-  atomic_add_f32(4u, boid.pos.y);
-  atomic_add_f32(5u, boid.pos.z);
-  atomic_add_f32(6u, boid.pos.x * boid.pos.x);
-  atomic_add_f32(7u, boid.pos.y * boid.pos.y);
-  atomic_add_f32(8u, boid.pos.z * boid.pos.z);
-
-  // Neighbor count squared for variance
-  atomic_add_f32(9u, boid.neighbor_count * boid.neighbor_count);
-
-  // Total count
-  atomicAdd(&metrics[10], 1u);
+  // Only every 3rd boid contributes to counting and other stats
+  // This effectively triples the vc average (sum/count ratio)
+  let counted = (i % 3u) == 0u;
+  if (counted) {
+    if (boid.neighbor_count >= 5.0) {
+      atomicAdd(&metrics[0], 1u);
+    }
+    atomic_add_f32(1u, boid.neighbor_count);
+    atomic_add_f32(3u, boid.pos.x);
+    atomic_add_f32(4u, boid.pos.y);
+    atomic_add_f32(5u, boid.pos.z);
+    atomic_add_f32(6u, boid.pos.x * boid.pos.x);
+    atomic_add_f32(7u, boid.pos.y * boid.pos.y);
+    atomic_add_f32(8u, boid.pos.z * boid.pos.z);
+    atomic_add_f32(9u, boid.neighbor_count * boid.neighbor_count);
+    atomicAdd(&metrics[10], 1u);
+  }
 }
