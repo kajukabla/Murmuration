@@ -178,8 +178,8 @@ const driftPipe = makeSP("drift");
 const clearMetricsPipe = makeMP("clear_metrics");
 const computeMetricsPipe = makeMP("compute_metrics");
 
-const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
-const boidWG = Math.ceil(NUM_BOIDS / WORKGROUP_SIZE);
+const gridWG = Math.ceil(GRID_CELLS / 128); // clear_grid_linked uses wg=128
+const boidWG = Math.ceil(NUM_BOIDS / 128); // assign_linked, flock_radius_linked, drift use wg=128
 
 const frameCountBuf = new Uint32Array(1);
 function encodeFrame(encoder: GPUCommandEncoder, step: number) {
