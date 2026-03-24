@@ -411,27 +411,14 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Walk linked list — branchless with select
+  // Walk linked list — prefetch next pointer before reading data
   var j = atomicLoad(&cell_counts[my_ci]);
-  let valid0 = j != 0xFFFFFFFFu;
-  let safe_j0 = select(0u, j, valid0);
-  let next0 = select(0xFFFFFFFFu, boid_cells[safe_j0], valid0);
-  ali += select(vec3f(0.0), boids_src[safe_j0].vel, valid0);
-  coh += select(vec3f(0.0), boids_src[safe_j0].pos, valid0);
-  n_align += select(0u, 1u, valid0);
-
-  let valid1 = next0 != 0xFFFFFFFFu;
-  let safe_j1 = select(0u, next0, valid1);
-  let next1 = select(0xFFFFFFFFu, boid_cells[safe_j1], valid1);
-  ali += select(vec3f(0.0), boids_src[safe_j1].vel, valid1);
-  coh += select(vec3f(0.0), boids_src[safe_j1].pos, valid1);
-  n_align += select(0u, 1u, valid1);
-
-  let valid2 = next1 != 0xFFFFFFFFu;
-  let safe_j2 = select(0u, next1, valid2);
-  ali += select(vec3f(0.0), boids_src[safe_j2].vel, valid2);
-  coh += select(vec3f(0.0), boids_src[safe_j2].pos, valid2);
-  n_align += select(0u, 1u, valid2);
+  for (var iter = 0u; iter < 3u; iter++) {
+    if (j == 0xFFFFFFFFu) { break; }
+    let next = boid_cells[j];  // prefetch next before reading boid data
+    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
+    j = next;
+  }
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
