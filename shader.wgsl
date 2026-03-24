@@ -457,7 +457,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.z += cos(wind_angle) * 2.0;
 
   // Ellipsoidal boundary — oblate (Y compressed 2x) for higher aspect ratio
-  let scaled_pos = boid.pos * vec3f(1.0, 2.0, 1.0);
+  let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(scaled_pos, scaled_pos);
   let r = params.sphere_radius;
   let threshold = r - r * 0.15;
@@ -511,7 +511,7 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   vel.y -= boid.pos.y * 0.03;
   // Wind skipped in drift for perf (flock pass applies full wind)
   // Ellipsoidal boundary on drift (matches flock_radius_linked)
-  let drift_scaled_pos = boid.pos * vec3f(1.0, 2.0, 1.0);
+  let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
   let r = params.sphere_radius;
   let threshold = r - r * 0.15;
