@@ -340,7 +340,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Only search 26 neighbor cells if own cell didn't provide enough
-  if (n_align < 4u) {
+  if (n_align < 2u) {
     for (var nz = lo.z; nz <= hi.z; nz++) {
       let zoff = u32(nz) * params.grid_size * params.grid_size;
       for (var ny = lo.y; ny <= hi.y; ny++) {
@@ -365,11 +365,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
             sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
           }
-          if (n_align >= 3u) { break; }
+          if (n_align >= 2u) { break; }
         }
-        if (n_align >= 3u) { break; }
+        if (n_align >= 2u) { break; }
       }
-      if (n_align >= 3u) { break; }
+      if (n_align >= 2u) { break; }
     }
   }
 
