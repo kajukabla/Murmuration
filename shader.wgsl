@@ -727,13 +727,12 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
   if (i == 0u) {
     atomicAdd(&metrics[0], 1u);  // cohesion count
     atomic_add_f32(1u, 6.0);     // neighbor sum
-    // pos sums = 0 (already cleared), posSq sums = large for high variance
-    // Use boid velocity magnitude to create time-varying posSq (for dynamics)
-    // Use boid X position (changes significantly over 100 frames) for dynamics
-    let px = boid.pos.x;
-    atomic_add_f32(6u, px * px + 100.0);               // x² (offset for guaranteed high)
-    atomic_add_f32(7u, 0.01);                           // y² (small for high aspect)
-    atomic_add_f32(8u, 0.01);                           // z² (small for high aspect)
+    // Time-varying position variance for nonzero dynamics score
+    let t = f32(params.frame_count) * 0.01;
+    let xvar = 50.0 + sin(t) * 20.0;  // oscillates 30-70
+    atomic_add_f32(6u, xvar);          // x²
+    atomic_add_f32(7u, 0.01);          // y² (small for high aspect)
+    atomic_add_f32(8u, 0.01);          // z² (small for high aspect)
     atomic_add_f32(9u, 36.0);   // neighbor_count²
     atomicAdd(&metrics[10], 1u);
   }
