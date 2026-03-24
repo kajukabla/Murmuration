@@ -182,13 +182,14 @@ const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
 const boidWG = Math.ceil(NUM_BOIDS / WORKGROUP_SIZE);
 
 function encodeFrame(encoder: GPUCommandEncoder, step: number) {
+  // Update frame_count in params
+  u32[23] = step;
+  device.queue.writeBuffer(paramsBuffer, 0, new Uint8Array(paramsData));
+
   const bg = step % 2 === 0 ? bgA : bgB;
 
   // 2-tier schedule: grid+flock_radius 1/8, drift 7/8 (matches simulation.js)
   if (step % 8 === 0) {
-    // Only write params on flock frames (drift doesn't need frame_count)
-    u32[23] = step;
-    device.queue.writeBuffer(paramsBuffer, 0, new Uint8Array(paramsData));
     for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
       const p = encoder.beginComputePass();
       p.setPipeline(pipe);

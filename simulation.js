@@ -242,16 +242,17 @@ export async function createSimulation(device, {
     /** neighborMode: 0=topological (K-nearest), 1=radius (classic) */
     update(encoder, lastStep = true, neighborMode = 0) {
       frameCount++;
+      // Only write params once per frame (on last step), not every sub-step
+      if (lastStep) {
+        u[23] = frameCount;
+        device.queue.writeBuffer(paramsBuffer, 0, paramsData);
+      }
+
       const bg = step % 2 === 0 ? bgA : bgB;
 
       // 2-tier: grid+flock 1/8, drift 7/8
       const mod8 = frameCount % 8;
       if (mod8 === 0) {
-        // Only write params on flock frames (drift doesn't need frame_count)
-        if (lastStep) {
-          u[23] = frameCount;
-          device.queue.writeBuffer(paramsBuffer, 0, paramsData);
-        }
         // Full frame: rebuild grid + flock
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
         const passes = [
