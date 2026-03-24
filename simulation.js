@@ -184,6 +184,7 @@ export async function createSimulation(device, {
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
+  const flockRadiusWG = Math.ceil(numBoids / 128);
 
   // --- Auto-range stats ---
   const statsBuf = device.createBuffer({
@@ -255,12 +256,13 @@ export async function createSimulation(device, {
       if (mod4 === 1) {
         // Full frame: rebuild grid + flock
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
+        const activeFlockWG = neighborMode === 1 ? flockRadiusWG : boidWG;
         const passes = [
           [clearPipe,   gridWG],
           [assignPipe,  boidWG],
           [prefixPipe,  1],
           [scatterPipe, boidWG],
-          [activeFlock, boidWG],
+          [activeFlock, activeFlockWG],
         ];
         for (const [pipeline, wg] of passes) {
           const p = encoder.beginComputePass();
@@ -272,10 +274,11 @@ export async function createSimulation(device, {
       } else if (mod4 === 3) {
         // Flock-only: reuse stale grid
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
+        const activeFlockWG2 = neighborMode === 1 ? flockRadiusWG : boidWG;
         const p = encoder.beginComputePass();
         p.setPipeline(activeFlock);
         p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(boidWG);
+        p.dispatchWorkgroups(activeFlockWG2);
         p.end();
       } else {
         // Drift: just advance positions

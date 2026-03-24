@@ -301,13 +301,12 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
-@compute @workgroup_size(64)
+@compute @workgroup_size(128)
 fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
 
   let boid = boids_src[i];
-  let my_ci = cell_index(get_cell(boid.pos));
 
   var sep = vec3f(0.0);
   var ali = vec3f(0.0);
