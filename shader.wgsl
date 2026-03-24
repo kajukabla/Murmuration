@@ -83,7 +83,7 @@ fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // Linked-list grid: clear heads to sentinel
-@compute @workgroup_size(256)
+@compute @workgroup_size(1024)
 fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.grid_cells) { return; }
@@ -91,7 +91,7 @@ fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // Linked-list grid: assign boids to cells via atomic exchange
-@compute @workgroup_size(256)
+@compute @workgroup_size(1024)
 fn assign_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
@@ -397,7 +397,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Linked-list flock_radius: walk cell linked list instead of sorted array ===
-@compute @workgroup_size(512)
+@compute @workgroup_size(1024)
 fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
@@ -462,7 +462,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
-@compute @workgroup_size(512)
+@compute @workgroup_size(1024)
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
