@@ -179,13 +179,17 @@ export async function createSimulation(device, {
   const prefixPipe  = pipe('prefix_sum');
   const scatterPipe = pipe('scatter');
   const flockPipe   = pipe('flock');         // topological K-nearest
-  const flockRadiusPipe = pipe('flock_radius'); // classic radius-based
+  const flockRadiusPipe = pipe('flock_radius'); // classic radius-based (linked-list grid)
   const driftPipe = pipe('drift');              // drift-only (odd frames)
+  const clearLinkedPipe = pipe('clear_grid_linked');
+  const assignLinkedPipe = pipe('assign_linked');
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
   const flockWG = Math.ceil(numBoids / 128); // flock uses workgroup_size(128)
   const flockRadiusWG = Math.ceil(numBoids / 256); // flock_radius uses workgroup_size(256)
+  const gridWG128 = Math.ceil(GRID_CELLS / 128); // linked-list clear uses workgroup_size(128)
+  const boidWG128 = Math.ceil(numBoids / 128);   // linked-list assign uses workgroup_size(128)
 
   // --- Auto-range stats ---
   const statsBuf = device.createBuffer({
@@ -258,13 +262,24 @@ export async function createSimulation(device, {
         // Full frame: rebuild grid + flock
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
         const flockDispatch = neighborMode === 1 ? flockRadiusWG : flockWG;
-        const passes = [
-          [clearPipe,   gridWG],
-          [assignPipe,  boidWG],
-          [prefixPipe,  1],
-          [scatterPipe, boidWG],
-          [activeFlock, flockDispatch],
-        ];
+        let passes;
+        if (neighborMode === 1) {
+          // Linked-list grid: skip prefix_sum + scatter (2 fewer dispatches)
+          passes = [
+            [clearLinkedPipe, gridWG128],
+            [assignLinkedPipe, boidWG128],
+            [activeFlock, flockDispatch],
+          ];
+        } else {
+          // Topological mode: sorted-array grid
+          passes = [
+            [clearPipe,   gridWG],
+            [assignPipe,  boidWG],
+            [prefixPipe,  1],
+            [scatterPipe, boidWG],
+            [activeFlock, flockDispatch],
+          ];
+        }
         for (const [pipeline, wg] of passes) {
           const p = encoder.beginComputePass();
           p.setPipeline(pipeline);

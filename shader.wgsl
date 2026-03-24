@@ -327,6 +327,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
+// Uses linked-list grid: cell_counts = heads, boid_cells = next pointers
 @compute @workgroup_size(256)
 fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
@@ -343,21 +344,23 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Search own cell (branchless accumulation — all own-cell boids are close enough)
-  let own_start = cell_offsets[my_ci];
-  let own_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
+  // Walk linked list for own cell (cap 4 neighbors)
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
-  for (var j = own_start; j < min(own_end, own_start + 4u); j++) {
-    let oi = sorted_indices[j];
-    if (oi == i) { continue; }
-    let other_pos = boids_src[oi].pos;
-    let diff = boid.pos - other_pos;
-    let d2 = dot(diff, diff);
-    ali += boids_src[oi].vel;
-    coh += other_pos;
-    n_align += 1u;
-    let in_sep = f32(d2 < params.separation_dist_sq);
-    sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+  var j = atomicLoad(&cell_counts[my_ci]);
+  for (var iter = 0u; iter < 5u; iter++) {
+    if (j == 0xFFFFFFFFu) { break; }
+    if (j != i) {
+      let other_pos = boids_src[j].pos;
+      let diff = boid.pos - other_pos;
+      let d2 = dot(diff, diff);
+      ali += boids_src[j].vel;
+      coh += other_pos;
+      n_align += 1u;
+      let in_sep = f32(d2 < params.separation_dist_sq);
+      sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+      if (n_align >= 4u) { break; }
+    }
+    j = boid_cells[j];
   }
 
   var new_vel = boid.vel;
