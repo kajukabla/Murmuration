@@ -280,14 +280,16 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += kick;
   }
 
-  // Spherical boundary steering
-  let dist_from_center = length(boid.pos);
+  // Ellipsoidal boundary steering (Y compressed 2x for oblate shape)
+  let scaled_pos = boid.pos * vec3f(1.0, 2.0, 1.0);
+  let center_d2 = dot(scaled_pos, scaled_pos);
   let r = params.sphere_radius;
-  let soft_zone = r * 0.15;
-  if (dist_from_center > r - soft_zone && dist_from_center > 0.001) {
-    let penetration = (dist_from_center - (r - soft_zone)) / soft_zone;
-    let push = -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
-    new_vel += push;
+  let threshold = r - r * 0.15;
+  if (center_d2 > threshold * threshold) {
+    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
+    let dist = center_d2 * inv_dist;
+    let penetration = (dist - threshold) / (r * 0.15);
+    new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
   // Turn rate limiter (smooth heading changes — creates wave-like motion)
