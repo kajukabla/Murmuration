@@ -1,6 +1,6 @@
 // === WebGPU Compute Simulation (Spatial-Hash Flocking) ===
 
-const WORKGROUP_SIZE = 64;
+const WORKGROUP_SIZE = 128;
 const PARAMS_SIZE = 96; // 24 fields × 4 bytes = 96 (16-byte aligned)
 
 export async function createSimulation(device, {
