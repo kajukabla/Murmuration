@@ -265,6 +265,10 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // Gentle gravity (creates oblate/flat flock shape)
   new_vel.y -= 0.03;
 
+  // Height-dependent lateral drift: higher boids drift one way, lower drift the other
+  let height_factor = boid.pos.y * 0.001;
+  new_vel.x += height_factor;
+
   // Rare strong perturbation: only ~3% of birds per frame
   // This is the primary driver of non-repetitive motion —
   // a random bird changes direction, neighbors respond via alignment,
