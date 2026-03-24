@@ -558,7 +558,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let avg_d2 = dot(avg_vel, avg_vel);
   let flock_ali = select(0.0, dot(boid.vel, avg_vel) * inverseSqrt(vel_d2 * avg_d2), vel_d2 > 0.001 && avg_d2 > 0.001);
 
-  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, boid.size_factor, new_vel, final_speed, final_dir, f32(n_align), 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0), flock_ali, length(sep), f32(n_align) * 0.5);
+  let density_val = f32(n_align) / 7.0; // normalize to ~1.0 for K=7 equivalent
+  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, boid.size_factor, new_vel, final_speed, final_dir, f32(n_align), 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0), flock_ali, length(sep), density_val);
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
