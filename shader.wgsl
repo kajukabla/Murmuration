@@ -462,7 +462,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Turn rate limiter (smooth heading changes) — tighter smoothing
+  // Turn rate limiter (smooth heading changes)
   let linked_old_speed = length(boid.vel);
   var linked_old_dir = boid.vel;
   if (linked_old_speed > 0.001) { linked_old_dir = linked_old_dir / linked_old_speed; }
@@ -471,10 +471,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var linked_desired_dir = new_vel;
   if (linked_desired_speed > 0.001) { linked_desired_dir = linked_desired_dir / linked_desired_speed; }
   else { linked_desired_dir = linked_old_dir; }
-  let linked_final_dir = normalize(mix(linked_old_dir, linked_desired_dir, 0.25));
+  let linked_final_dir = normalize(mix(linked_old_dir, linked_desired_dir, 0.30));
 
   // Speed clamp with smoothing
-  var linked_final_speed = mix(linked_old_speed, linked_desired_speed, 0.12);
+  var linked_final_speed = mix(linked_old_speed, linked_desired_speed, 0.15);
   linked_final_speed = clamp(linked_final_speed, params.min_speed, params.max_speed);
   new_vel = linked_final_dir * linked_final_speed;
 
