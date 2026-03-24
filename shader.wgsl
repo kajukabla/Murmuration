@@ -472,165 +472,17 @@ fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   let inv_zone = 1.0 / (r * 0.15);
   let thresh_sq = threshold * threshold;
 
-  // Step 1
-  vel.y -= 0.03 + pos.y * 0.03;
-  var sp = pos * vec3f(1.0, 2.5, 1.0);
-  var cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+  // 16 physics steps in a loop (reduced shader code size)
+  for (var step = 0u; step < 16u; step++) {
+    vel.y -= 0.03 + pos.y * 0.03;
+    let sp = pos * vec3f(1.0, 2.5, 1.0);
+    let cd = dot(sp, sp);
+    if (cd > thresh_sq) {
+      let inv_d = inverseSqrt(max(cd, 1e-6));
+      vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+    }
+    pos += vel * dt;
   }
-  pos += vel * dt;
-
-  // Step 2
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 3
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 4
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 5
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 6
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 7
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 8
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 9
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 10
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 11
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 12
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 13
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 14
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 15
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
-
-  // Step 16
-  vel.y -= 0.03 + pos.y * 0.03;
-  sp = pos * vec3f(1.0, 2.5, 1.0);
-  cd = dot(sp, sp);
-  if (cd > thresh_sq) {
-    let inv_d = inverseSqrt(max(cd, 1e-6));
-    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
-  }
-  pos += vel * dt;
 
   boids_src[i].pos = pos;
   boids_src[i].vel = vel;
