@@ -241,7 +241,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
-  // Alignment + Cohesion: all K neighbors (uses cached pos+vel)
+  // Alignment + Cohesion: all K neighbors
+  // Also compute alignment quality for scaling cohesion
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var avg_vel = vec3f(0.0);
@@ -253,7 +254,11 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     let nf = f32(min(n_found, K_NEIGHBORS));
     avg_vel = ali / nf;
     let avg_pos = coh / nf;
-    new_vel += (avg_vel - boid.vel) * params.align_factor;
+    // Scale alignment by how well-aligned we already are
+    let align_quality = dot(normalize(boid.vel + vec3f(0.001, 0.0, 0.0)), normalize(avg_vel + vec3f(0.001, 0.0, 0.0)));
+    // Misaligned boids align more aggressively
+    let align_scale = mix(1.5, 0.8, max(align_quality, 0.0));
+    new_vel += (avg_vel - boid.vel) * params.align_factor * align_scale;
     new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
   }
 
