@@ -491,7 +491,9 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   // Gravity + Y-spring + drag
   new_vel.y -= 0.25;
   new_vel.y -= boid.pos.y * 0.03;
-  new_vel *= 0.995; // gentle drag
+  // Size-dependent drag: larger boids are slower
+  let drag = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
+  new_vel *= 0.995 * drag;
 
   // Rotating horizontal wind — faster rotation for more visual movement
   let wind_angle = f32(params.frame_count) * 0.01;
