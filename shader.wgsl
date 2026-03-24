@@ -317,7 +317,6 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var n_align = 0u;
-  let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 1e-6);
 
   // Process own cell first — in dense clusters, avoids searching 26 neighbors
   let my_ci = cell_index(my_grid);
@@ -336,7 +335,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
       coh += other_pos * in_range;
       n_align += u32(in_range);
       let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
-      sep += diff * ((1.0 - d2 * inv_sep_d2) * in_sep);
+      sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
     }
   }
 
@@ -364,7 +363,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             coh += other_pos * in_range;
             n_align += u32(in_range);
             let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
-            sep += diff * ((1.0 - d2 * inv_sep_d2) * in_sep);
+            sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
           }
           if (n_align >= 4u) { break; }
         }
