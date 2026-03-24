@@ -51,6 +51,8 @@ struct Boid {
 @group(0) @binding(5) var<storage, read_write> boid_cells: array<u32>;
 @group(0) @binding(6) var<storage, read_write> sorted_indices: array<u32>;
 @group(0) @binding(7) var<storage, read_write> scatter_counters: array<atomic<u32>>;
+@group(0) @binding(8) var<storage, read_write> sorted_pos: array<vec4f>;
+@group(0) @binding(9) var<storage, read_write> sorted_vel: array<vec4f>;
 
 fn get_cell(pos: vec3f) -> vec3u {
   let half = params.world_size * 0.5;
@@ -117,7 +119,10 @@ fn scatter(@builtin(global_invocation_id) id: vec3u) {
   if (i >= params.num_boids) { return; }
   let cell = boid_cells[i];
   let local_offset = atomicAdd(&scatter_counters[cell], 1u);
-  sorted_indices[cell_offsets[cell] + local_offset] = i;
+  let slot = cell_offsets[cell] + local_offset;
+  sorted_indices[slot] = i;
+  sorted_pos[slot] = vec4f(boids_src[i].pos, 0.0);
+  sorted_vel[slot] = vec4f(boids_src[i].vel, 0.0);
 }
 
 // === Topological Neighbor Flocking ===
@@ -301,7 +306,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
-@compute @workgroup_size(64)
+@compute @workgroup_size(256)
 fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
@@ -317,16 +322,16 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   // Own-cell-only: 3 neighbors max (no 27-cell search = lower register pressure)
   let my_start = cell_offsets[my_ci];
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
-  let cell_end = min(my_end, my_start + 4u);
+  let cell_end = min(my_end, my_start + 5u);
   for (var j = my_start; j < cell_end; j++) {
     let other_idx = sorted_indices[j];
     if (other_idx == i) { continue; }
-    let other = boids_src[other_idx];
-    let diff = boid.pos - other.pos;
+    let other_pos = sorted_pos[j].xyz;
+    let diff = boid.pos - other_pos;
     let d2 = dot(diff, diff);
     let in_range = f32(d2 < params.visual_range_sq);
-    ali += other.vel * in_range;
-    coh += other.pos * in_range;
+    ali += sorted_vel[j].xyz * in_range;
+    coh += other_pos * in_range;
     n_align += u32(in_range);
     let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
     sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;

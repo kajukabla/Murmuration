@@ -142,10 +142,12 @@ export async function createSimulation(device, {
   const boidCells       = makeGridBuf('boid-cells', numBoids);
   const sortedIndices   = makeGridBuf('sorted-idx', numBoids);
   const scatterCounters = makeGridBuf('scatter-ctr', GRID_CELLS);
+  const sortedPos       = makeGridBuf('sorted-pos', numBoids * 4);
+  const sortedVel       = makeGridBuf('sorted-vel', numBoids * 4);
 
   // --- Bind group layout ---
   const bgl = device.createBindGroupLayout({
-    entries: Array.from({ length: 8 }, (_, i) => ({
+    entries: Array.from({ length: 10 }, (_, i) => ({
       binding: i,
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type: i === 0 ? 'uniform' : 'storage' },
@@ -164,6 +166,8 @@ export async function createSimulation(device, {
       { binding: 5, resource: { buffer: boidCells } },
       { binding: 6, resource: { buffer: sortedIndices } },
       { binding: 7, resource: { buffer: scatterCounters } },
+      { binding: 8, resource: { buffer: sortedPos } },
+      { binding: 9, resource: { buffer: sortedVel } },
     ],
   });
   const bgA = makeBG(boidA, boidB);
@@ -183,6 +187,7 @@ export async function createSimulation(device, {
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
+  const flockWG = Math.ceil(numBoids / 256); // flock_radius uses workgroup_size(256)
 
   // --- Auto-range stats ---
   const statsBuf = device.createBuffer({
