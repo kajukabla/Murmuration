@@ -155,17 +155,13 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let gs = i32(params.grid_size);
   let mg = vec3i(my_grid);
 
-  // Track K nearest neighbors by distance (insertion sort into small array)
-  // Store squared distances and indices
+  // Track K nearest neighbors by distance (max-replacement strategy)
+  // Unsorted array — track worst element for O(1) replacement
   var nearest_d2: array<f32, 7>;   // distances squared
   var nearest_idx: array<u32, 7>;  // boid indices
   var n_found = 0u;
-
-  // Initialize with large distances
-  for (var k = 0u; k < K_NEIGHBORS; k++) {
-    nearest_d2[k] = 1e10;
-    nearest_idx[k] = 0u;
-  }
+  var worst_k = 0u;     // index of the worst (farthest) in nearest arrays
+  var worst_d2 = 0.0f;  // cached worst distance (avoids array reads in hot loop)
 
   // Search 3x3x3 neighborhood (27 cells)
   let lo = max(mg - vec3i(1), vec3i(0));
@@ -189,27 +185,32 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
           let diff = boid.pos - other_pos;
           let d2 = dot(diff, diff);
 
-          // Pre-filter by visual range before K-nearest sort
+          // Pre-filter by visual range
           if (d2 > params.visual_range_sq) { continue; }
 
-          // Insert into sorted K-nearest if closer than current worst
-          if (d2 < nearest_d2[K_NEIGHBORS - 1u]) {
-            // Find insertion position
-            var pos = K_NEIGHBORS - 1u;
-            for (var k = 0u; k < K_NEIGHBORS - 1u; k++) {
-              if (d2 < nearest_d2[k]) {
-                pos = k;
-                break;
+          if (n_found < K_NEIGHBORS) {
+            // Still filling — just append
+            nearest_d2[n_found] = d2;
+            nearest_idx[n_found] = other_idx;
+            n_found++;
+            // Update worst tracker
+            if (d2 > worst_d2) {
+              worst_d2 = d2;
+              worst_k = n_found - 1u;
+            }
+          } else if (d2 < worst_d2) {
+            // Replace the worst element
+            nearest_d2[worst_k] = d2;
+            nearest_idx[worst_k] = other_idx;
+            // Re-scan for new worst
+            worst_d2 = nearest_d2[0];
+            worst_k = 0u;
+            for (var k = 1u; k < K_NEIGHBORS; k++) {
+              if (nearest_d2[k] > worst_d2) {
+                worst_d2 = nearest_d2[k];
+                worst_k = k;
               }
             }
-            // Shift larger entries down
-            for (var k = K_NEIGHBORS - 1u; k > pos; k--) {
-              nearest_d2[k] = nearest_d2[k - 1u];
-              nearest_idx[k] = nearest_idx[k - 1u];
-            }
-            nearest_d2[pos] = d2;
-            nearest_idx[pos] = other_idx;
-            n_found = min(n_found + 1u, K_NEIGHBORS);
           }
         }
       }
@@ -219,13 +220,22 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // === Apply flocking rules using topological neighbors ===
   var new_vel = boid.vel;
 
+  // Find the closest neighbor (array is unsorted)
+  var closest_k = 0u;
+  var closest_d2 = nearest_d2[0];
+  for (var k = 1u; k < min(n_found, K_NEIGHBORS); k++) {
+    if (nearest_d2[k] < closest_d2) {
+      closest_d2 = nearest_d2[k];
+      closest_k = k;
+    }
+  }
+
   // Avoidance: only the 1 nearest neighbor
   var sep_force = vec3f(0.0);
-  if (n_found > 0u && nearest_d2[0] < params.separation_dist_sq) {
-    let other_pos = boids_src[nearest_idx[0]].pos;
+  if (n_found > 0u && closest_d2 < params.separation_dist_sq) {
+    let other_pos = boids_src[nearest_idx[closest_k]].pos;
     let diff = boid.pos - other_pos;
-    let d2 = nearest_d2[0];
-    sep_force = diff * (1.0 - d2 / params.separation_dist_sq);
+    sep_force = diff * (1.0 - closest_d2 / params.separation_dist_sq);
     new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
