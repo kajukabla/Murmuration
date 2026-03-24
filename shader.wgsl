@@ -91,7 +91,7 @@ fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // Linked-list grid: assign boids to cells via atomic exchange
-@compute @workgroup_size(768)
+@compute @workgroup_size(256)
 fn assign_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
