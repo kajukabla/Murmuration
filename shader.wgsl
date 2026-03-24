@@ -615,6 +615,12 @@ fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
 
   boids_src[i].pos = pos;
   boids_src[i].vel = vel;
+  // Update heading + speed for visual rendering
+  let dip_spd = length(vel);
+  if (dip_spd > 0.001) {
+    boids_src[i].heading = vel / dip_spd;
+  }
+  boids_src[i].speed = dip_spd;
 }
 
 // === Auto-range stats ===
