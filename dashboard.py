@@ -140,11 +140,21 @@ const a=document.getElementById('al');if(a){a.textContent=d.agent_log||'';a.scro
 document.getElementById('go').disabled=d.agent_running;
 document.getElementById('no').disabled=!d.agent_running;
 const s=document.getElementById('st');
-if(d.agent_running){s.innerHTML='<span class="spin"></span>Running';s.style.color='#6f8';}
+if(d.agent_running){s.innerHTML='<span class="spin"></span>Agent running';s.style.color='#6f8';}
+else if(sd.running){s.innerHTML='<span class="spin"></span>Scheduler active';s.style.color='#6f8';}
 else{s.textContent='Idle';s.style.color='#667';}
 const sd=d.scheduler||{};const se=document.getElementById('sched');
-if(sd.running){se.style.display='block';const rem=Math.max(0,sd.duration_min-Math.floor((Date.now()/1000-new Date(sd.phase_start).getTime()/1000)/60));
-se.innerHTML='<b>Scheduler:</b> '+sd.current_phase+' ('+rem+'min left) | Phase '+(sd.total_completed+1);}
+if(sd.running){se.style.display='block';
+const elapsed=Math.floor((Date.now()/1000-new Date(sd.phase_start).getTime()/1000)/60);
+const rem=Math.max(0,sd.duration_min-elapsed);
+const pct=Math.min(100,Math.round(elapsed/sd.duration_min*100));
+se.innerHTML='<div style="display:flex;align-items:center;gap:12px"><span class="spin"></span>'
++'<b>'+sd.current_phase+'</b>'
++'<span style="color:#6f8">'+rem+' min left</span>'
++'<span>'+sd.experiments+' experiments</span>'
++'<span style="color:#556">Phase '+(sd.total_completed+1)+' | Next: '+(sd.next_phase||'?')+'</span></div>'
++'<div style="margin-top:6px;height:4px;background:#1a1a2e;border-radius:2px;overflow:hidden">'
++'<div style="width:'+pct+'%;height:100%;background:#6f8;border-radius:2px;transition:width 1s"></div></div>';}
 else{se.style.display='none';}
 document.getElementById('ts').textContent=new Date().toLocaleTimeString();
 }catch(e){console.error(e);}}
