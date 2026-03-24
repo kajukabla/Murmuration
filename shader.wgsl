@@ -425,8 +425,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
       let other_pos = boids_src[j].pos;
       let diff = boid.pos - other_pos;
       let d2 = dot(diff, diff);
-      let other_vel = boids_src[j].vel;
-      ali += normalize(other_vel + vec3f(0.001)) * length(boid.vel);
+      ali += boids_src[j].vel;
       coh += other_pos;
       n_align += 1u;
       let in_sep = f32(d2 < params.separation_dist_sq);
