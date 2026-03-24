@@ -249,18 +249,30 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
       const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
-      const passes = [
-        [clearPipe,   gridWG],
-        [assignPipe,  boidWG],
-        [prefixPipe,  1],
-        [scatterPipe, boidWG],
-        [activeFlock, boidWG],
-      ];
-      for (const [pipeline, wg] of passes) {
+
+      // Rebuild grid every other frame — boids move little in 16ms
+      const rebuildGrid = step % 2 === 0;
+      if (rebuildGrid) {
+        const gridPasses = [
+          [clearPipe,   gridWG],
+          [assignPipe,  boidWG],
+          [prefixPipe,  1],
+          [scatterPipe, boidWG],
+        ];
+        for (const [pipeline, wg] of gridPasses) {
+          const p = encoder.beginComputePass();
+          p.setPipeline(pipeline);
+          p.setBindGroup(0, bg);
+          p.dispatchWorkgroups(wg);
+          p.end();
+        }
+      }
+      // Always run flock
+      {
         const p = encoder.beginComputePass();
-        p.setPipeline(pipeline);
+        p.setPipeline(activeFlock);
         p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(wg);
+        p.dispatchWorkgroups(boidWG);
         p.end();
       }
 
