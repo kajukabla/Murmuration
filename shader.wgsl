@@ -352,20 +352,19 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Speed clamp only — skip smoothing mix to reduce ALU
+  // Speed clamp + heading (reuse inverseSqrt, skip size_factor write)
   let spd_sq = dot(new_vel, new_vel);
-  let max_spd = params.max_speed;
-  if (spd_sq > max_spd * max_spd) {
-    new_vel *= max_spd * inverseSqrt(spd_sq);
+  var inv_spd = inverseSqrt(max(spd_sq, 1e-6));
+  if (spd_sq > params.max_speed * params.max_speed) {
+    new_vel *= params.max_speed * inv_spd;
+    inv_spd = 1.0 / params.max_speed;
   } else if (spd_sq < params.min_speed * params.min_speed) {
-    new_vel *= params.min_speed * inverseSqrt(max(spd_sq, 1e-6));
+    new_vel *= params.min_speed * inv_spd;
+    inv_spd = 1.0 / params.min_speed;
   }
-
-  // Write minimal fields
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
-  boids_dst[i].size_factor = boid.size_factor;
-  boids_dst[i].heading = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 1e-6));
+  boids_dst[i].heading = new_vel * inv_spd;
 }
 
 // === Auto-range stats ===
