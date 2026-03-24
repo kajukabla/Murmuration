@@ -367,25 +367,27 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Speed clamp (max only — min speed rarely triggers in dense clusters)
-  let spd_sq = dot(new_vel, new_vel);
+  var spd_sq = dot(new_vel, new_vel);
   let max_spd = params.max_speed;
   if (spd_sq > max_spd * max_spd) {
     new_vel *= max_spd * inverseSqrt(spd_sq);
+    spd_sq = max_spd * max_spd;
   }
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
-  // Update heading for rendering (smooth tracking of velocity direction)
-  let vel_dir = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
+  // Update heading for rendering — reuse spd_sq to avoid recomputing dot
+  let inv_spd = inverseSqrt(max(spd_sq, 0.0001));
+  let vel_dir = new_vel * inv_spd;
   var old_h = boid.heading;
   let hl = dot(old_h, old_h);
   if (hl < 0.25) { old_h = vel_dir; } else { old_h = old_h * inverseSqrt(hl); }
   boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
 
-  // Viz metrics
-  boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
+  // Viz metrics — reuse inv_spd instead of redundant sqrt
+  boids_dst[i].speed = spd_sq * inv_spd;
   boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = 0.0;
   boids_dst[i].flock_alignment = 0.0;
