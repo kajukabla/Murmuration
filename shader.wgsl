@@ -491,11 +491,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   boids_dst[i].heading = linked_final_dir;
 
-  boids_dst[i].speed = linked_final_speed;
+  boids_dst[i].speed = length(new_vel);
   boids_dst[i].neighbor_count = 6.0;
   boids_dst[i].dir_change = 0.0;
   boids_dst[i].flock_alignment = 1.0;
-  boids_dst[i].sep_pressure = dot(sep, sep); // squared, avoids sqrt
+  boids_dst[i].sep_pressure = length(sep);
   boids_dst[i].density = 0.75;
 }
 
