@@ -1,0 +1,9 @@
+{
+  "running": true,
+  "current_phase": "classic_perf",
+  "phase_start": "2026-03-24T06:15:15.643144+00:00",
+  "duration_min": 60,
+  "experiments": 0,
+  "total_completed": 0,
+  "next_phase": "classic_compute"
+}

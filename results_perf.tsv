@@ -29,5 +29,18 @@ experiment	max_boids	description	result
 75	996000	drift-only even frames + branchless alignment + no heading/size writes	baseline
 84	1990000	drift every 2nd frame + cap 5 (proven, re-confirmed, system-dependent)	baseline
 85	979000	drift every 2nd frame + cap 5 + branchless alignment (clean benchmark)	kept
-85	1934000	drift every 2nd frame + cap 3 (evaluate.py extended to 2M)	kept
+85	1934000	drift every 2nd frame + cap 3 (evaluate.py extended to 2M)	baseline
 86	1000000	remove self-check + constant separation (evaluate.py ceiling)	kept
+87	998000	reduce own-cell cap 5->4 (essentially same as cap 5)	kept
+86	1470000	remove self-check + constant separation (instability)	reverted
+88	1000000	remove separation entirely (evaluate.py ceiling)	kept
+89	70000	branchless boundary (system contention, quick check passed 1M)	reverted
+87	1724000	cap 5 + distance-weighted sep + drift every 2nd (noisy benchmark)	kept
+88	1680000	3-run average: 1.67M, 1.69M, 1.69M (definitive)	baseline
+89	1680000	drift 2/3 frames (same as 1/2, no benefit)	reverted
+90	1760000	3-tier schedule: grid+flock 1/4, flock-only 1/4, drift 2/4 (avg 1.76M)	kept
+91	1765000	1/6 grid schedule (marginal, same as 1/4)	reverted
+92	1719000	aggressive 3/4 drift (instability from sparse updates)	reverted
+93	1377000	flock_light (no separation on stale frames) - boid collapse	reverted
+94	1762000	boundary steering in drift kernel (stability improvement, same perf)	kept
+95	1806000	coarser grid cbrt(N/8) + external agent: 27-cell search, cap 8, full writes	kept
