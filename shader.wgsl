@@ -458,25 +458,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 @compute @workgroup_size(512)
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
-  let half = params.num_boids / 2u;
-  let dt = params.dt;
-  // Process 2 boids per thread to hide memory latency
-  if (i < half) {
-    var b0 = boids_src[i];
-    var b1 = boids_src[i + half];
-    b0.pos += b0.vel * dt;
-    b1.pos += b1.vel * dt;
-    boids_dst[i] = b0;
-    boids_dst[i + half] = b1;
-  } else if (i >= half && i < params.num_boids) {
-    // Handle odd remainder
-    let j = i + half;
-    if (j < params.num_boids) {
-      var boid = boids_src[j];
-      boid.pos += boid.vel * dt;
-      boids_dst[j] = boid;
-    }
-  }
+  if (i >= params.num_boids) { return; }
+  var boid = boids_src[i];
+  // Minimal drift: just advance position, skip boundary (handled every 8th frame)
+  boid.pos += boid.vel * params.dt;
+  boids_dst[i] = boid;
 }
 
 // === In-place drift: 16 physics steps per dispatch to reduce dispatch overhead ===
