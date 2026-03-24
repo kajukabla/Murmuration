@@ -113,6 +113,7 @@ const cellOffsets = makeBuf(GRID_CELLS * 4, GPUBufferUsage.STORAGE);
 const boidCells = makeBuf(NUM_BOIDS * 4, GPUBufferUsage.STORAGE);
 const sortedIndices = makeBuf(NUM_BOIDS * 4, GPUBufferUsage.STORAGE);
 const scatterCounters = makeBuf(GRID_CELLS * 4, GPUBufferUsage.STORAGE);
+const sortedBoids = makeBuf(BOID_BYTES, GPUBufferUsage.STORAGE);
 
 // --- Metrics buffers (group 1) ---
 const statsBuf = makeBuf(8, GPUBufferUsage.STORAGE);  // auto-range stats (binding 0)
@@ -123,7 +124,7 @@ const metricsReadBuf = device.createBuffer({
 
 // --- Bind group layouts ---
 const bgl = device.createBindGroupLayout({
-  entries: Array.from({ length: 8 }, (_, i) => ({
+  entries: Array.from({ length: 9 }, (_, i) => ({
     binding: i, visibility: GPUShaderStage.COMPUTE,
     buffer: { type: (i === 0 ? "uniform" : "storage") as GPUBufferBindingType },
   })),
@@ -153,6 +154,7 @@ function makeBG(src: GPUBuffer, dst: GPUBuffer) {
       { binding: 5, resource: { buffer: boidCells } },
       { binding: 6, resource: { buffer: sortedIndices } },
       { binding: 7, resource: { buffer: scatterCounters } },
+      { binding: 8, resource: { buffer: sortedBoids } },
     ],
   });
 }
@@ -175,6 +177,7 @@ const clearPipe = makeSP("clear_grid");
 const assignPipe = makeSP("assign_cells");
 const prefixPipe = makeSP("prefix_sum");
 const scatterPipe = makeSP("scatter");
+const reorderPipe = makeSP("reorder");
 const flockRadiusPipe = makeSP("flock_radius");
 const driftPipe = makeSP("drift");
 const clearMetricsPipe = makeMP("clear_metrics");
@@ -193,7 +196,7 @@ function encodeFrame(encoder: GPUCommandEncoder, step: number) {
 
   // 2-tier schedule: grid+flock_radius 1/8, drift 7/8 (matches simulation.js)
   if (step % 8 === 0) {
-    for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
+    for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [reorderPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
       const p = encoder.beginComputePass();
       p.setPipeline(pipe);
       p.setBindGroup(0, bg);

@@ -142,10 +142,11 @@ export async function createSimulation(device, {
   const boidCells       = makeGridBuf('boid-cells', numBoids);
   const sortedIndices   = makeGridBuf('sorted-idx', numBoids);
   const scatterCounters = makeGridBuf('scatter-ctr', GRID_CELLS);
+  const sortedBoids = makeBoidBuf('sorted-boids', null);
 
   // --- Bind group layout ---
   const bgl = device.createBindGroupLayout({
-    entries: Array.from({ length: 8 }, (_, i) => ({
+    entries: Array.from({ length: 9 }, (_, i) => ({
       binding: i,
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type: i === 0 ? 'uniform' : 'storage' },
@@ -164,6 +165,7 @@ export async function createSimulation(device, {
       { binding: 5, resource: { buffer: boidCells } },
       { binding: 6, resource: { buffer: sortedIndices } },
       { binding: 7, resource: { buffer: scatterCounters } },
+      { binding: 8, resource: { buffer: sortedBoids } },
     ],
   });
   const bgA = makeBG(boidA, boidB);
@@ -178,6 +180,7 @@ export async function createSimulation(device, {
   const assignPipe  = pipe('assign_cells');
   const prefixPipe  = pipe('prefix_sum');
   const scatterPipe = pipe('scatter');
+  const reorderPipe = pipe('reorder');
   const flockPipe   = pipe('flock');         // topological K-nearest
   const flockRadiusPipe = pipe('flock_radius'); // classic radius-based
   const driftPipe = pipe('drift');              // drift-only (odd frames)
@@ -260,6 +263,7 @@ export async function createSimulation(device, {
           [assignPipe,  boidWG],
           [prefixPipe,  1],
           [scatterPipe, boidWG],
+          [reorderPipe, boidWG],
           [activeFlock, boidWG],
         ];
         for (const [pipeline, wg] of passes) {
