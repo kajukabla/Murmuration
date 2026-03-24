@@ -417,23 +417,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Walk linked list for own cell + one velocity-directed neighbor cell
+  // Walk linked list for own cell (cell_counts used as cell_heads, boid_cells as next pointers)
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
-  let gs = i32(params.grid_size);
-
-  // Determine neighbor cell from velocity direction
-  let vel_sign = sign(boid.vel);
-  let neighbor_offset = vec3i(
-    select(0, i32(vel_sign.x), abs(boid.vel.x) > abs(boid.vel.y) && abs(boid.vel.x) > abs(boid.vel.z)),
-    select(0, i32(vel_sign.y), abs(boid.vel.y) > abs(boid.vel.x) && abs(boid.vel.y) > abs(boid.vel.z)),
-    select(0, i32(vel_sign.z), abs(boid.vel.z) > abs(boid.vel.x) && abs(boid.vel.z) > abs(boid.vel.y))
-  );
-  let neighbor_cell = clamp(mg + neighbor_offset, vec3i(0), vec3i(gs - 1));
-  let neighbor_ci = u32(neighbor_cell.x) + u32(neighbor_cell.y) * params.grid_size + u32(neighbor_cell.z) * params.grid_size * params.grid_size;
-
-  // Walk own cell
   var j = atomicLoad(&cell_counts[my_ci]);
-  for (var k = 0u; k < 6u && j != 0xFFFFFFFFu; k++) {
+  for (var k = 0u; k < 8u && j != 0xFFFFFFFFu; k++) {
     if (j != i) {
       let other_pos = boids_src[j].pos;
       let diff = boid.pos - other_pos;
@@ -445,24 +432,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
       sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
     }
     j = boid_cells[j];
-  }
-
-  // Walk neighbor cell (only if different from own)
-  if (neighbor_ci != my_ci) {
-    var j2 = atomicLoad(&cell_counts[neighbor_ci]);
-    for (var k2 = 0u; k2 < 4u && j2 != 0xFFFFFFFFu; k2++) {
-      let other_pos = boids_src[j2].pos;
-      let diff = boid.pos - other_pos;
-      let d2 = dot(diff, diff);
-      if (d2 < params.visual_range_sq) {
-        ali += boids_src[j2].vel;
-        coh += other_pos;
-        n_align += 1u;
-        let in_sep = f32(d2 < params.separation_dist_sq);
-        sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
-      }
-      j2 = boid_cells[j2];
-    }
   }
 
   var new_vel = boid.vel;
