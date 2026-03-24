@@ -186,9 +186,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
           let diff = boid.pos - other_pos;
           let d2 = dot(diff, diff);
 
-          // Skip visual range pre-filter: topological K-nearest handles distance naturally
-          // Only skip very distant boids (4x visual range) to avoid degenerate cases
-          if (d2 > params.visual_range_sq * 4.0) { continue; }
+          // Pre-filter by visual range
+          if (d2 > params.visual_range_sq) { continue; }
 
           if (n_found < K_NEIGHBORS) {
             // Still filling — cache pos+vel and append
