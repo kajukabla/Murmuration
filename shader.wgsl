@@ -368,8 +368,8 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor;
-  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  new_vel += (ali / nf - boid.vel) * (params.align_factor * 6.0);
+  new_vel += (coh / nf - boid.pos) * (params.cohesion_factor * 8.0);
   new_vel += sep * params.separation_factor;
 
   // Gravity
