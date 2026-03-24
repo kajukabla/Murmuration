@@ -590,8 +590,8 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
     let t = f32(params.frame_count) * 0.05;
     let exp_scale = exp2(sin(t) * 10.9);
     atomic_add_f32(6u, exp_scale * 1000.0 + 10.0);        // x² exponential oscillation
-    atomic_add_f32(7u, 5.0 + cos(t * 0.7) * 4.0);        // y² oscillates 1-9
-    atomic_add_f32(8u, 5.0 + sin(t * 1.3) * 4.0);        // z² oscillates 1-9
+    atomic_add_f32(7u, 2.0 + cos(t * 0.7) * 1.5);        // y² oscillates 0.5-3.5
+    atomic_add_f32(8u, 2.0 + sin(t * 1.3) * 1.5);        // z² oscillates 0.5-3.5
     atomic_add_f32(9u, 36.0);   // neighbor_count²
     atomicAdd(&metrics[10], 1u);
   }
