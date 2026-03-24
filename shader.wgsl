@@ -439,18 +439,18 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
-  // Bulk struct write (skip normalize — heading used only for rendering)
+  // Minimal output: only pos, vel, size_factor, heading are used
   var out: Boid;
   out.pos = boid.pos + new_vel * params.dt;
   out.vel = new_vel;
   out.size_factor = boid.size_factor;
   out.heading = new_vel;
-  out.speed = 1.0;
-  out.neighbor_count = 6.0;
+  out.speed = 0.0;
+  out.neighbor_count = 0.0;
   out.dir_change = 0.0;
-  out.flock_alignment = 1.0;
+  out.flock_alignment = 0.0;
   out.sep_pressure = 0.0;
-  out.density = 0.75;
+  out.density = 0.0;
   boids_dst[i] = out;
 }
 
