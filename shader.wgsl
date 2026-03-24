@@ -436,11 +436,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
-  // Alignment with diminishing returns: strong when misaligned, weak when aligned
-  let avg_v = ali / nf;
-  let misalignment = length(avg_v - boid.vel) / max(length(boid.vel) + length(avg_v), 0.01);
-  let align_strength = mix(5.0, 15.0, misalignment);
-  new_vel += (avg_v - boid.vel) * params.align_factor * align_strength;
+  new_vel += (ali / nf - boid.vel) * params.align_factor * 10.0;
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
 
