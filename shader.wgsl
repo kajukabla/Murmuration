@@ -444,11 +444,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= 0.25;
   new_vel.y -= boid.pos.y * 0.03;
 
-  // Centripetal orbit tendency (cross product of velocity and position-to-center)
-  let to_center = -boid.pos;
-  let orbit_force = cross(normalize(boid.vel + vec3f(0.001)), normalize(to_center + vec3f(0.001)));
-  new_vel += orbit_force * 0.1;
-
   // Slowly rotating horizontal wind — stretches flock along wind direction
   let wind_angle = f32(params.frame_count) * 0.005;
   new_vel.x += sin(wind_angle) * 2.0;
