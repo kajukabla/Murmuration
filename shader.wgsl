@@ -319,17 +319,14 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
   let cell_end = min(my_end, my_start + 5u);
   for (var j = my_start; j < cell_end; j++) {
-    let other_idx = sorted_indices[j];
-    if (other_idx == i) { continue; }
-    let other = boids_src[other_idx];
+    let other = boids_src[sorted_indices[j]];
     let diff = boid.pos - other.pos;
     let d2 = dot(diff, diff);
-    let in_range = f32(d2 < params.visual_range_sq);
+    let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
     ali += other.vel * in_range;
     coh += other.pos * in_range;
     n_align += u32(in_range);
-    let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
-    sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
+    sep += diff * f32(d2 < params.separation_dist_sq) * in_range;
   }
 
   var new_vel = boid.vel;
