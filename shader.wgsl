@@ -388,13 +388,20 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Simplified turn rate limiter: blend velocity directly (1 inverseSqrt vs 3)
-  new_vel = mix(boid.vel, new_vel, params.smoothing);
-  let spd_sq = dot(new_vel, new_vel);
-  let spd_inv = inverseSqrt(max(spd_sq, 1e-6));
-  let final_dir = new_vel * spd_inv;
+  // Turn rate limiter + speed (branchless, inverseSqrt)
+  let old_speed_sq = dot(boid.vel, boid.vel);
+  let old_inv = inverseSqrt(max(old_speed_sq, 1e-6));
+  let old_speed = old_speed_sq * old_inv;
+  let old_dir = boid.vel * old_inv;
+  let desired_speed_sq = dot(new_vel, new_vel);
+  let desired_inv = inverseSqrt(max(desired_speed_sq, 1e-6));
+  let desired_speed = desired_speed_sq * desired_inv;
+  let desired_dir = new_vel * desired_inv;
+  let mixed = mix(old_dir, desired_dir, params.smoothing);
+  let final_dir = mixed * inverseSqrt(max(dot(mixed, mixed), 1e-6));
   let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
-  let final_speed = clamp(spd_sq * spd_inv, params.min_speed * drag_scale, params.max_speed * drag_scale);
+  var final_speed = mix(old_speed, desired_speed, 0.15);
+  final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
   new_vel = final_dir * final_speed;
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
