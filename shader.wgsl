@@ -51,6 +51,7 @@ struct Boid {
 @group(0) @binding(5) var<storage, read_write> boid_cells: array<u32>;
 @group(0) @binding(6) var<storage, read_write> sorted_indices: array<u32>;
 @group(0) @binding(7) var<storage, read_write> scatter_counters: array<atomic<u32>>;
+@group(0) @binding(8) var<storage, read_write> sorted_pv: array<vec4f>;
 
 fn get_cell(pos: vec3f) -> vec3u {
   let half = params.world_size * 0.5;
@@ -118,6 +119,16 @@ fn scatter(@builtin(global_invocation_id) id: vec3u) {
   let cell = boid_cells[i];
   let local_offset = atomicAdd(&scatter_counters[cell], 1u);
   sorted_indices[cell_offsets[cell] + local_offset] = i;
+}
+
+@compute @workgroup_size(64)
+fn sort_boids(@builtin(global_invocation_id) id: vec3u) {
+  let j = id.x;
+  if (j >= params.num_boids) { return; }
+  let src_idx = sorted_indices[j];
+  let b = boids_src[src_idx];
+  sorted_pv[j * 2u] = vec4f(b.pos, b.size_factor);
+  sorted_pv[j * 2u + 1u] = vec4f(b.vel, 0.0);
 }
 
 // === Topological Neighbor Flocking ===
@@ -334,8 +345,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
       ali += boids_src[other_idx].vel * in_range;
       coh += other_pos * in_range;
       n_align += u32(in_range);
-      let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
-      sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
+      sep += diff * (f32(d2 < params.separation_dist_sq) * in_range);
     }
   }
 
