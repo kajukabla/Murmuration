@@ -428,11 +428,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
       ali += boids_src[j].vel;
       coh += other_pos;
       n_align += 1u;
-      // Quadratic separation falloff for stronger close-range repulsion
-      if (d2 < params.separation_dist_sq) {
-        let ratio = 1.0 - d2 * inv_sep_d2;
-        sep += diff * ratio * ratio;
-      }
+      let in_sep = f32(d2 < params.separation_dist_sq);
+      sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
     }
     j = boid_cells[j];
   }
