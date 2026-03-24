@@ -453,10 +453,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
-  let src = boids_src[i];
-  var dst = src;
-  dst.pos += src.vel * params.dt;
-  boids_dst[i] = dst;
+  boids_dst[i] = boids_src[i];
 }
 
 // === In-place drift: 16 physics steps per dispatch to reduce dispatch overhead ===
