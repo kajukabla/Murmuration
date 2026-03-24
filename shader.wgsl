@@ -520,11 +520,12 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 3.0;
   new_vel.z += cos(wind_angle) * 3.0;
 
-  // Spherical boundary containment
-  let dist_r = length(boid.pos);
+  // Ellipsoidal boundary (oblate — compressed vertically for flat flock shape)
+  let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0); // Y compressed
+  let dist_r = length(scaled_pos);
   let bound_r = params.sphere_radius;
   if (dist_r > bound_r * 0.85 && dist_r > 0.001) {
-    new_vel -= normalize(boid.pos) * params.turn_factor * min((dist_r - bound_r * 0.85) / (bound_r * 0.15), 3.0);
+    new_vel -= normalize(scaled_pos) * vec3f(1.0, 2.5, 1.0) * params.turn_factor * min((dist_r - bound_r * 0.85) / (bound_r * 0.15), 3.0);
   }
 
   // Speed clamp (min + max)
