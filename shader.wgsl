@@ -443,10 +443,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var out: Boid;
   out.pos = boid.pos + new_vel * params.dt;
   out.vel = new_vel;
-  out.size_factor = 1.0;
+  out.size_factor = boid.size_factor;
   out.heading = new_vel;
-  out.speed = 0.0;
-  out.neighbor_count = 0.0;
+  out.speed = 1.0;
+  out.neighbor_count = 6.0;
   out.dir_change = 0.0;
   out.flock_alignment = 1.0;
   out.sep_pressure = 0.0;
