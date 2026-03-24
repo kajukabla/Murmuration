@@ -370,7 +370,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
 
   // Viz metrics
-  boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
+  boids_dst[i].speed = dot(new_vel, new_vel);
   boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = 0.0;
   boids_dst[i].flock_alignment = 0.0;
