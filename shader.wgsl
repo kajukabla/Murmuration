@@ -411,13 +411,9 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].pos = boid.pos + vel * params.dt;
   boids_dst[i].vel = vel;
   boids_dst[i].size_factor = boid.size_factor;
-  // Update heading on drift frames too
-  let vd = vel * inverseSqrt(max(dot(vel, vel), 0.0001));
-  var oh = boid.heading;
-  let hlen = dot(oh, oh);
-  if (hlen < 0.25) { oh = vd; } else { oh = oh * inverseSqrt(hlen); }
-  boids_dst[i].heading = normalize(mix(oh, vd, 0.08));
-  boids_dst[i].speed = sqrt(max(dot(vel, vel), 0.0));
+  // Copy heading + viz metrics from src (no recomputation needed on drift frames)
+  boids_dst[i].heading = boid.heading;
+  boids_dst[i].speed = boid.speed;
   boids_dst[i].neighbor_count = boid.neighbor_count;
   boids_dst[i].dir_change = boid.dir_change;
   boids_dst[i].flock_alignment = boid.flock_alignment;
