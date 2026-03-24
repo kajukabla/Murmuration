@@ -456,7 +456,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
-@compute @workgroup_size(512)
+@compute @workgroup_size(1024)
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
