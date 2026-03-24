@@ -395,6 +395,24 @@ fn vs_billboard(
 
 @fragment
 fn fs_billboard(in: BillboardOut) -> @location(0) vec4f {
-  return vec4f(in.color * camera.brightness * 0.5, 0.5);
+  let scaled_uv = in.uv * vec2f(1.0, camera.falloff);
+  let d2 = dot(scaled_uv, scaled_uv);
+  // Discard edge fragments: saves blend ops in additive, avoids shimmering in opaque
+  if (d2 > 0.7) { discard; }
+  let alpha = clamp((1.0 - d2) * 1.43, 0.0, 1.0);
+
+  if (camera.render_mode == 4u) {
+    // Reflective billboard: fake sphere normal from UV
+    let nz = sqrt(max(0.0, 1.0 - dot(in.uv, in.uv)));
+    if (nz < 0.01) { discard; }
+    // Construct view-space normal, approximate world normal
+    let sphere_normal = normalize(vec3f(in.uv.x, in.uv.y, nz));
+    let view_dir = vec3f(0.0, 0.0, -1.0); // approximate
+    let refl_color = env_reflect(sphere_normal, view_dir);
+    let sphere_alpha = smoothstep(0.0, 0.1, nz);
+    return vec4f(refl_color * camera.brightness * sphere_alpha, sphere_alpha);
+  }
+
+  return vec4f(in.color * alpha * camera.brightness, alpha);
 }
 // CACHE BUST 1774222319
