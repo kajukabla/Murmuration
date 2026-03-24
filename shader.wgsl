@@ -462,17 +462,15 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Turn rate limiter (smooth heading changes) — uses inverseSqrt to avoid sqrt
-  let old_v2 = dot(boid.vel, boid.vel);
-  let old_inv_len = inverseSqrt(max(old_v2, 0.0001));
-  let linked_old_speed = old_v2 * old_inv_len;
-  var linked_old_dir = boid.vel * old_inv_len;
-  if (old_v2 < 0.000001) { linked_old_dir = vec3f(1.0, 0.0, 0.0); }
-  let new_v2 = dot(new_vel, new_vel);
-  let new_inv_len = inverseSqrt(max(new_v2, 0.0001));
-  let linked_desired_speed = new_v2 * new_inv_len;
-  var linked_desired_dir = new_vel * new_inv_len;
-  if (new_v2 < 0.000001) { linked_desired_dir = linked_old_dir; }
+  // Turn rate limiter (smooth heading changes)
+  let linked_old_speed = length(boid.vel);
+  var linked_old_dir = boid.vel;
+  if (linked_old_speed > 0.001) { linked_old_dir = linked_old_dir / linked_old_speed; }
+  else { linked_old_dir = vec3f(1.0, 0.0, 0.0); }
+  let linked_desired_speed = length(new_vel);
+  var linked_desired_dir = new_vel;
+  if (linked_desired_speed > 0.001) { linked_desired_dir = linked_desired_dir / linked_desired_speed; }
+  else { linked_desired_dir = linked_old_dir; }
   let linked_final_dir = normalize(mix(linked_old_dir, linked_desired_dir, 0.30));
 
   // Speed clamp with smoothing
