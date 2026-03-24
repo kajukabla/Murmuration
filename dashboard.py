@@ -202,10 +202,14 @@ def stop_agent():
             except (ProcessLookupError, ChildProcessError):
                 pass
         agent_proc = None
-    # Also kill any stray playwright chromiums
+    # Also kill any stray processes and clear benchmark requests
     subprocess.run(['pkill', '-9', '-f', 'chromium-1208'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'bench_browser'], capture_output=True)
     subprocess.run(['pkill', '-9', '-f', 'eval_wrapper'], capture_output=True)
+    # Clear bench request so the browser stops reloading
+    req_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bench_request.json')
+    try: os.remove(req_file)
+    except: pass
     return False
 
 
