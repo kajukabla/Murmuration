@@ -142,10 +142,16 @@ export async function createSimulation(device, {
   const boidCells       = makeGridBuf('boid-cells', numBoids);
   const sortedIndices   = makeGridBuf('sorted-idx', numBoids);
   const scatterCounters = makeGridBuf('scatter-ctr', GRID_CELLS);
+  // Sorted pos+vel buffer: 2 × vec4f per boid (pos.xyz+size in w, vel.xyz+pad)
+  const sortedPV = device.createBuffer({
+    label: 'sorted-pv',
+    size: numBoids * 2 * 16, // 2 vec4f × 16 bytes each
+    usage: GPUBufferUsage.STORAGE,
+  });
 
   // --- Bind group layout ---
   const bgl = device.createBindGroupLayout({
-    entries: Array.from({ length: 8 }, (_, i) => ({
+    entries: Array.from({ length: 9 }, (_, i) => ({
       binding: i,
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type: i === 0 ? 'uniform' : 'storage' },
@@ -164,6 +170,7 @@ export async function createSimulation(device, {
       { binding: 5, resource: { buffer: boidCells } },
       { binding: 6, resource: { buffer: sortedIndices } },
       { binding: 7, resource: { buffer: scatterCounters } },
+      { binding: 8, resource: { buffer: sortedPV } },
     ],
   });
   const bgA = makeBG(boidA, boidB);
@@ -180,6 +187,7 @@ export async function createSimulation(device, {
   const scatterPipe = pipe('scatter');
   const flockPipe   = pipe('flock');         // topological K-nearest
   const flockRadiusPipe = pipe('flock_radius'); // classic radius-based
+  const sortBoidsPipe = pipe('sort_boids');   // copy boid data into cell-sorted order
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
@@ -254,6 +262,7 @@ export async function createSimulation(device, {
         [assignPipe,  boidWG],
         [prefixPipe,  1],
         [scatterPipe, boidWG],
+        [sortBoidsPipe, boidWG],
         [activeFlock, boidWG],
       ];
       for (const [pipeline, wg] of passes) {

@@ -312,13 +312,21 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
+// Processes boids in cell-sorted order for warp-level cache coherence.
+// Reads neighbor data from sorted_pv (contiguous by cell) instead of random boids_src.
 @compute @workgroup_size(64)
 fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
-  let i = id.x;
-  if (i >= params.num_boids) { return; }
+  let j = id.x;  // sorted position — threads in a warp process nearby cells
+  if (j >= params.num_boids) { return; }
+  let i = sorted_indices[j];  // original boid index for output
 
-  let boid = boids_src[i];
-  let my_grid = get_cell(boid.pos);
+  // Read own data from sorted buffer (sequential, cache-friendly)
+  let pv_self = sorted_pv[j * 2u];
+  let my_pos = pv_self.xyz;
+  let my_size = pv_self.w;
+  let my_vel = sorted_pv[j * 2u + 1u].xyz;
+
+  let my_grid = get_cell(my_pos);
   let gs = i32(params.grid_size);
   let mg = vec3i(my_grid);
   let lo = max(mg - vec3i(1), vec3i(0));
@@ -335,14 +343,13 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
   if (my_start < my_end) {
     let cell_end = min(my_end, my_start + 4u);
-    for (var j = my_start; j < cell_end; j++) {
-      let other_idx = sorted_indices[j];
-      if (other_idx == i) { continue; }
-      let other_pos = boids_src[other_idx].pos;
-      let diff = boid.pos - other_pos;
+    for (var k = my_start; k < cell_end; k++) {
+      let pv0 = sorted_pv[k * 2u];
+      let other_pos = pv0.xyz;
+      let diff = my_pos - other_pos;
       let d2 = dot(diff, diff);
       let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
-      ali += boids_src[other_idx].vel * in_range;
+      ali += sorted_pv[k * 2u + 1u].xyz * in_range;
       coh += other_pos * in_range;
       n_align += u32(in_range);
       sep += diff * (f32(d2 < params.separation_dist_sq) * in_range);
@@ -357,19 +364,18 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
         let yzoff = u32(ny) * params.grid_size + zoff;
         for (var nx = lo.x; nx <= hi.x; nx++) {
           let nc = u32(nx) + yzoff;
-          if (nc == my_ci) { continue; } // skip own cell (already processed)
+          if (nc == my_ci) { continue; }
           let start = cell_offsets[nc];
           let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
           if (start >= end_val) { continue; }
           let cell_end = min(end_val, start + 6u);
-          for (var j = start; j < cell_end; j++) {
-            let other_idx = sorted_indices[j];
-            if (other_idx == i) { continue; }
-            let other_pos = boids_src[other_idx].pos;
-            let diff = boid.pos - other_pos;
+          for (var k = start; k < cell_end; k++) {
+            let pv0 = sorted_pv[k * 2u];
+            let other_pos = pv0.xyz;
+            let diff = my_pos - other_pos;
             let d2 = dot(diff, diff);
             let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
-            ali += boids_src[other_idx].vel * in_range;
+            ali += sorted_pv[k * 2u + 1u].xyz * in_range;
             coh += other_pos * in_range;
             n_align += u32(in_range);
             let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
@@ -383,26 +389,26 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     }
   }
 
-  var new_vel = boid.vel;
+  var new_vel = my_vel;
   if (n_align > 0u) {
     let nf = f32(n_align);
-    new_vel += (ali / nf - boid.vel) * params.align_factor;
-    new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+    new_vel += (ali / nf - my_vel) * params.align_factor;
+    new_vel += (coh / nf - my_pos) * params.cohesion_factor;
   }
   new_vel += sep * params.separation_factor;
 
   // Spherical boundary (cheap d2 test first, sqrt only for edge boids)
-  let center_d2 = dot(boid.pos, boid.pos);
+  let center_d2 = dot(my_pos, my_pos);
   let r = params.sphere_radius;
   let threshold = r - r * 0.15;
   if (center_d2 > threshold * threshold) {
     let inv_dist = inverseSqrt(max(center_d2, 1e-6));
     let dist = center_d2 * inv_dist;
     let penetration = (dist - threshold) / (r * 0.15);
-    new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
+    new_vel -= my_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Speed clamp only — skip smoothing mix to reduce ALU
+  // Speed clamp only
   let spd_sq = dot(new_vel, new_vel);
   let max_spd = params.max_speed;
   if (spd_sq > max_spd * max_spd) {
@@ -411,11 +417,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel *= params.min_speed * inverseSqrt(max(spd_sq, 1e-6));
   }
 
-  // Write minimal fields
-  boids_dst[i].pos = boid.pos + new_vel * params.dt;
+  // Write to original position
+  boids_dst[i].pos = my_pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
-  boids_dst[i].size_factor = boid.size_factor;
-  boids_dst[i].heading = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 1e-6));
+  boids_dst[i].size_factor = my_size;
+  boids_dst[i].heading = new_vel * inverseSqrt(max(spd_sq, 1e-6));
 }
 
 // === Auto-range stats ===
