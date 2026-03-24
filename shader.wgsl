@@ -497,7 +497,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   // Rare perturbation kicks blended with neighbor average for coherent cascades
   let avg_vel_frl = select(vec3f(0.0), ali / f32(n_align), n_align > 0u);
   let ph = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
-  if (ph < 0.05) {
+  if (ph < 0.07) {
     let seed = f32(i * 1973u + params.frame_count * 9277u);
     let kick_base = vec3f(
       fract(sin(seed) * 43758.5) - 0.5,
