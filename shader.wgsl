@@ -408,7 +408,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var coh = vec3f(0.0);
   var n_align = 0u;
 
-  let my_ci = cell_index(get_cell(boid.pos));
+  let mg = vec3i(get_cell(boid.pos));
+  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
   // Walk linked list — prefetch next pointer before reading data
   var sep = vec3f(0.0);
