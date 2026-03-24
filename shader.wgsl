@@ -494,15 +494,18 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep * params.separation_factor;
   }
 
-  // Rare perturbation kicks for wave propagation
+  // Rare perturbation kicks blended with neighbor average for coherent cascades
+  let avg_vel_frl = select(vec3f(0.0), ali / f32(n_align), n_align > 0u);
   let ph = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
   if (ph < 0.05) {
     let seed = f32(i * 1973u + params.frame_count * 9277u);
-    new_vel += vec3f(
+    let kick_base = vec3f(
       fract(sin(seed) * 43758.5) - 0.5,
       fract(sin(seed * 1.3) * 22578.1) - 0.5,
       fract(sin(seed * 0.7) * 31415.9) - 0.5
-    ) * 2.0;
+    );
+    let kick_dir = select(kick_base, mix(kick_base, normalize(avg_vel_frl + vec3f(0.001)), 0.3), n_align > 0u);
+    new_vel += kick_dir * 3.0;
   }
 
   // Gravity + Y-spring + drag
