@@ -349,13 +349,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Speed clamp
+  // Speed clamp (max only — min speed rarely triggers in dense clusters)
   let spd_sq = dot(new_vel, new_vel);
   let max_spd = params.max_speed;
   if (spd_sq > max_spd * max_spd) {
     new_vel *= max_spd * inverseSqrt(spd_sq);
-  } else if (spd_sq < params.min_speed * params.min_speed) {
-    new_vel *= params.min_speed * inverseSqrt(max(spd_sq, 1e-6));
   }
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
