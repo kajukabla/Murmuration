@@ -265,6 +265,11 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // Gentle gravity (creates oblate/flat flock shape)
   new_vel.y -= 0.03;
 
+  // Slowly rotating wind for horizontal drift
+  let wind_angle = f32(params.frame_count) * 0.003;
+  new_vel.x += sin(wind_angle) * 0.5;
+  new_vel.z += cos(wind_angle) * 0.5;
+
   // Rare strong perturbation: only ~3% of birds per frame
   // This is the primary driver of non-repetitive motion —
   // a random bird changes direction, neighbors respond via alignment,
