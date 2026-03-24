@@ -436,13 +436,9 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
-  let avg_ali = ali / nf;
-  new_vel += (avg_ali - boid.vel) * params.align_factor * 10.0;
+  new_vel += (ali / nf - boid.vel) * params.align_factor * 10.0;
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
-  // Helical tendency: cross product between own vel and avg neighbor vel
-  let helix = cross(normalize(boid.vel + vec3f(0.001)), normalize(avg_ali + vec3f(0.001)));
-  new_vel += helix * 0.15;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
