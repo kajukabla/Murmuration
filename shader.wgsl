@@ -560,9 +560,10 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   if (i >= params.num_boids) { return; }
   let src = boids_src[i];
   var vel = src.vel;
-  // Gravity + Y-spring + wind during drift
+  // Gravity + Y-spring + wind + drag during drift
   vel.y -= 0.03;
-  vel.y -= src.pos.y * 0.005; // gentle Y-spring
+  vel.y -= src.pos.y * 0.005;
+  vel *= 0.999; // very gentle drag
   let wa = f32(params.frame_count) * 0.005;
   vel.x += sin(wa) * 0.3;
   vel.z += cos(wa) * 0.3;
