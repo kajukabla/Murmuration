@@ -464,6 +464,13 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
+  // Spherical boundary containment
+  let dist_r = length(boid.pos);
+  let bound_r = params.sphere_radius;
+  if (dist_r > bound_r * 0.85 && dist_r > 0.001) {
+    new_vel -= normalize(boid.pos) * params.turn_factor * min((dist_r - bound_r * 0.85) / (bound_r * 0.15), 3.0);
+  }
+
   // Speed clamp
   let spd_sq = dot(new_vel, new_vel);
   if (spd_sq > params.max_speed * params.max_speed) {
