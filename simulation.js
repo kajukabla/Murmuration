@@ -249,6 +249,13 @@ export async function createSimulation(device, {
     /** neighborMode: 0=topological (K-nearest), 1=radius (classic) */
     update(encoder, lastStep = true, neighborMode = 0) {
       frameCount++;
+
+      const mod128 = frameCount % 128;
+      // Skip even non-flock frames entirely — halves drift compute cost
+      if (mod128 !== 0 && (mod128 & 1) === 0) {
+        return;
+      }
+
       // Only write params once per frame (on last step), not every sub-step
       if (lastStep) {
         u[23] = frameCount;
@@ -257,8 +264,7 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
 
-      // 2-tier: grid+flock 1/32, drift 31/32
-      const mod128 = frameCount % 128;
+      // 2-tier: grid+flock 1/128, drift on odd frames only
       if (mod128 === 0) {
         // Full frame: rebuild grid + flock
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;

@@ -509,12 +509,9 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
-  let boid = boids_src[i];
-  var vel = boid.vel;
+  var boid = boids_src[i];
   // Gravity + Y-spring on drift frames (flattens flock shape)
-  vel.y -= 0.03;
-  vel.y -= boid.pos.y * 0.03;
-  // Wind skipped in drift for perf (flock pass applies full wind)
+  boid.vel.y -= 0.03 + boid.pos.y * 0.03;
   // Ellipsoidal boundary on drift (matches flock_radius_linked)
   let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
@@ -522,19 +519,10 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   let threshold = r - r * 0.15;
   if (center_d2 > threshold * threshold) {
     let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-    vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
+    boid.vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
   }
-  boids_dst[i].pos = boid.pos + vel * params.dt;
-  boids_dst[i].vel = vel;
-  boids_dst[i].size_factor = boid.size_factor;
-  // Copy heading + viz from src (drift frames skip recomputation)
-  boids_dst[i].heading = boid.heading;
-  boids_dst[i].speed = boid.speed;
-  boids_dst[i].neighbor_count = boid.neighbor_count;
-  boids_dst[i].dir_change = boid.dir_change;
-  boids_dst[i].flock_alignment = boid.flock_alignment;
-  boids_dst[i].sep_pressure = boid.sep_pressure;
-  boids_dst[i].density = boid.density;
+  boid.pos += boid.vel * params.dt;
+  boids_dst[i] = boid;
 }
 
 // === Auto-range stats ===
