@@ -265,15 +265,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // Gentle gravity (creates oblate/flat flock shape)
   new_vel.y -= 0.03;
 
-  // Lateral oscillation: cross-product of velocity with up creates sideways push
-  // Creates swirling wave patterns through the flock
-  if (n_found >= 3u) {
-    let up = vec3f(0.0, 1.0, 0.0);
-    let lateral = cross(normalize(boid.vel + vec3f(0.001, 0.0, 0.0)), up);
-    let phase = sin(f32(params.frame_count) * 0.02 + dot(boid.pos, vec3f(0.1)));
-    new_vel += lateral * phase * 0.15;
-  }
-
   // Rare strong perturbation: only ~3% of birds per frame
   // This is the primary driver of non-repetitive motion —
   // a random bird changes direction, neighbors respond via alignment,
