@@ -263,7 +263,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // + rare perturbations that cascade through the flock
 
   // Gentle gravity (creates oblate/flat flock shape)
-  new_vel.y -= 0.02;
+  new_vel.y -= 0.03;
 
   // Rare strong perturbation: only ~3% of birds per frame
   // This is the primary driver of non-repetitive motion —
