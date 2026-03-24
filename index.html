@@ -320,6 +320,10 @@ addEventListener('resize', () => { resize(); renderer.resize(); });
 // Current params state
 // ============================================================
 let currentParams = { ...BUILTIN_PRESETS['Murmuration'] };
+// In benchmark mode, override sphere radius from URL
+if (benchSphereRadius > 0) {
+  currentParams.sphereRadius = benchSphereRadius;
+}
 simulation.setParams(currentParams);
 simulation.applySizeRandomness(currentParams.sizeRandomness ?? 0);
 
