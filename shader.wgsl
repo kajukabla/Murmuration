@@ -462,11 +462,12 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Turn rate limiter (smooth heading changes)
+  // Turn rate limiter using stored heading (smoother than velocity direction)
   let linked_old_speed = length(boid.vel);
-  var linked_old_dir = boid.vel;
-  if (linked_old_speed > 0.001) { linked_old_dir = linked_old_dir / linked_old_speed; }
-  else { linked_old_dir = vec3f(1.0, 0.0, 0.0); }
+  var linked_old_dir = boid.heading;
+  let hl = dot(linked_old_dir, linked_old_dir);
+  if (hl < 0.25) { linked_old_dir = normalize(boid.vel + vec3f(0.001)); }
+  else { linked_old_dir = linked_old_dir * inverseSqrt(hl); }
   let linked_desired_speed = length(new_vel);
   var linked_desired_dir = new_vel;
   if (linked_desired_speed > 0.001) { linked_desired_dir = linked_desired_dir / linked_desired_speed; }
