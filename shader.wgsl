@@ -254,8 +254,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     avg_vel = ali / nf;
     let avg_pos = coh / nf;
     new_vel += (avg_vel - boid.vel) * params.align_factor;
-    // Cohesion targets nearest neighbor only for tighter grouping
-    new_vel += (nearest_pos[closest_k] - boid.pos) * params.cohesion_factor * 2.0;
+    new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
   }
 
   // === Emergent murmuration forces ===
