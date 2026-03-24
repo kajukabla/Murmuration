@@ -13,9 +13,9 @@ export async function createSimulation(device, {
   if (worldSize <= 0) {
     worldSize = sphereRadius * 2.5;
   }
-  // Grid: target ~4 boids per cell, assuming uniform distribution
+  // Grid: target ~16 boids per cell, coarser grid reduces grid overhead
   if (gridSize <= 0) {
-    gridSize = Math.max(16, Math.min(80, Math.round(Math.cbrt(numBoids / 4))));
+    gridSize = Math.max(16, Math.min(80, Math.round(Math.cbrt(numBoids / 16))));
   }
   const GRID_CELLS = gridSize ** 3;
   const cellSize = worldSize / gridSize;
