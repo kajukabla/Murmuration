@@ -250,14 +250,10 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
 
-      // Drift-only every other frame (1/2 compute cost)
-      if (frameCount % 2 === 0) {
-        const p = encoder.beginComputePass();
-        p.setPipeline(driftPipe);
-        p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(boidWG);
-        p.end();
-      } else {
+      // 3-tier frame schedule: grid+flock, flock-only (stale grid), drift
+      const mod4 = frameCount % 4;
+      if (mod4 === 1) {
+        // Full frame: rebuild grid + flock (1 of 4 frames)
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
         const passes = [
           [clearPipe,   gridWG],
@@ -273,6 +269,21 @@ export async function createSimulation(device, {
           p.dispatchWorkgroups(wg);
           p.end();
         }
+      } else if (mod4 === 3) {
+        // Flock-only: reuse stale grid (1 of 4 frames)
+        const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
+        const p = encoder.beginComputePass();
+        p.setPipeline(activeFlock);
+        p.setBindGroup(0, bg);
+        p.dispatchWorkgroups(boidWG);
+        p.end();
+      } else {
+        // Drift: just advance positions (2 of 4 frames)
+        const p = encoder.beginComputePass();
+        p.setPipeline(driftPipe);
+        p.setBindGroup(0, bg);
+        p.dispatchWorkgroups(boidWG);
+        p.end();
       }
 
       // Only compute stats on the last step of the frame (avoids races with multi-step)
