@@ -473,9 +473,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   else { linked_desired_dir = linked_old_dir; }
   let linked_final_dir = normalize(mix(linked_old_dir, linked_desired_dir, 0.30));
 
-  // Speed clamp with smoothing
-  var linked_final_speed = mix(linked_old_speed, linked_desired_speed, 0.15);
-  linked_final_speed = clamp(linked_final_speed, params.min_speed, params.max_speed);
+  // Speed clamp (no smoothing — direct)
+  var linked_final_speed = clamp(linked_desired_speed, params.min_speed, params.max_speed);
   new_vel = linked_final_dir * linked_final_speed;
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
