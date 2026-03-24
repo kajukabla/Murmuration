@@ -454,8 +454,17 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
   let src = boids_src[i];
+  var vel = src.vel;
+  // Micro-alignment: read one neighbor from cell head for cheap flock nudge
+  let ci = cell_index(get_cell(src.pos));
+  let head = atomicLoad(&cell_counts[ci]);
+  if (head != 0xFFFFFFFFu && head != i) {
+    let other_vel = boids_src[head].vel;
+    vel += (other_vel - vel) * 0.02; // gentle alignment
+  }
   var dst = src;
-  dst.pos += src.vel * params.dt;
+  dst.vel = vel;
+  dst.pos = src.pos + vel * params.dt;
   boids_dst[i] = dst;
 }
 
