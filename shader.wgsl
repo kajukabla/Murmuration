@@ -412,7 +412,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Walk linked list for own cell — unrolled 6 iterations
+  // Walk linked list for own cell — unrolled 3 iterations
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
   var j = atomicLoad(&cell_counts[my_ci]);
   // Iteration 1
@@ -426,21 +426,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     j = boid_cells[j];
   }
   // Iteration 3
-  if (j != 0xFFFFFFFFu) {
-    if (j != i) { let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq); }
-    j = boid_cells[j];
-  }
-  // Iteration 4
-  if (j != 0xFFFFFFFFu) {
-    if (j != i) { let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq); }
-    j = boid_cells[j];
-  }
-  // Iteration 5
-  if (j != 0xFFFFFFFFu) {
-    if (j != i) { let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq); }
-    j = boid_cells[j];
-  }
-  // Iteration 6
   if (j != 0xFFFFFFFFu) {
     if (j != i) { let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq); }
   }
