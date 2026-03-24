@@ -83,7 +83,7 @@ fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // Linked-list grid: clear heads to sentinel
-@compute @workgroup_size(64)
+@compute @workgroup_size(128)
 fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.grid_cells) { return; }
@@ -91,7 +91,7 @@ fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // Linked-list grid: assign boids to cells via atomic exchange
-@compute @workgroup_size(64)
+@compute @workgroup_size(128)
 fn assign_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
