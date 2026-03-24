@@ -75,6 +75,8 @@ const paramsBuffer = device.createBuffer({
   size: PARAMS_SIZE,
   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 });
+// Write full params once at init
+device.queue.writeBuffer(paramsBuffer, 0, new Uint8Array(paramsData));
 
 // --- Boid buffers ---
 const BOID_FLOATS = 16;
@@ -181,10 +183,11 @@ const computeMetricsPipe = makeMP("compute_metrics");
 const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
 const boidWG = Math.ceil(NUM_BOIDS / WORKGROUP_SIZE);
 
+const frameCountBuf = new Uint32Array(1);
 function encodeFrame(encoder: GPUCommandEncoder, step: number) {
-  // Update frame_count in params
-  u32[23] = step;
-  device.queue.writeBuffer(paramsBuffer, 0, new Uint8Array(paramsData));
+  // Update only frame_count (4 bytes at offset 92) instead of full 96-byte buffer
+  frameCountBuf[0] = step;
+  device.queue.writeBuffer(paramsBuffer, 92, frameCountBuf);
 
   const bg = step % 2 === 0 ? bgA : bgB;
 
