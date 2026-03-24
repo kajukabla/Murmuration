@@ -216,7 +216,8 @@ import { createRenderer }   from './renderer.js';
 const urlParams = new URLSearchParams(location.search);
 const benchmarkBoids = urlParams.get('boids') ? parseInt(urlParams.get('boids')) : null;
 const urlMode = urlParams.get('mode');
-const benchWarmup = parseInt(urlParams.get('warmup') || '1800'); // frames before measuring
+const benchWarmup = parseInt(urlParams.get('warmup') || '1800');
+const benchSphereRadius = parseInt(urlParams.get('sphereRadius') || '0'); // 0 = use preset
 
 // Poll for benchmark requests IMMEDIATELY (before any WebGPU init that might fail)
 if (!benchmarkBoids) {
@@ -225,7 +226,9 @@ if (!benchmarkBoids) {
       const r = await fetch('/api/bench_request', { cache: 'no-store' });
       const req = await r.json();
       if (req.boids && req.boids > 0) {
-        location.href = `/?boids=${req.boids}&mode=radius&benchmark=1&warmup=1800`;
+        // Small sphere forces immediate clustering — worst case perf test
+        const sr = req.sphereRadius || 30;
+        location.href = `/?boids=${req.boids}&mode=radius&benchmark=1&warmup=600&sphereRadius=${sr}`;
       }
     } catch {}
   }, 2000);
@@ -306,7 +309,8 @@ resize();
 
 let simulation, renderer;
 try {
-  simulation = await createSimulation(device, { numBoids: NUM_BOIDS, sphereRadius: BUILTIN_PRESETS['Murmuration'].sphereRadius ?? 100 });
+  const initSphereR = benchSphereRadius || BUILTIN_PRESETS['Murmuration'].sphereRadius || 100;
+  simulation = await createSimulation(device, { numBoids: NUM_BOIDS, sphereRadius: initSphereR });
   renderer = await createRenderer(device, ctx, simulation);
 } catch(e) {
   showError('Init failed: ' + e.message);
