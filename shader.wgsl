@@ -83,7 +83,7 @@ fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // Linked-list grid: clear heads to sentinel
-@compute @workgroup_size(768)
+@compute @workgroup_size(256)
 fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.grid_cells) { return; }
