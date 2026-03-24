@@ -441,8 +441,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel += sep * params.separation_factor * 0.5;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
-  new_vel.y -= 0.25;
-  new_vel.y -= boid.pos.y * 0.03;
+  new_vel.y -= 0.4;
+  new_vel.y -= boid.pos.y * 0.05;
 
   // Slowly rotating horizontal wind — stretches flock along wind direction
   let wind_angle = f32(params.frame_count) * 0.005;
