@@ -269,7 +269,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // This is the primary driver of non-repetitive motion —
   // a random bird changes direction, neighbors respond via alignment,
   // creating a wave that sweeps across the entire flock
-  let perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
+  let perturb_hash = fract(sin(f32(i * 12289u + params.frame_count * 196613u)) * 43758.5);
   if (perturb_hash < 0.07) {
     let seed = f32(i * 1973u + params.frame_count * 9277u);
     let kick = vec3f(
