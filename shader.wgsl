@@ -471,10 +471,12 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= normalize(boid.pos) * params.turn_factor * min((dist_r - bound_r * 0.85) / (bound_r * 0.15), 3.0);
   }
 
-  // Speed clamp
+  // Speed clamp (min + max)
   let spd_sq = dot(new_vel, new_vel);
   if (spd_sq > params.max_speed * params.max_speed) {
     new_vel *= params.max_speed * inverseSqrt(spd_sq);
+  } else if (spd_sq < params.min_speed * params.min_speed && spd_sq > 0.0001) {
+    new_vel *= params.min_speed * inverseSqrt(spd_sq);
   }
 
   // Write with proper heading + size_factor
