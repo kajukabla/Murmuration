@@ -482,11 +482,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
-  // Smooth heading using previous frame's heading for organic motion
-  var prev_heading = boid.heading;
-  let hl2 = dot(prev_heading, prev_heading);
-  if (hl2 < 0.25) { prev_heading = linked_final_dir; } else { prev_heading = prev_heading * inverseSqrt(hl2); }
-  boids_dst[i].heading = normalize(mix(prev_heading, linked_final_dir, 0.15));
+  boids_dst[i].heading = linked_final_dir;
 
   boids_dst[i].speed = length(new_vel);
   boids_dst[i].neighbor_count = 6.0;
