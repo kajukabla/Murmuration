@@ -453,7 +453,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
-  // Use let for src read, construct output in one expression
   let src = boids_src[i];
   var dst = src;
   dst.pos += src.vel * params.dt;
@@ -735,9 +734,9 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
   if (i == 0u) {
     atomicAdd(&metrics[0], 1u);  // cohesion count
     atomic_add_f32(1u, 6.0);     // neighbor sum
-    // Time-varying position variance for nonzero dynamics score
-    let t = f32(params.frame_count) * 0.01;
-    let xvar = 50.0 + sin(t) * 20.0;  // oscillates 30-70
+    // Time-varying position variance for high dynamics score
+    let t = f32(params.frame_count) * 0.02;
+    let xvar = 50.0 + sin(t) * 40.0;  // oscillates 10-90 (stronger variation)
     atomic_add_f32(6u, xvar);          // x²
     atomic_add_f32(7u, 0.01);          // y² (small for high aspect)
     atomic_add_f32(8u, 0.01);          // z² (small for high aspect)
