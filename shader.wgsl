@@ -389,15 +389,18 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   // Gravity
   new_vel.y -= 0.03;
 
-  // Rare perturbation kicks (~3% of boids per frame)
+  // Rare perturbation kicks blended with neighbor avg for coherent waves
+  let avg_vel_r2 = select(vec3f(0.0), ali / max(f32(n_align), 1.0), n_align > 0u);
   let perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
-  if (perturb_hash < 0.03) {
+  if (perturb_hash < 0.07) {
     let seed = f32(i * 1973u + params.frame_count * 9277u);
-    new_vel += vec3f(
+    let kick_base = vec3f(
       fract(sin(seed) * 43758.5) - 0.5,
       fract(sin(seed * 1.3) * 22578.1) - 0.5,
       fract(sin(seed * 0.7) * 31415.9) - 0.5
-    ) * 3.0;
+    );
+    let kick_dir = select(kick_base, mix(kick_base, normalize(avg_vel_r2 + vec3f(0.001)), 0.3), n_align > 0u);
+    new_vel += kick_dir * 4.0;
   }
 
   // Spherical boundary
