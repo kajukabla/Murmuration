@@ -460,10 +460,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
-  var boid = boids_src[i];
-  // Minimal drift: just advance position, skip boundary (handled every 8th frame)
-  boid.pos += boid.vel * params.dt;
-  boids_dst[i] = boid;
+  // No-op: all physics happens in flock frames; drift just returns
+  return;
 }
 
 // === In-place drift: 16 physics steps per dispatch to reduce dispatch overhead ===
