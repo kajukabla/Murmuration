@@ -411,24 +411,17 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Walk linked list for own cell — unrolled 3 iterations, no self-check, no separation
+  // Walk linked list for own cell — single neighbor read
   var j = atomicLoad(&cell_counts[my_ci]);
   if (j != 0xFFFFFFFFu) {
-    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
-    j = boid_cells[j];
-  }
-  if (j != 0xFFFFFFFFu) {
-    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
-    j = boid_cells[j];
-  }
-  if (j != 0xFFFFFFFFu) {
-    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
+    ali = boids_src[j].vel; coh = boids_src[j].pos; n_align = 1u;
   }
 
   var new_vel = boid.vel;
-  let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * 12.0;
-  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  if (n_align > 0u) {
+    new_vel += (ali - boid.vel) * params.align_factor * 12.0;
+    new_vel += (coh - boid.pos) * params.cohesion_factor;
+  }
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
