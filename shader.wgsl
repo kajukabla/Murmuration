@@ -479,10 +479,16 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel *= params.min_speed * inverseSqrt(spd_sq);
   }
 
-  // Write with proper heading + size_factor
-  let spd = length(new_vel);
-  let hd = select(vec3f(1.0, 0.0, 0.0), new_vel / spd, spd > 0.001);
-  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, boid.size_factor, new_vel, spd, hd, f32(n_align), 0.0, 1.0, 0.0, f32(n_align) * 0.5);
+  // Turn rate limiter: blend old direction toward new for smooth heading
+  let old_spd = length(boid.vel);
+  let old_dir = select(vec3f(1.0, 0.0, 0.0), boid.vel / old_spd, old_spd > 0.001);
+  let new_spd = length(new_vel);
+  let new_dir = select(old_dir, new_vel / new_spd, new_spd > 0.001);
+  let final_dir = normalize(mix(old_dir, new_dir, params.smoothing));
+  let final_speed = clamp(mix(old_spd, new_spd, 0.15), params.min_speed, params.max_speed);
+  new_vel = final_dir * final_speed;
+
+  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, boid.size_factor, new_vel, final_speed, final_dir, f32(n_align), 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0), 1.0, 0.0, f32(n_align) * 0.5);
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
