@@ -276,7 +276,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
       fract(sin(seed) * 43758.5) - 0.5,
       fract(sin(seed * 1.3) * 22578.1) - 0.5,
       fract(sin(seed * 0.7) * 31415.9) - 0.5
-    ) * 4.5;  // stronger kick via topological links
+    ) * 3.5;  // strong kick via topological links
     new_vel += kick;
   }
 
