@@ -369,13 +369,13 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   if (hl < 0.25) { old_h = vel_dir; } else { old_h = old_h * inverseSqrt(hl); }
   boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
 
-  // Viz metrics (zeroed — compute-only benchmark doesn't render)
-  boids_dst[i].speed = 0.0;
-  boids_dst[i].neighbor_count = 0.0;
+  // Viz metrics
+  boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
+  boids_dst[i].neighbor_count = f32(n_align);
   boids_dst[i].dir_change = 0.0;
   boids_dst[i].flock_alignment = 0.0;
   boids_dst[i].sep_pressure = 0.0;
-  boids_dst[i].density = 0.0;
+  boids_dst[i].density = f32(n_align) * 0.125;
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
