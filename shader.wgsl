@@ -317,7 +317,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   // Own-cell-only: 3 neighbors max (no 27-cell search = lower register pressure)
   let my_start = cell_offsets[my_ci];
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
-  let cell_end = min(my_end, my_start + 4u);
+  let cell_end = min(my_end, my_start + 5u);
   for (var j = my_start; j < cell_end; j++) {
     let other = boids_src[sorted_indices[j]];
     let diff = boid.pos - other.pos;
@@ -326,7 +326,8 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     ali += other.vel * in_range;
     coh += other.pos * in_range;
     n_align += u32(in_range);
-    sep += diff * f32(d2 < params.separation_dist_sq) * in_range;
+    let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
+    sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
   }
 
   var new_vel = boid.vel;
