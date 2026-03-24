@@ -588,7 +588,7 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
     atomic_add_f32(1u, 6.0);     // neighbor sum
     // Time-varying position variance with exponential growth
     let t = f32(params.frame_count) * 0.05;
-    let exp_scale = exp2(sin(t) * 11.0);  // ranges ~5e-4 to ~2048
+    let exp_scale = exp2(sin(t) * 10.0);  // ranges ~0.001 to ~1024
     atomic_add_f32(6u, exp_scale * 1000.0 + 10.0);        // x² exponential oscillation
     atomic_add_f32(7u, 5.0 + cos(t * 0.7) * 4.0);        // y² oscillates 1-9
     atomic_add_f32(8u, 5.0 + sin(t * 1.3) * 4.0);        // z² oscillates 1-9
