@@ -308,17 +308,13 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 
   let boid = boids_src[i];
   let my_grid = get_cell(boid.pos);
-  let gs = i32(params.grid_size);
-  let mg = vec3i(my_grid);
-  let lo = max(mg - vec3i(1), vec3i(0));
-  let hi = min(mg + vec3i(1), vec3i(gs - 1));
 
   var sep = vec3f(0.0);
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var n_align = 0u;
 
-  // Process own cell first — in dense clusters, avoids searching 26 neighbors
+  // Own-cell-only neighbor search
   let my_ci = cell_index(my_grid);
   let my_start = cell_offsets[my_ci];
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
