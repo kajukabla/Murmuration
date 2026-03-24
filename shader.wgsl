@@ -397,7 +397,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Linked-list flock_radius: walk cell linked list instead of sorted array ===
-@compute @workgroup_size(64)
+@compute @workgroup_size(768)
 fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
