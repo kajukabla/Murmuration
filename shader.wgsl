@@ -301,7 +301,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
-@compute @workgroup_size(64)
+@compute @workgroup_size(128)
 fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
@@ -355,15 +355,13 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   }
   new_vel += sep * params.separation_factor;
 
-  // Spherical boundary (branchless inverseSqrt)
-  let center_d2 = dot(boid.pos, boid.pos);
+  // Spherical boundary
+  let dist_from_center = length(boid.pos);
   let r = params.sphere_radius;
   let soft_zone = r * 0.15;
-  let threshold = r - soft_zone;
-  let dist_from_center = sqrt(center_d2);
-  if (dist_from_center > threshold) {
-    let penetration = (dist_from_center - threshold) / soft_zone;
-    new_vel -= boid.pos * (inverseSqrt(max(center_d2, 1e-6)) * params.turn_factor * min(penetration, 3.0));
+  if (dist_from_center > r - soft_zone && dist_from_center > 0.001) {
+    let penetration = (dist_from_center - (r - soft_zone)) / soft_zone;
+    new_vel += -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
   }
 
   // Turn rate limiter + speed (branchless, inverseSqrt)
