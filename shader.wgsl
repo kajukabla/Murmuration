@@ -233,18 +233,12 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     }
   }
 
-  // Avoidance: nearest neighbor + all within separation distance
+  // Avoidance: only the 1 nearest neighbor (uses cached pos)
   var sep_force = vec3f(0.0);
-  var sep_count = 0u;
-  if (n_found > 0u) {
-    for (var k = 0u; k < min(n_found, K_NEIGHBORS); k++) {
-      if (nearest_d2[k] < params.separation_dist_sq) {
-        let diff = boid.pos - nearest_pos[k];
-        sep_force += diff * (1.0 - nearest_d2[k] / params.separation_dist_sq);
-        sep_count++;
-      }
-    }
-    new_vel += sep_force * params.separation_factor;
+  if (n_found > 0u && closest_d2 < params.separation_dist_sq) {
+    let diff = boid.pos - nearest_pos[closest_k];
+    sep_force = diff * (1.0 - closest_d2 / params.separation_dist_sq);
+    new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
   // Alignment + Cohesion: all K neighbors (uses cached pos+vel)
