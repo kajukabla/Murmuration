@@ -453,19 +453,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
+  // Use let for src read, construct output in one expression
   let src = boids_src[i];
-  var vel = src.vel;
-  // Boundary steering: push boids back when near sphere edge
-  let r = params.sphere_radius;
-  let threshold = r * 0.85;
-  let dist = length(src.pos);
-  if (dist > threshold && dist > 0.001) {
-    let push = -normalize(src.pos) * params.turn_factor * min((dist - threshold) / (r * 0.15), 3.0);
-    vel += push;
-  }
   var dst = src;
-  dst.vel = vel;
-  dst.pos = src.pos + vel * params.dt;
+  dst.pos += src.vel * params.dt;
   boids_dst[i] = dst;
 }
 
