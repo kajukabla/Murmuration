@@ -481,15 +481,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   // Direction change metric
   let linked_dir_change = 1.0 - clamp(dot(linked_old_dir, linked_final_dir), -1.0, 1.0);
 
-  // Small position jitter for visual shimmer
-  let jitter_seed = f32(i * 2803u + params.frame_count * 7331u);
-  let jitter = vec3f(
-    fract(sin(jitter_seed) * 43758.5) - 0.5,
-    fract(sin(jitter_seed * 1.1) * 22578.1) - 0.5,
-    fract(sin(jitter_seed * 0.9) * 31415.9) - 0.5
-  ) * 0.02;
-
-  boids_dst[i].pos = boid.pos + new_vel * params.dt + jitter;
+  boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
