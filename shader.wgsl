@@ -182,7 +182,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
           let other_idx = sorted_indices[j];
           if (other_idx == i) { continue; }
 
-          let other_pos = boids_src[other_idx].pos;
+          let other = boids_src[other_idx];
+          let other_pos = other.pos;
           let diff = boid.pos - other_pos;
           let d2 = dot(diff, diff);
 
@@ -193,7 +194,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             // Still filling — cache pos+vel and append
             nearest_d2[n_found] = d2;
             nearest_pos[n_found] = other_pos;
-            nearest_vel[n_found] = boids_src[other_idx].vel;
+            nearest_vel[n_found] = other.vel;
             n_found++;
             // Update worst tracker
             if (d2 > worst_d2) {
@@ -204,7 +205,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
             // Replace the worst element
             nearest_d2[worst_k] = d2;
             nearest_pos[worst_k] = other_pos;
-            nearest_vel[worst_k] = boids_src[other_idx].vel;
+            nearest_vel[worst_k] = other.vel;
             // Re-scan for new worst
             worst_d2 = nearest_d2[0];
             worst_k = 0u;
