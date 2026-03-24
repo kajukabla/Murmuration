@@ -309,12 +309,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let boid = boids_src[i];
   let my_ci = cell_index(get_cell(boid.pos));
 
-  var sep = vec3f(0.0);
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var n_align = 0u;
 
-  // Own-cell-only: 3 neighbors max (no 27-cell search = lower register pressure)
+  // Own-cell-only: minimal neighbor check
   let my_start = cell_offsets[my_ci];
   let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
   let cell_end = min(my_end, my_start + 4u);
@@ -326,14 +325,12 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     ali += other.vel * in_range;
     coh += other.pos * in_range;
     n_align += u32(in_range);
-    sep += diff * f32(d2 < params.separation_dist_sq) * in_range;
   }
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
   new_vel += (ali / nf - boid.vel) * params.align_factor;
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
-  new_vel += sep * params.separation_factor;
 
   // Spherical boundary (cheap d2 test first, sqrt only for edge boids)
   let center_d2 = dot(boid.pos, boid.pos);
