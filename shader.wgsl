@@ -391,6 +391,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= boid.pos.y * 0.02;
   let drag_r = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
   new_vel *= 0.995 * drag_r;
+  // Center repulsion
+  let cd_r = length(boid.pos);
+  if (cd_r < params.sphere_radius * 0.2 && cd_r > 0.001) {
+    new_vel += normalize(boid.pos) * 0.5;
+  }
 
   // Rare perturbation kicks blended with neighbor avg for coherent waves
   let avg_vel_r2 = select(vec3f(0.0), ali / max(f32(n_align), 1.0), n_align > 0u);
