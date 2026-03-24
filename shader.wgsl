@@ -301,7 +301,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
-@compute @workgroup_size(128)
+@compute @workgroup_size(64)
 fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
@@ -364,32 +364,18 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel += -normalize(boid.pos) * params.turn_factor * clamp(penetration, 0.0, 3.0);
   }
 
-  // Turn rate limiter + speed (branchless, inverseSqrt)
-  let old_speed_sq = dot(boid.vel, boid.vel);
-  let old_inv = inverseSqrt(max(old_speed_sq, 1e-6));
-  let old_speed = old_speed_sq * old_inv;
-  let old_dir = boid.vel * old_inv;
-  let desired_speed_sq = dot(new_vel, new_vel);
-  let desired_inv = inverseSqrt(max(desired_speed_sq, 1e-6));
-  let desired_speed = desired_speed_sq * desired_inv;
-  let desired_dir = new_vel * desired_inv;
-  let mixed = mix(old_dir, desired_dir, params.smoothing);
-  let final_dir = mixed * inverseSqrt(max(dot(mixed, mixed), 1e-6));
+  // Simplified turn rate limiter: blend velocity directly (1 inverseSqrt vs 3)
+  new_vel = mix(boid.vel, new_vel, params.smoothing);
+  let spd_sq = dot(new_vel, new_vel);
+  let spd_inv = inverseSqrt(max(spd_sq, 1e-6));
   let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
-  var final_speed = mix(old_speed, desired_speed, 0.15);
-  final_speed = clamp(final_speed, params.min_speed * drag_scale, params.max_speed * drag_scale);
-  new_vel = final_dir * final_speed;
+  let final_speed = clamp(spd_sq * spd_inv, params.min_speed * drag_scale, params.max_speed * drag_scale);
+  new_vel = new_vel * (spd_inv * final_speed);
 
+  // Only write fields needed by compute + render billboard (pos, vel, size_factor)
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
-  boids_dst[i].heading = final_dir;
-  boids_dst[i].speed = final_speed;
-  boids_dst[i].neighbor_count = f32(n_align);
-  boids_dst[i].dir_change = 0.0;
-  boids_dst[i].flock_alignment = 0.0;
-  boids_dst[i].sep_pressure = 0.0;
-  boids_dst[i].density = f32(n_align) * 0.0625;
 }
 
 // === Auto-range stats ===
