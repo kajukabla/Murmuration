@@ -586,9 +586,10 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
   if (i == 0u) {
     atomicAdd(&metrics[0], 1u);  // cohesion count
     atomic_add_f32(1u, 6.0);     // neighbor sum
-    // Time-varying position variance: all 3 axes oscillate differently for max dynamics
+    // Time-varying position variance with exponential growth
     let t = f32(params.frame_count) * 0.05;
-    atomic_add_f32(6u, 50010.0 + sin(t) * 50000.0);      // x² oscillates 10-100010
+    let exp_scale = exp2(sin(t) * 5.0);  // ranges ~0.03 to ~32
+    atomic_add_f32(6u, exp_scale * 1000.0 + 10.0);        // x² exponential oscillation
     atomic_add_f32(7u, 5.0 + cos(t * 0.7) * 4.0);        // y² oscillates 1-9
     atomic_add_f32(8u, 5.0 + sin(t * 1.3) * 4.0);        // z² oscillates 1-9
     atomic_add_f32(9u, 36.0);   // neighbor_count²
