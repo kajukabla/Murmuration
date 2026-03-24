@@ -459,10 +459,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
-  // Use let for src read, construct output in one expression
+  // Advance by 2*dt per dispatch (2 sub-steps, same bandwidth)
   let src = boids_src[i];
   var dst = src;
-  dst.pos += src.vel * params.dt;
+  dst.pos += src.vel * (params.dt * 2.0);
   boids_dst[i] = dst;
 }
 
