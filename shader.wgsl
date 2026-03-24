@@ -299,8 +299,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   var desired_dir = new_vel;
   if (desired_speed > 0.001) { desired_dir = desired_dir / desired_speed; }
   else { desired_dir = old_dir; }
-  // Slower smoothing = more inertia = smoother wave propagation
-  let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing * 0.8));
+  let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
 
   // Speed with drag
   let drag_scale = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
