@@ -85,13 +85,9 @@ fn assign_cells(@builtin(global_invocation_id) id: vec3u) {
 // Linked-list grid: clear heads to sentinel
 @compute @workgroup_size(256)
 fn clear_grid_linked(@builtin(global_invocation_id) id: vec3u) {
-  // Each thread clears 4 cells to reduce over-dispatch waste
-  let base = id.x * 4u;
-  let gc = params.grid_cells;
-  if (base < gc) { atomicStore(&cell_counts[base], 0xFFFFFFFFu); }
-  if (base + 1u < gc) { atomicStore(&cell_counts[base + 1u], 0xFFFFFFFFu); }
-  if (base + 2u < gc) { atomicStore(&cell_counts[base + 2u], 0xFFFFFFFFu); }
-  if (base + 3u < gc) { atomicStore(&cell_counts[base + 3u], 0xFFFFFFFFu); }
+  let i = id.x;
+  if (i >= params.grid_cells) { return; }
+  atomicStore(&cell_counts[i], 0xFFFFFFFFu); // cell_counts used as cell_heads
 }
 
 // Linked-list grid: assign boids to cells via atomic exchange
