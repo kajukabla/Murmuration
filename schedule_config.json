@@ -1,0 +1,71 @@
+{
+  "phases": [
+    {
+      "name": "classic_perf",
+      "label": "Classic Performance",
+      "duration_minutes": 60,
+      "editable_function": "flock_radius",
+      "locked_function": "flock",
+      "editable_files": ["shader.wgsl", "simulation.js"],
+      "results_file": "results_classic_perf.tsv",
+      "evaluate_cmd": "python3 evaluate.py 2>/dev/null",
+      "metric_format": "max_boids"
+    },
+    {
+      "name": "classic_compute",
+      "label": "Classic Compute",
+      "duration_minutes": 60,
+      "editable_function": "flock_radius",
+      "locked_function": "flock",
+      "editable_files": ["shader.wgsl", "simulation.js"],
+      "results_file": "results_classic_compute.tsv",
+      "evaluate_cmd": "PATH=$HOME/.deno/bin:$PATH deno run --unstable-webgpu --allow-read benchmark.ts --boids 500000 --frames 30 2>/dev/null",
+      "metric_format": "max_boids"
+    },
+    {
+      "name": "classic_quality",
+      "label": "Classic Quality",
+      "duration_minutes": 60,
+      "editable_function": "flock_radius",
+      "locked_function": "flock",
+      "editable_files": ["shader.wgsl"],
+      "results_file": "results_classic_quality.tsv",
+      "evaluate_cmd": "PATH=$HOME/.deno/bin:$PATH deno run --unstable-webgpu --allow-read benchmark.ts --boids 20000 --frames 30 2>/dev/null",
+      "metric_format": "score"
+    },
+    {
+      "name": "topo_perf",
+      "label": "Topo Performance",
+      "duration_minutes": 60,
+      "editable_function": "flock",
+      "locked_function": "flock_radius",
+      "editable_files": ["shader.wgsl", "simulation.js"],
+      "results_file": "results_topo_perf.tsv",
+      "evaluate_cmd": "python3 evaluate.py 2>/dev/null",
+      "metric_format": "max_boids"
+    },
+    {
+      "name": "topo_compute",
+      "label": "Topo Compute",
+      "duration_minutes": 60,
+      "editable_function": "flock",
+      "locked_function": "flock_radius",
+      "editable_files": ["shader.wgsl", "simulation.js"],
+      "results_file": "results_topo_compute.tsv",
+      "evaluate_cmd": "PATH=$HOME/.deno/bin:$PATH deno run --unstable-webgpu --allow-read benchmark.ts --boids 50000 --frames 30 2>/dev/null",
+      "metric_format": "max_boids"
+    },
+    {
+      "name": "topo_quality",
+      "label": "Topo Quality",
+      "duration_minutes": 60,
+      "editable_function": "flock",
+      "locked_function": "flock_radius",
+      "editable_files": ["shader.wgsl"],
+      "results_file": "results_topo_quality.tsv",
+      "evaluate_cmd": "PATH=$HOME/.deno/bin:$PATH deno run --unstable-webgpu --allow-read benchmark.ts --boids 20000 --frames 30 2>/dev/null",
+      "metric_format": "score"
+    }
+  ],
+  "loop": true
+}

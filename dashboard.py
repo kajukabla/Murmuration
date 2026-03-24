@@ -21,343 +21,136 @@ agent_proc = None
 PORT = 8050
 CSV_FILE = "run_metrics.csv"
 TSV_FILE = "results.tsv"
-QUALITY_TSV = "results_quality.tsv"
-PERF_TSV = "results_perf.tsv"
-COMPUTE_TSV = "results_compute.tsv"
+
+# 6 results files — one per optimization phase
+RESULT_FILES = {
+    'classic_perf': 'results_classic_perf.tsv',
+    'classic_compute': 'results_classic_compute.tsv',
+    'classic_quality': 'results_classic_quality.tsv',
+    'topo_perf': 'results_topo_perf.tsv',
+    'topo_compute': 'results_topo_compute.tsv',
+    'topo_quality': 'results_topo_quality.tsv',
+}
 
 HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Autoresearch Dashboard</title>
+<html lang="en"><head><meta charset="utf-8"><title>Murmuration Dashboard</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0a0a1a; color: #ccd; font-family: system-ui, sans-serif; padding: 24px; }
-  h1 { font-size: 22px; color: #8af; margin-bottom: 4px; }
-  .subtitle { color: #667; font-size: 13px; margin-bottom: 24px; }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
-  .card {
-    background: rgba(20,20,45,0.9); border: 1px solid rgba(100,100,180,0.2);
-    border-radius: 8px; padding: 16px;
-  }
-  .card .label { color: #668; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-  .card .value { font-size: 32px; font-weight: 700; color: #adf; margin-top: 4px; }
-  .card .value.good { color: #6f8; }
-  .card .value.warn { color: #fa6; }
-  .chart-container {
-    background: rgba(20,20,45,0.9); border: 1px solid rgba(100,100,180,0.2);
-    border-radius: 8px; padding: 20px; margin-bottom: 20px;
-  }
-  .chart-title { color: #889; font-size: 13px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-  canvas { width: 100%; height: 280px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: #668; font-size: 11px; text-transform: uppercase;
-       letter-spacing: 1px; padding: 8px 12px; border-bottom: 1px solid rgba(100,100,180,0.2); }
-  td { padding: 8px 12px; border-bottom: 1px solid rgba(100,100,180,0.08); color: #aab; }
-  tr.kept td { color: #6f8; }
-  tr.reverted td { color: #f88; }
-  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-  .status-dot.kept { background: #6f8; }
-  .status-dot.reverted { background: #f66; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  #last-update { color: #445; font-size: 11px; position: fixed; bottom: 12px; right: 16px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #334;
-    border-top-color: #6f8; border-radius: 50%; animation: spin 0.8s linear infinite;
-    vertical-align: middle; margin-right: 6px; }
-</style>
-</head>
-<body>
-<h1>Autoresearch Optimization Dashboard</h1>
-<div class="subtitle">Murmuration Optimization — Quality Score + Performance</div>
-
-<div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
-  <button id="startBtn" onclick="startAgent()" style="padding: 8px 20px; font-size: 14px; cursor: pointer;
-    background: #2a4; color: #fff; border: none; border-radius: 6px; font-weight: 600; position: relative; z-index: 10;">Start Agent</button>
-  <button id="stopBtn" onclick="stopAgent()" style="padding: 8px 20px; font-size: 14px; cursor: pointer;
-    background: #c44; color: #fff; border: none; border-radius: 6px; font-weight: 600; position: relative; z-index: 10;" disabled>Stop Agent</button>
-  <span id="agentStatus" style="color: #667; font-size: 13px; margin-left: 8px;">Agent idle</span>
-  <span id="agentLastAction" style="color: #556; font-size: 12px; margin-left: 12px; font-family: monospace;"></span>
-</div>
-<div id="agentLogInline" style="background: rgba(10,10,25,0.7); border: 1px solid rgba(100,100,160,0.15);
-  border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; max-height: 120px; overflow-y: auto;
-  font: 11px/1.5 monospace; color: #778; white-space: pre-wrap; display: none; pointer-events: none; position: relative; z-index: 0;"></div>
-
-<!-- Tab bar -->
-<div style="display: flex; gap: 2px; margin-bottom: 20px;">
-  <button class="tab-btn active" onclick="switchTab('quality')" id="tab-quality"
-    style="padding: 8px 20px; font-size: 13px; cursor: pointer; background: rgba(40,40,80,0.9);
-    color: #aac; border: 1px solid rgba(100,100,160,0.3); border-radius: 6px 6px 0 0; border-bottom: none;">
-    Quality Optimization</button>
-  <button class="tab-btn" onclick="switchTab('perf')" id="tab-perf"
-    style="padding: 8px 20px; font-size: 13px; cursor: pointer; background: rgba(20,20,40,0.5);
-    color: #667; border: 1px solid rgba(100,100,160,0.15); border-radius: 6px 6px 0 0; border-bottom: none;">
-    Performance (Browser)</button>
-  <button class="tab-btn" onclick="switchTab('compute')" id="tab-compute"
-    style="padding: 8px 20px; font-size: 13px; cursor: pointer; background: rgba(20,20,40,0.5);
-    color: #667; border: 1px solid rgba(100,100,160,0.15); border-radius: 6px 6px 0 0; border-bottom: none;">
-    Compute (Deno)</button>
-</div>
-
-<div class="grid">
-  <div class="card"><div class="label" id="bestLabel">Best Score</div><div class="value good" id="best">—</div></div>
-  <div class="card"><div class="label" id="baselineLabel">Baseline</div><div class="value" id="baseline">0.695</div></div>
-  <div class="card"><div class="label">Experiments</div><div class="value" id="experiments">—</div></div>
-  <div class="card"><div class="label">Kept</div><div class="value" id="kept">—</div></div>
-</div>
-
-<div class="two-col">
-  <div class="chart-container">
-    <div class="chart-title">Score Over Time (kept experiments)</div>
-    <canvas id="boidChart"></canvas>
-  </div>
-  <div class="chart-container">
-    <div class="chart-title">All Experiments (green=kept, red=reverted)</div>
-    <canvas id="timeChart"></canvas>
-  </div>
-</div>
-
-<div class="two-col">
-  <div class="chart-container">
-    <div class="chart-title">Experiment Log</div>
-    <div style="max-height: 280px; overflow-y: auto;">
-    <table>
-      <thead><tr><th>#</th><th id="valueHeader">Score</th><th>Description</th><th>Result</th></tr></thead>
-      <tbody id="logBody"></tbody>
-    </table>
-    </div>
-  </div>
-  <div class="chart-container">
-    <div class="chart-title">Git Activity (live)</div>
-    <div id="gitLog" style="max-height: 280px; overflow-y: auto; font: 12px/1.6 monospace; color: #99a;"></div>
-  </div>
-</div>
-<div class="chart-container">
-  <div class="chart-title">Agent Log (tail)</div>
-  <pre id="agentLog" style="max-height: 200px; overflow-y: auto; font: 11px/1.5 monospace; color: #889; white-space: pre-wrap; margin: 0;"></pre>
-</div>
-
-<div id="last-update"></div>
-
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;color:#ccd;font-family:system-ui,sans-serif;padding:24px}
+h1{font-size:22px;color:#8af;margin-bottom:16px}
+.row{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.card{background:rgba(20,20,45,.9);border:1px solid rgba(100,100,180,.2);border-radius:8px;padding:14px}
+.card .l{color:#668;font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.card .v{font-size:28px;font-weight:700;color:#6f8;margin-top:4px}
+.box{background:rgba(20,20,45,.9);border:1px solid rgba(100,100,180,.2);border-radius:8px;padding:14px;margin-bottom:12px}
+.box h3{color:#889;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+canvas{width:100%;height:220px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;color:#668;font-size:10px;text-transform:uppercase;padding:5px 8px;border-bottom:1px solid rgba(100,100,180,.2)}
+td{padding:4px 8px;border-bottom:1px solid rgba(100,100,180,.06);color:#aab}
+tr.kept td{color:#6f8} tr.reverted td{color:#f88}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px}
+.dot.kept{background:#6f8}.dot.reverted{background:#f66}
+.btn{padding:7px 16px;font-size:12px;cursor:pointer;border:none;border-radius:6px;font-weight:600}
+.tab{padding:6px 14px;font-size:11px;cursor:pointer;border:1px solid rgba(100,100,180,.2);border-bottom:none;border-radius:5px 5px 0 0}
+.tab.on{background:rgba(40,40,80,.9);color:#aac}.tab.off{background:rgba(15,15,30,.5);color:#556}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid #334;border-top-color:#6f8;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:5px}
+#ts{color:#445;font-size:10px;position:fixed;bottom:10px;right:14px}
+.sched{background:rgba(20,30,20,.5);border:1px solid rgba(100,180,100,.15);border-radius:6px;padding:8px 14px;font-size:12px;color:#8a8}
+</style></head><body>
+<h1>Murmuration Dashboard</h1>
+<div class="row">
+<button class="btn" id="go" onclick="api('start')" style="background:#2a4;color:#fff">Start Agent</button>
+<button class="btn" id="no" onclick="api('stop')" style="background:#c44;color:#fff" disabled>Stop Agent</button>
+<span id="st" style="color:#667;font-size:13px;margin-left:8px">Idle</span></div>
+<div id="sched" class="sched" style="margin-bottom:12px;display:none"></div>
+<div class="row" style="gap:2px">
+<button class="tab on" id="t-classic_perf" onclick="T('classic_perf')">Classic Perf</button>
+<button class="tab off" id="t-classic_compute" onclick="T('classic_compute')">Classic Compute</button>
+<button class="tab off" id="t-classic_quality" onclick="T('classic_quality')">Classic Quality</button>
+<button class="tab off" id="t-topo_perf" onclick="T('topo_perf')">Topo Perf</button>
+<button class="tab off" id="t-topo_compute" onclick="T('topo_compute')">Topo Compute</button>
+<button class="tab off" id="t-topo_quality" onclick="T('topo_quality')">Topo Quality</button></div>
+<div class="grid4">
+<div class="card"><div class="l" id="lb">Max Boids</div><div class="v" id="vb">-</div></div>
+<div class="card"><div class="l">Baseline</div><div class="v" id="vbl">-</div></div>
+<div class="card"><div class="l">Experiments</div><div class="v" id="ve">-</div></div>
+<div class="card"><div class="l">Kept</div><div class="v" id="vk">-</div></div></div>
+<div class="cols">
+<div class="box"><h3 id="c1t">Improvements Over Time</h3><canvas id="c1"></canvas></div>
+<div class="box"><h3>All Experiments</h3><canvas id="c2"></canvas></div></div>
+<div class="cols">
+<div class="box"><h3>Experiment Log</h3><div style="max-height:220px;overflow-y:auto">
+<table><thead><tr><th>#</th><th id="cv">Value</th><th>Description</th><th>Result</th></tr></thead>
+<tbody id="tb"></tbody></table></div></div>
+<div class="box"><h3>Git Log</h3><div id="gl" style="max-height:220px;overflow-y:auto;font:11px/1.5 monospace;color:#99a"></div></div></div>
+<div class="box"><h3>Agent Log</h3><pre id="al" style="max-height:140px;overflow-y:auto;font:10px/1.4 monospace;color:#889;white-space:pre-wrap;margin:0"></pre></div>
+<div id="ts"></div>
 <script>
-async function fetchData() {
-  const resp = await fetch('/api/data');
-  return await resp.json();
-}
-
-function drawChart(canvas, points, opts) {
-  const ctx = canvas.getContext('2d');
-  const dpr = devicePixelRatio;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
-  const W = rect.width, H = rect.height;
-  const pad = { top: 10, right: 20, bottom: 30, left: 60 };
-  const plotW = W - pad.left - pad.right;
-  const plotH = H - pad.top - pad.bottom;
-
-  if (points.length === 0) return;
-
-  const xs = points.map(p => p.x);
-  const ys = points.map(p => p.y);
-  const xMin = opts.xMin ?? Math.min(...xs);
-  const xMax = opts.xMax ?? Math.max(...xs);
-  const yMin = opts.yMin ?? Math.min(...ys) * 0.9;
-  const yMax = opts.yMax ?? Math.max(...ys) * 1.1;
-
-  const toX = v => pad.left + (v - xMin) / (xMax - xMin || 1) * plotW;
-  const toY = v => pad.top + plotH - (v - yMin) / (yMax - yMin || 1) * plotH;
-
-  // Grid
-  ctx.strokeStyle = 'rgba(100,100,180,0.1)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = pad.top + plotH * i / 4;
-    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-  }
-
-  // Axis labels
-  ctx.fillStyle = '#556';
-  ctx.font = '10px system-ui';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
-    const val = yMin + (yMax - yMin) * (4 - i) / 4;
-    ctx.fillText(opts.yFmt ? opts.yFmt(val) : val.toFixed(1), pad.left - 6, pad.top + plotH * i / 4 + 3);
-  }
-  ctx.textAlign = 'center';
-  for (let i = 0; i <= 4; i++) {
-    const val = xMin + (xMax - xMin) * i / 4;
-    ctx.fillText(opts.xFmt ? opts.xFmt(val) : val.toFixed(0), toX(val), H - 8);
-  }
-
-  // Threshold line
-  if (opts.threshold) {
-    ctx.strokeStyle = '#f664';
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, toY(opts.threshold));
-    ctx.lineTo(W - pad.right, toY(opts.threshold));
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#f66';
-    ctx.textAlign = 'left';
-    ctx.fillText(opts.thresholdLabel || '', W - pad.right + 4, toY(opts.threshold) + 3);
-  }
-
-  // Line
-  if (opts.line) {
-    ctx.strokeStyle = opts.color || '#8af';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    points.forEach((p, i) => {
-      const x = toX(p.x), y = toY(p.y);
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  }
-
-  // Points
-  points.forEach(p => {
-    ctx.fillStyle = p.color || opts.color || '#8af';
-    ctx.beginPath();
-    ctx.arc(toX(p.x), toY(p.y), opts.pointSize || 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
-}
-
-async function refresh() {
-  try {
-    const data = await fetchData();
-
-    // Filter experiments by tab
-    const filtered = currentTab === 'quality' ? (data.quality_experiments || []) : currentTab === 'perf' ? (data.perf_experiments || []) : (data.compute_experiments || []);
-    const bestVal = currentTab === 'quality' ? (data.quality_best || 0) : currentTab === 'perf' ? (data.perf_best || 0) : (data.compute_best || 0);
-
-    // Summary cards
-    document.getElementById('best').textContent = currentTab === 'quality' ? bestVal.toFixed(4) : bestVal.toLocaleString();
-    document.getElementById('experiments').textContent = filtered.length.toString();
-    document.getElementById('kept').textContent = filtered.filter(e => e.result === 'kept').length.toString();
-
-    // Experiment log table (filtered by tab)
-    const tbody = document.getElementById('logBody');
-    tbody.innerHTML = '';
-    for (const exp of [...filtered].reverse()) {
-      const tr = document.createElement('tr');
-      tr.className = exp.result;
-      const valStr = currentTab === 'quality' ? exp.max_boids.toFixed(4) : exp.max_boids.toLocaleString();
-      tr.innerHTML = `<td>${exp.id}</td><td>${valStr}</td>` +
-        `<td>${exp.description}</td>` +
-        `<td><span class="status-dot ${exp.result}"></span>${exp.result}</td>`;
-      tbody.appendChild(tr);
-    }
-
-    // Chart (kept experiments over time, filtered by tab)
-    const kept = filtered.filter(e => e.result === 'kept');
-    drawChart(document.getElementById('boidChart'),
-      kept.map((e, i) => ({ x: i, y: e.max_boids })),
-      { line: true, color: '#6f8', yFmt: v => v < 100 ? v.toFixed(2) : (v/1000).toFixed(0) + 'k', xFmt: v => '#' + Math.round(v), yMin: 0 }
-    );
-
-    // All experiments scatter (kept=green, reverted=red)
-    drawChart(document.getElementById('timeChart'),
-      filtered.map((e, i) => ({
-        x: i,
-        y: e.max_boids,
-        color: e.result === 'kept' ? '#6f8' : '#f664',
-      })),
-      { line: false, color: '#8af', pointSize: 4,
-        xFmt: v => '#' + Math.round(v),
-        yFmt: currentTab === 'quality' ? (v => v.toFixed(2)) : (v => v < 10000 ? v.toFixed(0) : (v/1000).toFixed(0) + 'k'),
-        yMin: 0 }
-    );
-
-    // Git log
-    const gitDiv = document.getElementById('gitLog');
-    if (gitDiv) {
-      gitDiv.innerHTML = (data.git_log || []).map(g => {
-        const isExp = g.msg.startsWith('experiment:');
-        const color = isExp ? '#8af' : '#556';
-        return `<div style="color:${color}"><span style="color:#445">${g.hash}</span> ${g.msg}</div>`;
-      }).join('');
-    }
-
-    // Agent log
-    const agentLog = document.getElementById('agentLogInline');
-    if (agentLog && data.agent_log) {
-      agentLog.textContent = data.agent_log;
-      agentLog.scrollTop = agentLog.scrollHeight;
-      // Show last action next to status
-      const lines = data.agent_log.split(String.fromCharCode(10)).filter(l => l.trim());
-      const last = lines[lines.length - 1] || '';
-      const actionEl = document.getElementById('agentLastAction');
-      if (actionEl) actionEl.textContent = last.substring(0, 80);
-    }
-
-    // Update agent status
-    updateAgentUI(data.agent_running);
-
-    document.getElementById('last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-  } catch (e) {
-    console.error('Refresh error:', e);
-  }
-}
-
-async function startAgent() {
-  const resp = await fetch('/api/start', { method: 'POST' });
-  const data = await resp.json();
-  updateAgentUI(data.running);
-}
-async function stopAgent() {
-  const resp = await fetch('/api/stop', { method: 'POST' });
-  const data = await resp.json();
-  updateAgentUI(data.running);
-}
-function updateAgentUI(running) {
-  document.getElementById('startBtn').disabled = running;
-  document.getElementById('stopBtn').disabled = !running;
-  const status = document.getElementById('agentStatus');
-  const logDiv = document.getElementById('agentLogInline');
-  if (running) {
-    status.innerHTML = '<span class="spinner"></span> Agent running...';
-    status.style.color = '#6f8';
-    logDiv.style.display = 'block';
-  } else {
-    status.textContent = 'Agent idle';
-    status.style.color = '#667';
-    logDiv.style.display = 'none';
-  }
-}
-
-let currentTab = 'quality';
-function switchTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    b.style.background = 'rgba(20,20,40,0.5)'; b.style.color = '#667';
-  });
-  const btn = document.getElementById('tab-' + tab);
-  btn.style.background = 'rgba(40,40,80,0.9)'; btn.style.color = '#aac';
-  if (tab === 'quality') {
-    document.getElementById('bestLabel').textContent = 'Best Score';
-    document.getElementById('baselineLabel').textContent = 'Baseline';
-    document.getElementById('baseline').textContent = '0.695';
-  } else if (tab === 'perf') {
-    document.getElementById('bestLabel').textContent = 'Max Boids';
-    document.getElementById('baselineLabel').textContent = 'Baseline';
-    document.getElementById('baseline').textContent = '118,000';
-  } else {
-    document.getElementById('bestLabel').textContent = 'Max Boids (Deno)';
-    document.getElementById('baselineLabel').textContent = 'Baseline';
-    document.getElementById('baseline').textContent = '170,000';
-  }
-  refresh();
-}
-
-refresh();
-setInterval(refresh, 5000);
-</script>
-</body>
-</html>"""
+const CFG={
+classic_perf:{lbl:'Max Boids (Browser)',bl:'118,000',sc:0},
+classic_compute:{lbl:'Max Boids (Deno)',bl:'170,000',sc:0},
+classic_quality:{lbl:'Quality Score',bl:'0.50',sc:1},
+topo_perf:{lbl:'Max Boids (Browser)',bl:'20,000',sc:0},
+topo_compute:{lbl:'Max Boids (Deno)',bl:'20,000',sc:0},
+topo_quality:{lbl:'Quality Score',bl:'0.695',sc:1}};
+let tab='classic_perf';
+function T(t){tab=t;document.querySelectorAll('.tab').forEach(b=>{b.className='tab off'});
+document.getElementById('t-'+t).className='tab on';
+const c=CFG[t];document.getElementById('lb').textContent=c.lbl;
+document.getElementById('vbl').textContent=c.bl;
+document.getElementById('cv').textContent=c.sc?'Score':'Max Boids';
+document.getElementById('c1t').textContent=c.sc?'Score Over Time':'Max Boids Over Time';
+R();}
+function ch(cv,pts,o){if(!pts.length)return;const c=cv.getContext('2d'),d=devicePixelRatio,
+r=cv.getBoundingClientRect();cv.width=r.width*d;cv.height=r.height*d;c.scale(d,d);
+const W=r.width,H=r.height,p={t:8,r:16,b:28,l:55},pW=W-p.l-p.r,pH=H-p.t-p.b;
+const xs=pts.map(v=>v.x),ys=pts.map(v=>v.y);
+const x0=o.xMin??Math.min(...xs),x1=o.xMax??Math.max(...xs);
+const y0=o.yMin??Math.min(...ys)*.9,y1=o.yMax??Math.max(...ys)*1.1;
+const tx=v=>p.l+(v-x0)/(x1-x0||1)*pW,ty=v=>p.t+pH-(v-y0)/(y1-y0||1)*pH;
+c.strokeStyle='rgba(100,100,180,.1)';c.lineWidth=1;
+for(let i=0;i<=4;i++){const y=p.t+pH*i/4;c.beginPath();c.moveTo(p.l,y);c.lineTo(W-p.r,y);c.stroke();}
+c.fillStyle='#556';c.font='9px system-ui';c.textAlign='right';
+for(let i=0;i<=4;i++){const v=y0+(y1-y0)*(4-i)/4;c.fillText(o.yF?o.yF(v):v.toFixed(1),p.l-4,p.t+pH*i/4+3);}
+c.textAlign='center';for(let i=0;i<=4;i++){const v=x0+(x1-x0)*i/4;c.fillText('#'+Math.round(v),tx(v),H-6);}
+if(o.line){c.strokeStyle=o.color||'#8af';c.lineWidth=2;c.beginPath();
+pts.forEach((v,i)=>{i?c.lineTo(tx(v.x),ty(v.y)):c.moveTo(tx(v.x),ty(v.y))});c.stroke();}
+pts.forEach(v=>{c.fillStyle=v.c||o.color||'#8af';c.beginPath();c.arc(tx(v.x),ty(v.y),o.ps||3,0,Math.PI*2);c.fill();});}
+async function R(){try{const d=await(await fetch('/api/data')).json();
+const ae=d.all_exps||{};const ab=d.all_bests||{};
+const ex=ae[tab]||[];const best=ab[tab]||0;const kept=ex.filter(e=>e.result==='kept');
+const sc=CFG[tab].sc;const f=v=>sc?v.toFixed(4):v.toLocaleString();
+const yF=sc?(v=>v.toFixed(2)):(v=>v<1e4?v.toFixed(0):(v/1e3).toFixed(0)+'k');
+document.getElementById('vb').textContent=f(best);
+document.getElementById('ve').textContent=ex.length;
+document.getElementById('vk').textContent=kept.length;
+const tb=document.getElementById('tb');tb.innerHTML='';
+[...ex].reverse().forEach(e=>{const tr=document.createElement('tr');tr.className=e.result;
+tr.innerHTML='<td>'+e.id+'</td><td>'+f(e.max_boids)+'</td><td>'+e.description+'</td><td><span class="dot '+e.result+'"></span>'+e.result+'</td>';
+tb.appendChild(tr);});
+ch(document.getElementById('c1'),kept.map((e,i)=>({x:i,y:e.max_boids})),{line:1,color:'#6f8',yF,yMin:0});
+ch(document.getElementById('c2'),ex.map((e,i)=>({x:i,y:e.max_boids,c:e.result==='kept'?'#6f8':'#f664'})),{color:'#8af',ps:4,yF,yMin:0});
+const g=document.getElementById('gl');
+if(g)g.innerHTML=(d.git_log||[]).map(x=>'<div style="color:'+(x.msg.startsWith('experiment:')?'#8af':'#556')+'"><span style="color:#445">'+x.hash+'</span> '+x.msg+'</div>').join('');
+const a=document.getElementById('al');if(a){a.textContent=d.agent_log||'';a.scrollTop=a.scrollHeight;}
+document.getElementById('go').disabled=d.agent_running;
+document.getElementById('no').disabled=!d.agent_running;
+const s=document.getElementById('st');
+if(d.agent_running){s.innerHTML='<span class="spin"></span>Running';s.style.color='#6f8';}
+else{s.textContent='Idle';s.style.color='#667';}
+const sd=d.scheduler||{};const se=document.getElementById('sched');
+if(sd.running){se.style.display='block';const rem=Math.max(0,sd.duration_min-Math.floor((Date.now()/1000-new Date(sd.phase_start).getTime()/1000)/60));
+se.innerHTML='<b>Scheduler:</b> '+sd.current_phase+' ('+rem+'min left) | Phase '+(sd.total_completed+1);}
+else{se.style.display='none';}
+document.getElementById('ts').textContent=new Date().toLocaleTimeString();
+}catch(e){console.error(e);}}
+async function api(a){await fetch('/api/'+a,{method:'POST'});R();}
+T('classic_perf');setInterval(R,5000);
+</script></body></html>"""
 
 
 def is_agent_running():
@@ -473,9 +266,19 @@ def read_tsv(filepath):
 
 
 def get_data():
-    quality_exps = read_tsv(QUALITY_TSV)
-    compute_exps = read_tsv(COMPUTE_TSV)
-    perf_exps = read_tsv(PERF_TSV)
+    # Read all 6 result files
+    all_exps = {}
+    all_bests = {}
+    for key, filepath in RESULT_FILES.items():
+        exps = read_tsv(filepath)
+        all_exps[key] = exps
+        kept = [e['max_boids'] for e in exps if e['result'] == 'kept']
+        all_bests[key] = max(kept) if kept else 0
+
+    # Backwards compat
+    quality_exps = all_exps.get('topo_quality', [])
+    compute_exps = all_exps.get('classic_compute', [])
+    perf_exps = all_exps.get('classic_perf', [])
     probes = []
 
     if os.path.exists(CSV_FILE):
@@ -492,9 +295,9 @@ def get_data():
                 except (ValueError, KeyError):
                     pass
 
-    quality_best = max((e['max_boids'] for e in quality_exps if e['result'] == 'kept'), default=0)
-    perf_best = max((e['max_boids'] for e in perf_exps if e['result'] == 'kept'), default=0)
-    compute_best = max((e['max_boids'] for e in compute_exps if e['result'] == 'kept'), default=0)
+    quality_best = all_bests.get('topo_quality', 0)
+    perf_best = all_bests.get('classic_perf', 0)
+    compute_best = all_bests.get('classic_compute', 0)
 
     # Git log
     git_log = []
@@ -545,13 +348,25 @@ def get_data():
         pass
     agent_log_tail = '\n'.join(agent_log_lines[-50:])
 
+    # Read scheduler status if available
+    sched_status = {}
+    sched_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scheduler_status.json')
+    if os.path.exists(sched_file):
+        try:
+            with open(sched_file) as f:
+                sched_status = json.loads(f.read())
+        except: pass
+
     return {
         'quality_best': quality_best,
         'perf_best': perf_best,
+        'compute_best': compute_best,
         'quality_experiments': quality_exps,
         'perf_experiments': perf_exps,
         'compute_experiments': compute_exps,
-        'compute_best': compute_best,
+        'all_exps': all_exps,
+        'all_bests': all_bests,
+        'scheduler': sched_status,
         'probes': probes,
         'git_log': git_log,
         'agent_log': agent_log_tail,

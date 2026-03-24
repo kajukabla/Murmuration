@@ -1,0 +1,254 @@
+experiment	max_boids	description	result
+18	1.0000	cohesionFactor 0.003 -> 0.005	reverted
+27	0.9999	noise amplitude 0.15 -> 0.20	reverted
+28	1.0000	maxSpeed 10.0 -> 12.0	reverted
+29	1.0000	gravity 0.08 -> 0.03	reverted
+30	1.0000	K_NEIGHBORS 7 -> 6	reverted
+31	0.6340	separationFactor 0.08 -> 0.12	reverted
+26	0.5779	gravity 0.08 -> 0.10	reverted
+32	0.1525	roost orbit speed 0.002 -> 0.004	reverted
+33	1.0000	center-seeking 0.08 -> 0.12	reverted
+34	0.2668	roost attractor 0.3 -> 0.5	reverted
+27	0.1137	maxSpeed 10.0 -> 12.0	reverted
+35	0.2245	roost attractor 0.3 -> 0.2	reverted
+36	1.0000	visualRange 15.0 -> 18.0	reverted
+37	1.0000	K_NEIGHBORS 7 -> 8	reverted
+38	1.0000	smoothing 0.10 -> 0.08	reverted
+29	0.2123	roost strength 0.3 -> 0.2	reverted
+39	1.0000	separation multiplier 2.0 -> 1.5	reverted
+40	1.0000	roost Y amplitude 0.05 -> 0.15	reverted
+41	0.9999	gravity 0.08 -> 0.10	reverted
+42	1.0000	cohesionFactor 0.003 -> 0.004	reverted
+43	0.5125	minSpeed 3.0 -> 2.0	reverted
+44	0.4640	sphereRadius 120 -> 90	reverted
+45	0.8534	sphereRadius 120 -> 150	reverted
+46	0.9999	alignFactor 0.12 -> 0.10	reverted
+47	1.0000	turnFactor 0.3 -> 0.25	reverted
+48	0.9999	speed blend 0.15 -> 0.20	reverted
+49	0.9999	center-seeking threshold 0.5 -> 1.0	reverted
+50	1.0000	roost threshold 1.0 -> 2.0	reverted
+51	1.0000	soft_zone 0.15 -> 0.20	reverted
+52	0.8788	avoidance using 2 nearest neighbors	reverted
+53	0.3971	roost orbit radius 0.4 -> 0.3	reverted
+54	0.6718	roost orbit radius 0.4 -> 0.5	reverted
+55	1.0000	separationDist 2.0 -> 1.5	reverted
+56	0.9999	K_NEIGHBORS 7 -> 5	reverted
+57	1.0000	gravity 0.08 -> 0.06	reverted
+58	1.0000	separationFactor 0.08 -> 0.06	reverted
+59	0.9999	center-seeking 0.08 -> 0.05	reverted
+60	1.0000	roost Y time mult 0.7 -> 1.3	reverted
+61	0.4432	smoothing 0.10 -> 0.12	reverted
+62	1.0000	alignFactor 0.12 -> 0.14	reverted
+63	1.0000	noise amplitude 0.15 -> 0.10	reverted
+64	1.0000	boundary clamp 3.0 -> 2.0	reverted
+65	0.9999	center-seeking min neighbors 2 -> 3	reverted
+66	1.0000	separationDist 2.0 -> 1.8	reverted
+67	1.0000	cohesionFactor 0.003 -> 0.002	reverted
+68	0.9999	minSpeed 3.0 -> 4.0	reverted
+69	1.0000	add slight z-axis gravity 0.02	reverted
+70	1.0000	turnFactor 0.3 -> 0.35	reverted
+71	1.0000	visualRange 15.0 -> 12.0	reverted
+72	0.1677	speed blend 0.15 -> 0.10	reverted
+73	0.2350	maxSpeed 10.0 -> 8.0	reverted
+74	0.2838	roost orbit speed 0.002 -> 0.003	reverted
+75	0.9487	separationFactor 0.08 -> 0.10	reverted
+76	1.0000	noise amplitude 0.15 -> 0.12	reverted
+77	0.9999	alignFactor 0.12 -> 0.08	reverted
+78	0.9868	separation multiplier 2.0 -> 2.5	reverted
+79	1.0000	center-seeking 0.08 -> 0.15	reverted
+80	1.0000	maxSpeed 10.0 -> 14.0	reverted
+81	1.0000	gravity 0.08 -> 0.05	reverted
+82	1.0000	cohesionFactor 0.003 -> 0.0035	reverted
+83	0.3897	roost attractor 0.3 -> 0.25	reverted
+84	1.0000	gravity 0.08 -> 0.04	reverted
+85	1.0000	smoothing 0.10 -> 0.09	reverted
+86	0.2368	roost attractor 0.3 -> 0.35	reverted
+87	1.0000	visualRange 15.0 -> 20.0	reverted
+88	1.0000	center-seeking 0.08 -> 0.10	reverted
+89	0.9999	speed blend 0.15 -> 0.18	reverted
+90	1.0000	gravity 0.08 -> 0.07	reverted
+91	1.0000	alignFactor 0.12 -> 0.16	reverted
+92	1.0000	turnFactor 0.3 -> 0.20	reverted
+93	1.0000	separationDist 2.0 -> 2.2	reverted
+94	0.9999	noise amplitude 0.15 -> 0.18	reverted
+95	0.9999	gravity 0.08 -> 0.09	reverted
+96	0.9999	cohesionFactor 0.003 -> 0.0025	reverted
+97	1.0000	separation multiplier 2.0 -> 1.8	reverted
+98	1.0000	soft_zone 0.15 -> 0.10	reverted
+99	1.0000	roost Y amplitude 0.05 -> 0.10	reverted
+100	1.0000	maxSpeed 10.0 -> 11.0	reverted
+101	0.9999	minSpeed 3.0 -> 3.5	reverted
+102	0.9993	roost orbit speed 0.002 -> 0.0015	reverted
+103	1.0000	boundary clamp 3.0 -> 4.0	reverted
+104	0.9999	alignFactor 0.12 -> 0.11	reverted
+105	1.0000	visualRange 15.0 -> 13.0	reverted
+106	0.9999	distance-proportional center-seeking	reverted
+107	1.0000	separationFactor 0.08 -> 0.07	reverted
+108	1.0000	dampen Y-axis noise (0.15 -> 0.08)	reverted
+109	0.8498	sphereRadius 120 -> 130	reverted
+110	0.9999	sphereRadius 120 -> 110	reverted
+111	1.0000	visualRange 15.0 -> 10.0	reverted
+112	0.8322	speed blend 0.15 -> 0.12	reverted
+113	1.0000	gravity 0.08 -> 0.0 (no gravity)	reverted
+114	1.0000	turnFactor 0.3 -> 0.15	reverted
+115	0.9999	maxSpeed 10.0 -> 9.0	reverted
+116	1.0000	cohesionFactor 0.003 -> 0.0015	reverted
+117	0.9999	disable center-seeking force	reverted
+118	0.9999	separation multiplier 2.0 -> 2.2	reverted
+119	1.0000	alignFactor 0.12 -> 0.13	reverted
+120	1.0000	separationDist 2.0 -> 1.0	reverted
+121	1.0000	noise amplitude 0.15 -> 0.05	reverted
+122	1.0000	separationFactor 0.08 -> 0.05	reverted
+123	1.0000	alignFactor 0.12 -> 0.20	reverted
+124	1.0000	cohesionFactor 0.003 -> 0.01	reverted
+125	1.0000	gravity 0.08 -> 0.02	reverted
+126	1.0000	maxSpeed 10.0 -> 15.0	reverted
+127	1.0000	noise 0.15 -> 0.0 (no noise)	reverted
+128	1.0000	center-seeking 0.08 -> 0.20	reverted
+129	0.9999	turnFactor 0.3 -> 0.50	reverted
+130	0.7743	roost orbit speed 0.002 -> 0.0025	reverted
+131	1.0000	visualRange 15.0 -> 8.0	reverted
+132	0.9999	speed blend 0.15 -> 0.25	reverted
+133	0.5236	roost attractor 0.3 -> 0.4	reverted
+134	0.9848	gravity 0.08 -> 0.12	reverted
+135	1.0000	cohesionFactor 0.003 -> 0.006	reverted
+136	0.9999	center-seeking 0.08 -> 0.0	reverted
+137	0.9999	separationDist 2.0 -> 3.0	reverted
+138	0.6882	smoothing 0.10 -> 0.07	reverted
+139	0.6438	noise amplitude 0.15 -> 0.30	reverted
+140	0.6379	separation multiplier 2.0 -> 3.0	reverted
+141	0.6698	elliptical roost orbit (X=0.5, Z=0.3)	reverted
+142	1.0000	distance-scaled roost attractor	reverted
+143	0.9999	alignFactor 0.12 -> 0.06	reverted
+144	1.0000	roost Y freq 0.7 -> 0.5	reverted
+145	1.0000	separation multiplier 2.0 -> 1.0	reverted
+146	0.7433	minSpeed 3.0 -> 2.5	reverted
+147	1.0000	cohesionFactor 0.003 -> 0.008	reverted
+148	1.0000	speed blend 0.15 -> 0.17	reverted
+149	0.9999	alignFactor 0.12 -> 0.05	reverted
+150	0.3379	gravity 0.08 -> 0.15	reverted
+151	1.0000	separationFactor 0.08 -> 0.04	reverted
+152	1.0000	visualRange 15.0 -> 25.0	reverted
+153	0.2754	maxSpeed 10.0 -> 20.0	reverted
+154	0.5360	roost orbit speed 0.002 -> 0.001	reverted
+155	0.9999	turnFactor 0.3 -> 0.40	reverted
+156	1.0000	separationDist 2.0 -> 0.5	reverted
+157	0.9999	center-seeking 0.08 -> 0.30	reverted
+158	0.3970	separation multiplier 2.0 -> 4.0	reverted
+159	0.1529	roost attractor 0.3 -> 1.0	reverted
+160	1.0000	visualRange 15.0 -> 5.0	reverted
+161	1.0000	cohesionFactor 0.003 -> 0.0005	reverted
+162	0.4592	separationFactor 0.08 -> 0.15	reverted
+163	0.9999	smoothing 0.10 -> 0.05	reverted
+164	0.6219	sphereRadius 120 -> 100	reverted
+165	1.0000	roost orbit radius 0.4 -> 0.45	reverted
+166	1.0000	gravity 0.08 -> 0.01	reverted
+167	0.7691	separationDist 2.0 -> 4.0	reverted
+168	0.0000	K_NEIGHBORS 7 -> 4	reverted
+169	0.9999	roost attractor 0.3 -> 0.28	reverted
+170	0.9153	maxSpeed 10.0 -> 13.0	reverted
+171	1.0000	roost Y amplitude 0.05 -> 0.02	reverted
+172	1.0000	cohesionFactor 0.003 -> 0.020	reverted
+173	0.9856	soft_zone 0.15 -> 0.25	reverted
+174	1.0000	alignFactor 0.12 -> 0.18	reverted
+175	1.0000	speed blend 0.15 -> 0.13	reverted
+176	1.0000	noise amplitude 0.15 -> 0.08	reverted
+177	0.9999	roost orbit radius 0.4 -> 0.35	reverted
+178	1.0000	gravity 0.08 -> 0.11	reverted
+179	1.0000	separationDist 2.0 -> 1.2	reverted
+180	1.0000	turnFactor 0.3 -> 0.10	reverted
+181	0.9999	center-seeking 0.08 -> 0.06	reverted
+182	0.9999	separationFactor 0.08 -> 0.09	reverted
+183	0.9999	minSpeed 3.0 -> 5.0	reverted
+184	1.0000	roost attractor 0.3 -> 0.32	reverted
+185	1.0000	noise amplitude 0.15 -> 0.13	reverted
+186	1.0000	visualRange 15.0 -> 14.0	reverted
+187	1.0000	speed blend 0.15 -> 0.16	reverted
+188	1.0000	gravity 0.08 -> 0.06 (retry)	reverted
+189	0.9999	alignFactor 0.12 -> 0.09	reverted
+190	0.9999	center-seeking 0.08 -> 0.04	reverted
+191	1.0000	separation multiplier 2.0 -> 1.6	reverted
+192	1.0000	cohesionFactor 0.003 -> 0.005	reverted
+193	0.9999	turnFactor 0.3 -> 0.45	reverted
+194	1.0000	visualRange 15.0 -> 16.0	reverted
+195	1.0000	noise amplitude 0.15 -> 0.11	reverted
+196	0.9999	separationDist 2.0 -> 2.5 (retry)	reverted
+197	1.0000	gravity 0.08 -> 0.065	reverted
+198	0.9999	roost attractor 0.3 -> 0.27	reverted
+199	0.9999	sphereRadius 120 -> 115	reverted
+200	1.0000	maxSpeed 10.0 -> 10.5	reverted
+201	1.0000	noise amplitude 0.15 -> 0.14	reverted
+202	1.0000	center-seeking 0.08 -> 0.09	reverted
+203	1.0000	separation multiplier 2.0 -> 1.9	reverted
+204	1.0000	roost Y time freq 0.7 -> 0.3	reverted
+205	0.9999	gravity 0.08 -> 0.075	reverted
+206	1.0000	cohesionFactor 0.003 -> 0.004 (retry)	reverted
+207	0.9999	maxSpeed 10.0 -> 9.5	reverted
+208	0.9999	noise amplitude 0.15 -> 0.16	reverted
+209	0.9999	separation multiplier 2.0 -> 2.1	reverted
+210	0.9999	center-seeking 0.08 -> 0.07	reverted
+211	1.0000	roost attractor 0.3 -> 0.31	reverted
+212	1.0000	gravity 0.08 -> 0.085	reverted
+213	1.0000	alignFactor 0.12 -> 0.15 (retry)	reverted
+214	1.0000	speed blend 0.15 -> 0.14	reverted
+215	1.0000	roost orbit radius 0.4 -> 0.42	reverted
+216	1.0000	smoothing 0.10 -> 0.11	reverted
+217	1.0000	separationDist 2.0 -> 1.9	reverted
+218	0.9999	noise amplitude 0.15 -> 0.17	reverted
+219	0.9999	gravity 0.08 -> 0.095	reverted
+220	1.0000	roost attractor 0.3 -> 0.29	reverted
+221	1.0000	maxSpeed 10.0 -> 10.2	reverted
+222	1.0000	center-seeking 0.08 -> 0.11	reverted
+223	0.9999	separationFactor 0.08 -> 0.085	reverted
+224	0.9999	alignFactor 0.12 -> 0.07	reverted
+225	1.0000	gravity 0.08 -> 0.055	reverted
+226	0.9999	roost orbit speed 0.002 -> 0.0018	reverted
+227	0.9999	minSpeed 3.0 -> 3.2	reverted
+228	0.9999	cohesionFactor 0.003 -> 0.0045	reverted
+229	0.9999	speed blend 0.15 -> 0.19	reverted
+230	1.0000	roost attractor 0.3 -> 0.33	reverted
+231	1.0000	noise amplitude 0.15 -> 0.09	reverted
+232	1.0000	center-seeking 0.08 -> 0.13	reverted
+233	0.9999	separationDist 2.0 -> 2.1	reverted
+234	1.0000	gravity 0.08 -> 0.045	reverted
+235	1.0000	roost Y amplitude 0.05 -> 0.07	reverted
+236	1.0000	separation multiplier 2.0 -> 1.7	reverted
+237	1.0000	turnFactor 0.3 -> 0.28	reverted
+238	1.0000	visualRange 15.0 -> 11.0	reverted
+239	0.9999	speed blend 0.15 -> 0.22	reverted
+240	0.4098	roost orbit speed 0.002 -> 0.0022	reverted
+241	0.9999	center-seeking 0.08 -> 0.03	reverted
+242	0.9999	separation multiplier 2.0 -> 2.3	reverted
+243	1.0000	gravity 0.08 -> 0.035	reverted
+244	1.0000	cohesionFactor 0.003 -> 0.007	reverted
+245	0.9999	roost Y freq 0.7 -> 1.0	reverted
+246	1.0000	maxSpeed 10.0 -> 10.8	reverted
+247	0.9999	roost attractor 0.3 -> 0.26	reverted
+248	1.0000	noise amplitude 0.15 -> 0.07	reverted
+249	0.9998	alignFactor 0.12 -> 0.04	reverted
+250	1.0000	gravity 0.08 -> 0.105	reverted
+251	1.0000	separationFactor 0.08 -> 0.075	reverted
+252	1.0000	center-seeking 0.08 -> 0.14	reverted
+253	1.0000	roost orbit radius 0.4 -> 0.38	reverted
+254	0.9999	turnFactor 0.3 -> 0.32	reverted
+255	1.0000	gravity 0.08 -> 0.025	reverted
+256	0.8907	noise amplitude 0.15 -> 0.06	reverted
+257	0.4663	roost attractor 0.3 -> 0.34	reverted
+258	1.0000	maxSpeed 10.0 -> 11.5	reverted
+259	1.0000	separation multiplier 2.0 -> 1.4	reverted
+260	0.9999	center-seeking 0.08 -> 0.02	reverted
+261	1.0000	visualRange 15.0 -> 17.0	reverted
+262	1.0000	gravity 0.08 -> 0.015	reverted
+263	0.9999	cohesionFactor 0.003 -> 0.009	reverted
+264	1.0000	roost orbit radius 0.4 -> 0.43	reverted
+265	1.0000	turnFactor 0.3 -> 0.27	reverted
+266	1.0000	separationDist 2.0 -> 1.6	reverted
+267	0.6430	speed blend 0.15 -> 0.11	reverted
+268	0.8901	gravity 0.03 -> 0.04	reverted
+269	0.8115	perturbation kick 2.5 -> 3.5	kept
+270	0.6629	perturbation kick 3.5 -> 4.5	reverted
+271	0.7457	smoothing 0.10 -> 0.08	reverted
+272	0.9035	perturbation rate 0.04 -> 0.06	kept
+273	0.7480	perturbation rate 0.06 -> 0.08	reverted
+274	0.6468	gravity 0.03 -> 0.01	reverted
+275	0.9351	perturbation rate 0.06 -> 0.07	kept
