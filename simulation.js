@@ -181,7 +181,6 @@ export async function createSimulation(device, {
   const flockPipe   = pipe('flock');         // topological K-nearest
   const flockRadiusPipe = pipe('flock_radius'); // classic radius-based
   const driftPipe = pipe('drift');              // drift-only (odd frames)
-  const flockLightPipe = pipe('flock_light');  // lightweight flock (no separation)
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
@@ -271,9 +270,10 @@ export async function createSimulation(device, {
           p.end();
         }
       } else if (mod4 === 3) {
-        // Lightweight flock: stale grid, no separation
+        // Flock-only: reuse stale grid
+        const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
         const p = encoder.beginComputePass();
-        p.setPipeline(flockLightPipe);
+        p.setPipeline(activeFlock);
         p.setBindGroup(0, bg);
         p.dispatchWorkgroups(boidWG);
         p.end();
