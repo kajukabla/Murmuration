@@ -519,6 +519,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let wa1 = f32(params.frame_count) * 0.01;
   let wa2 = f32(params.frame_count) * 0.003;
   new_vel.x += sin(wa1) * 2.5 + sin(wa2) * 1.5;
+  new_vel.y += sin(wa2 * 1.7) * 0.5; // gentle vertical undulation
   new_vel.z += cos(wa1) * 2.5 + cos(wa2) * 1.5;
 
   // Ellipsoidal boundary (oblate — compressed vertically for flat flock shape)
