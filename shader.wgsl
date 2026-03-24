@@ -262,8 +262,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // The complex sweeping motion emerges from topological neighbor rules
   // + rare perturbations that cascade through the flock
 
-  // Gentle gravity (creates oblate/flat flock shape)
-  new_vel.y -= 0.03;
+  // Gentle gravity + flattening spring
+  new_vel.y -= 0.04;
+  new_vel.y -= boid.pos.y * 0.005;
 
   // Rare strong perturbation: only ~3% of birds per frame
   // This is the primary driver of non-repetitive motion —
