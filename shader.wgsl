@@ -406,24 +406,6 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].density = boid.density;
 }
 
-// === In-place drift: update pos+vel in src buffer, skip copying unchanged fields ===
-@compute @workgroup_size(128)
-fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
-  let i = id.x;
-  if (i >= params.num_boids) { return; }
-  var pos = boids_src[i].pos;
-  var vel = boids_src[i].vel;
-  let center_d2 = dot(pos, pos);
-  let r = params.sphere_radius;
-  let threshold = r - r * 0.15;
-  if (center_d2 > threshold * threshold) {
-    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-    vel -= pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
-    boids_src[i].vel = vel;
-  }
-  boids_src[i].pos = pos + vel * params.dt;
-}
-
 // === Auto-range stats ===
 @group(1) @binding(0) var<storage, read_write> stats: array<atomic<u32>, 2>;
 

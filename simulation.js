@@ -181,7 +181,6 @@ export async function createSimulation(device, {
   const flockPipe   = pipe('flock');         // topological K-nearest
   const flockRadiusPipe = pipe('flock_radius'); // classic radius-based
   const driftPipe = pipe('drift');              // drift-only (odd frames)
-  const driftInplacePipe = pipe('drift_inplace'); // in-place drift (no ping-pong)
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
@@ -251,10 +250,10 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
 
-      // 2-tier: grid+flock 1/8, in-place drift 7/8
+      // 2-tier: grid+flock 1/8, drift 7/8
       const mod8 = frameCount % 8;
       if (mod8 === 0) {
-        // Full frame: rebuild grid + flock (ping-pong)
+        // Full frame: rebuild grid + flock
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
         const passes = [
           [clearPipe,   gridWG],
@@ -270,16 +269,13 @@ export async function createSimulation(device, {
           p.dispatchWorkgroups(wg);
           p.end();
         }
-        step++; // Only advance ping-pong on flock frames
       } else {
-        // In-place drift: update pos+vel in current buffer, no copy
-        const driftWG = Math.ceil(numBoids / 128);
+        // Drift: just advance positions
         const p = encoder.beginComputePass();
-        p.setPipeline(driftInplacePipe);
+        p.setPipeline(driftPipe);
         p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(driftWG);
+        p.dispatchWorkgroups(boidWG);
         p.end();
-        // Don't advance step — data stays in same buffer
       }
 
       // Only compute stats on the last step of the frame (avoids races with multi-step)
@@ -299,7 +295,7 @@ export async function createSimulation(device, {
         encoder.copyBufferToBuffer(statsBuf, 0, statsReadBuf, 0, 8);
       }
 
-      // step is advanced inside the flock branch only (in-place drift doesn't ping-pong)
+      step++;
     },
 
     /** Call after queue.submit to read back stats (non-blocking) */
