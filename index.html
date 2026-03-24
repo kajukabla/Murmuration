@@ -226,7 +226,7 @@ if (!benchmarkBoids) {
       const r = await fetch('/api/bench_request', { cache: 'no-store' });
       const req = await r.json();
       if (req.boids && req.boids > 0) {
-        location.href = `/?boids=${req.boids}&mode=radius&benchmark=1&warmup=900&sphereRadius=40`;
+        location.href = `/?boids=${req.boids}&mode=radius&benchmark=1&warmup=600&sphereRadius=30`;
       }
     } catch {}
   }, 2000);
