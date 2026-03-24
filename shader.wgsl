@@ -416,7 +416,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   for (var iter = 0u; iter < 3u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
     let next = boid_cells[j];  // prefetch next before reading boid data
-    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
+    coh += boids_src[j].pos; ali += boids_src[j].vel; n_align += 1u;
     j = next;
   }
 
