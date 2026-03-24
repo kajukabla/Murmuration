@@ -358,6 +358,46 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].vel = new_vel;
 }
 
+// === Lightweight flock: alignment + cohesion only (no separation) ===
+@compute @workgroup_size(64)
+fn flock_light(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  let boid = boids_src[i];
+  let my_ci = cell_index(get_cell(boid.pos));
+  var ali = vec3f(0.0);
+  var coh = vec3f(0.0);
+  var n_align = 0u;
+  let my_start = cell_offsets[my_ci];
+  let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
+  let cell_end = min(my_end, my_start + 3u);
+  for (var j = my_start; j < cell_end; j++) {
+    let other = boids_src[sorted_indices[j]];
+    let d2 = dot(boid.pos - other.pos, boid.pos - other.pos);
+    let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
+    ali += other.vel * in_range;
+    coh += other.pos * in_range;
+    n_align += u32(in_range);
+  }
+  var new_vel = boid.vel;
+  let nf = max(f32(n_align), 1.0);
+  new_vel += (ali / nf - boid.vel) * params.align_factor;
+  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  let center_d2 = dot(boid.pos, boid.pos);
+  let r = params.sphere_radius;
+  let threshold = r - r * 0.15;
+  if (center_d2 > threshold * threshold) {
+    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
+    new_vel -= boid.pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
+  }
+  let spd_sq = dot(new_vel, new_vel);
+  if (spd_sq > params.max_speed * params.max_speed) {
+    new_vel *= params.max_speed * inverseSqrt(spd_sq);
+  }
+  boids_dst[i].pos = boid.pos + new_vel * params.dt;
+  boids_dst[i].vel = new_vel;
+}
+
 // === Drift-only pass: advance positions without recomputing flocking ===
 @compute @workgroup_size(64)
 fn drift(@builtin(global_invocation_id) id: vec3u) {
