@@ -180,6 +180,7 @@ const computeMetricsPipe = makeMP("compute_metrics");
 
 const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
 const boidWG = Math.ceil(NUM_BOIDS / WORKGROUP_SIZE);
+const driftWG = Math.ceil(NUM_BOIDS / (128 * 2)); // drift processes 2 boids/thread, wg=128
 
 function encodeFrame(encoder: GPUCommandEncoder, step: number) {
   // Update frame_count in params
@@ -201,7 +202,7 @@ function encodeFrame(encoder: GPUCommandEncoder, step: number) {
     const p = encoder.beginComputePass();
     p.setPipeline(driftPipe);
     p.setBindGroup(0, bg);
-    p.dispatchWorkgroups(boidWG);
+    p.dispatchWorkgroups(driftWG);
     p.end();
   }
 }

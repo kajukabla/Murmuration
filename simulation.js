@@ -184,6 +184,7 @@ export async function createSimulation(device, {
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
+  const driftWG = Math.ceil(numBoids / (128 * 2)); // drift processes 2 boids/thread, wg=128
 
   // --- Auto-range stats ---
   const statsBuf = device.createBuffer({
@@ -274,7 +275,7 @@ export async function createSimulation(device, {
         const p = encoder.beginComputePass();
         p.setPipeline(driftPipe);
         p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(boidWG);
+        p.dispatchWorkgroups(driftWG);
         p.end();
       }
 
