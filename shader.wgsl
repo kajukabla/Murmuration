@@ -233,14 +233,12 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     }
   }
 
-  // Avoidance: only the 1 nearest neighbor with smoothstep falloff
+  // Avoidance: only the 1 nearest neighbor (uses cached pos)
   var sep_force = vec3f(0.0);
   if (n_found > 0u && closest_d2 < params.separation_dist_sq) {
     let diff = boid.pos - nearest_pos[closest_k];
-    let t = closest_d2 / params.separation_dist_sq; // 0 = touching, 1 = at boundary
-    let smooth_t = 1.0 - t * t * (3.0 - 2.0 * t); // inverse smoothstep
-    sep_force = diff * smooth_t;
-    new_vel += sep_force * params.separation_factor * 2.0;
+    sep_force = diff * (1.0 - closest_d2 / params.separation_dist_sq);
+    new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
   // Alignment + Cohesion: all K neighbors (uses cached pos+vel)
