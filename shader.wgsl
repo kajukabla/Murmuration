@@ -358,14 +358,23 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].vel = new_vel;
 }
 
-// === Drift-only pass: advance positions without recomputing flocking ===
+// === Drift pass: advance positions + boundary steering (no neighbor search) ===
 @compute @workgroup_size(64)
 fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
   let boid = boids_src[i];
-  boids_dst[i].pos = boid.pos + boid.vel * params.dt;
-  boids_dst[i].vel = boid.vel;
+  var vel = boid.vel;
+  // Boundary steering on drift frames prevents boids escaping sphere
+  let center_d2 = dot(boid.pos, boid.pos);
+  let r = params.sphere_radius;
+  let threshold = r - r * 0.15;
+  if (center_d2 > threshold * threshold) {
+    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
+    vel -= boid.pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
+  }
+  boids_dst[i].pos = boid.pos + vel * params.dt;
+  boids_dst[i].vel = vel;
 }
 
 // === Auto-range stats ===
