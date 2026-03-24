@@ -378,8 +378,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             ali += sorted_pv[k * 2u + 1u].xyz * in_range;
             coh += other_pos * in_range;
             n_align += u32(in_range);
-            let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
-            sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
+            sep += diff * (f32(d2 < params.separation_dist_sq) * in_range);
           }
           if (n_align >= 4u) { break; }
         }
@@ -417,11 +416,10 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel *= params.min_speed * inverseSqrt(max(spd_sq, 1e-6));
   }
 
-  // Write to original position
+  // Write to original position (skip heading — billboard doesn't use it)
   boids_dst[i].pos = my_pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = my_size;
-  boids_dst[i].heading = new_vel * inverseSqrt(max(spd_sq, 1e-6));
 }
 
 // === Auto-range stats ===
