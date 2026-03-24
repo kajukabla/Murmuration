@@ -509,8 +509,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Gravity + Y-spring + slight center repulsion + drag
-  new_vel.y -= 0.25;
-  new_vel.y -= boid.pos.y * 0.03;
+  new_vel.y -= 0.15;
+  new_vel.y -= boid.pos.y * 0.02;
   // Gentle repulsion from center keeps flock expanded
   let center_dist = length(boid.pos);
   if (center_dist < params.sphere_radius * 0.2 && center_dist > 0.001) {
