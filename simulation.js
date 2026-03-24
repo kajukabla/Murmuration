@@ -11,7 +11,7 @@ export async function createSimulation(device, {
 } = {}) {
   // World size should tightly wrap the sphere where boids live
   if (worldSize <= 0) {
-    worldSize = sphereRadius * 2.5;
+    worldSize = sphereRadius * 2.2;
   }
   // Grid: target ~4 boids per cell, assuming uniform distribution
   if (gridSize <= 0) {
