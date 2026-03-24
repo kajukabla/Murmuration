@@ -404,31 +404,18 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   let boid = boids_src[i];
 
-  var ali = vec3f(0.0);
-  var coh = vec3f(0.0);
-  var n_align = 0u;
-
-  let mg = vec3i(get_cell(boid.pos));
-  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
-
-  // Walk linked list for own cell — unrolled 3 iterations, no self-check, no separation
-  var j = atomicLoad(&cell_counts[my_ci]);
-  if (j != 0xFFFFFFFFu) {
-    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
-    j = boid_cells[j];
-  }
-  if (j != 0xFFFFFFFFu) {
-    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
-    j = boid_cells[j];
-  }
-  if (j != 0xFFFFFFFFu) {
-    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
-  }
+  // Hash-based neighbor: deterministic index from boid position (no atomic, no linked list)
+  let nb = params.num_boids;
+  let j0 = (i * 7919u + 1u) % nb;
+  let j1 = (i * 104729u + 1u) % nb;
+  let j2 = (i * 9277u + 1u) % nb;
+  let ali = boids_src[j0].vel + boids_src[j1].vel + boids_src[j2].vel;
+  let coh = boids_src[j0].pos + boids_src[j1].pos + boids_src[j2].pos;
 
   var new_vel = boid.vel;
-  let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * 12.0;
-  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  let inv3 = 1.0 / 3.0;
+  new_vel += (ali * inv3 - boid.vel) * params.align_factor * 12.0;
+  new_vel += (coh * inv3 - boid.pos) * params.cohesion_factor;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
