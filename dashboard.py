@@ -288,7 +288,7 @@ async function refresh() {
       agentLog.textContent = data.agent_log;
       agentLog.scrollTop = agentLog.scrollHeight;
       // Show last action next to status
-      const lines = data.agent_log.split('\n').filter(l => l.trim());
+      const lines = data.agent_log.split(String.fromCharCode(10)).filter(l => l.trim());
       const last = lines[lines.length - 1] || '';
       const actionEl = document.getElementById('agentLastAction');
       if (actionEl) actionEl.textContent = last.substring(0, 80);
