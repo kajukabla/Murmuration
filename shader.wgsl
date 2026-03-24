@@ -446,7 +446,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   out.vel = new_vel;
   out.size_factor = boid.size_factor;
   out.heading = new_vel * inverseSqrt(max(spd_sq, 0.0001));
-  out.speed = max_spd;
+  out.speed = sqrt(spd_sq);
   out.neighbor_count = 6.0;
   out.dir_change = 0.0;
   out.flock_alignment = 1.0;
