@@ -404,7 +404,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   let boid = boids_src[i];
 
-  var sep = vec3f(0.0);
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var n_align = 0u;
@@ -412,29 +411,24 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Walk linked list for own cell — unrolled 3 iterations, no self-check
-  let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
+  // Walk linked list for own cell — unrolled 3 iterations, no self-check, no separation
   var j = atomicLoad(&cell_counts[my_ci]);
-  // Iteration 1
   if (j != 0xFFFFFFFFu) {
-    let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq);
+    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
     j = boid_cells[j];
   }
-  // Iteration 2
   if (j != 0xFFFFFFFFu) {
-    let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq);
+    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
     j = boid_cells[j];
   }
-  // Iteration 3
   if (j != 0xFFFFFFFFu) {
-    let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq);
+    ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
   }
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
   new_vel += (ali / nf - boid.vel) * params.align_factor * 12.0;
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
-  new_vel += sep * params.separation_factor * 0.5;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
