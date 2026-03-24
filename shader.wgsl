@@ -440,6 +440,21 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor;
 
+  // Gentle gravity — flattens flock into oblate shape (increases aspect ratio)
+  new_vel.y -= 0.03;
+
+  // Rare perturbation (~7% of boids) — drives dynamics and shape change
+  let linked_perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
+  if (linked_perturb_hash < 0.07) {
+    let linked_seed = f32(i * 1973u + params.frame_count * 9277u);
+    let kick = vec3f(
+      fract(sin(linked_seed) * 43758.5) - 0.5,
+      fract(sin(linked_seed * 1.3) * 22578.1) - 0.5,
+      fract(sin(linked_seed * 0.7) * 31415.9) - 0.5
+    ) * 3.5;
+    new_vel += kick;
+  }
+
   // Spherical boundary
   let center_d2 = dot(boid.pos, boid.pos);
   let r = params.sphere_radius;
@@ -451,22 +466,30 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Speed clamp
-  let spd_sq = dot(new_vel, new_vel);
-  let max_spd = params.max_speed;
-  if (spd_sq > max_spd * max_spd) {
-    new_vel *= max_spd * inverseSqrt(spd_sq);
-  }
+  // Turn rate limiter (smooth heading changes)
+  let linked_old_speed = length(boid.vel);
+  var linked_old_dir = boid.vel;
+  if (linked_old_speed > 0.001) { linked_old_dir = linked_old_dir / linked_old_speed; }
+  else { linked_old_dir = vec3f(1.0, 0.0, 0.0); }
+  let linked_desired_speed = length(new_vel);
+  var linked_desired_dir = new_vel;
+  if (linked_desired_speed > 0.001) { linked_desired_dir = linked_desired_dir / linked_desired_speed; }
+  else { linked_desired_dir = linked_old_dir; }
+  let linked_final_dir = normalize(mix(linked_old_dir, linked_desired_dir, params.smoothing));
+
+  // Speed clamp with smoothing
+  var linked_final_speed = mix(linked_old_speed, linked_desired_speed, 0.15);
+  linked_final_speed = clamp(linked_final_speed, params.min_speed, params.max_speed);
+  new_vel = linked_final_dir * linked_final_speed;
+
+  // Direction change metric
+  let linked_dir_change = 1.0 - clamp(dot(linked_old_dir, linked_final_dir), -1.0, 1.0);
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
 
-  let vel_dir = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
-  var old_h = boid.heading;
-  let hl = dot(old_h, old_h);
-  if (hl < 0.25) { old_h = vel_dir; } else { old_h = old_h * inverseSqrt(hl); }
-  boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
+  boids_dst[i].heading = linked_final_dir;
 
   boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
   boids_dst[i].neighbor_count = f32(n_align);
