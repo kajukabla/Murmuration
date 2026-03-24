@@ -505,7 +505,18 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].speed = length(new_vel);
   boids_dst[i].neighbor_count = 6.0;
   boids_dst[i].dir_change = 0.0;
-  boids_dst[i].flock_alignment = 1.0;
+  // Compute real alignment metric: dot(vel, avg_vel) normalized, boosted by coherence
+  let vel_d2_l = dot(boid.vel, boid.vel);
+  let ali_d2_l = dot(ali, ali);
+  var real_align = 1.0;
+  if (n_align > 0u && vel_d2_l > 0.001 && ali_d2_l > 0.001) {
+    let raw_corr = dot(boid.vel, ali / f32(n_align));
+    let norm = sqrt(vel_d2_l) * sqrt(ali_d2_l / f32(n_align * n_align));
+    real_align = raw_corr / max(norm, 0.001);
+    // Boost by neighbor density: more neighbors = higher confidence
+    real_align *= (1.0 + f32(n_align) * 0.1);
+  }
+  boids_dst[i].flock_alignment = real_align;
   boids_dst[i].sep_pressure = length(sep);
   boids_dst[i].density = 0.75;
 }
