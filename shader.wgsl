@@ -350,11 +350,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   for (var iter = 0u; iter < 5u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
     if (j != i) {
-      let other_pos = boids_src[j].pos;
-      let diff = boid.pos - other_pos;
+      let other = boids_src[j];
+      let diff = boid.pos - other.pos;
       let d2 = dot(diff, diff);
-      ali += boids_src[j].vel;
-      coh += other_pos;
+      ali += other.vel;
+      coh += other.pos;
       n_align += 1u;
       let in_sep = f32(d2 < params.separation_dist_sq);
       sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
