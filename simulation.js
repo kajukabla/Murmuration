@@ -183,6 +183,7 @@ export async function createSimulation(device, {
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
+  const flockRadiusWG = Math.ceil(numBoids / 128);
 
   // --- Auto-range stats ---
   const statsBuf = device.createBuffer({
@@ -249,12 +250,13 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
       const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
+      const flockWG = neighborMode === 1 ? flockRadiusWG : boidWG;
       const passes = [
         [clearPipe,   gridWG],
         [assignPipe,  boidWG],
         [prefixPipe,  1],
         [scatterPipe, boidWG],
-        [activeFlock, boidWG],
+        [activeFlock, flockWG],
       ];
       for (const [pipeline, wg] of passes) {
         const p = encoder.beginComputePass();
