@@ -525,6 +525,26 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i] = boid;
 }
 
+// === In-place drift: only update pos+vel, skip full struct copy ===
+@compute @workgroup_size(256)
+fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  var pos = boids_src[i].pos;
+  var vel = boids_src[i].vel;
+  vel.y -= 0.03 + pos.y * 0.03;
+  let drift_scaled_pos = pos * vec3f(1.0, 2.5, 1.0);
+  let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
+  let r = params.sphere_radius;
+  let threshold = r - r * 0.15;
+  if (center_d2 > threshold * threshold) {
+    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
+    vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
+  }
+  boids_src[i].pos = pos + vel * params.dt;
+  boids_src[i].vel = vel;
+}
+
 // === Auto-range stats ===
 @group(1) @binding(0) var<storage, read_write> stats: array<atomic<u32>, 2>;
 

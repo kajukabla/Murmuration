@@ -181,6 +181,7 @@ export async function createSimulation(device, {
   const flockPipe   = pipe('flock');         // topological K-nearest
   const flockRadiusPipe = pipe('flock_radius'); // classic radius-based (linked-list grid)
   const driftPipe = pipe('drift');              // drift-only (odd frames)
+  const driftInplacePipe = pipe('drift_inplace'); // in-place drift (no ping-pong)
   const clearLinkedPipe = pipe('clear_grid_linked');
   const assignLinkedPipe = pipe('assign_linked');
 
@@ -295,12 +296,14 @@ export async function createSimulation(device, {
           p.end();
         }
       } else {
-        // Drift: just advance positions
+        // Drift in-place: only update pos+vel in current buffer, no ping-pong
         const p = encoder.beginComputePass();
-        p.setPipeline(driftPipe);
+        p.setPipeline(driftInplacePipe);
         p.setBindGroup(0, bg);
         p.dispatchWorkgroups(driftWG);
         p.end();
+        // Don't increment step — buffer stays the same
+        return;
       }
 
       // Only compute stats on the last step of the frame (avoids races with multi-step)
