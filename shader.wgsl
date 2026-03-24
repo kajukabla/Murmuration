@@ -436,11 +436,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
-  // Minimal output: set only essential fields (rest zero-initialized by var)
-  var out: Boid;
-  out.pos = boid.pos + new_vel * params.dt;
-  out.vel = new_vel;
-  boids_dst[i] = out;
+  // Direct constructor output
+  boids_dst[i] = Boid(boid.pos + new_vel * params.dt, 0.0, new_vel, 0.0, vec3f(0.0), 0.0, 0.0, 0.0, 0.0, 0.0);
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
