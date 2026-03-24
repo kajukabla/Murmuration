@@ -39,7 +39,7 @@ export async function createSimulation(device, {
 
   function writeParams(p) {
     // Clamp visual range to what the 3x3x3 grid search can cover
-    const maxRange = cellSize * 0.8; // very tight clamp: reduce neighbor candidates
+    const maxRange = cellSize * 1.0; // tight clamp: only within own cell radius
     const vr = Math.min(p.visualRange, maxRange);
     f[5]  = vr;
     f[6]  = vr * vr;
@@ -183,7 +183,6 @@ export async function createSimulation(device, {
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
-  const flockRadiusWG = boidWG; // flock_radius uses workgroup_size(64), same as WORKGROUP_SIZE
 
   // --- Auto-range stats ---
   const statsBuf = device.createBuffer({
@@ -250,13 +249,12 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
       const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
-      const flockWG = neighborMode === 1 ? flockRadiusWG : boidWG;
       const passes = [
         [clearPipe,   gridWG],
         [assignPipe,  boidWG],
         [prefixPipe,  1],
         [scatterPipe, boidWG],
-        [activeFlock, flockWG],
+        [activeFlock, boidWG],
       ];
       for (const [pipeline, wg] of passes) {
         const p = encoder.beginComputePass();

@@ -301,7 +301,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Classic Radius-Based Flocking (high performance, simpler behavior) ===
-@compute @workgroup_size(128)
+@compute @workgroup_size(64)
 fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
@@ -383,6 +383,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
   boids_dst[i].size_factor = boid.size_factor;
+  boids_dst[i].heading = final_dir;
 }
 
 // === Auto-range stats ===
