@@ -440,13 +440,12 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.z += cos(wind_angle) * 2.0;
 
   // Bulk struct write (no speed clamp — alignment naturally limits speed)
-  let spd_sq = dot(new_vel, new_vel);
   var out: Boid;
   out.pos = boid.pos + new_vel * params.dt;
   out.vel = new_vel;
   out.size_factor = boid.size_factor;
-  out.heading = new_vel * inverseSqrt(max(spd_sq, 0.0001));
-  out.speed = max_spd;
+  out.heading = new_vel;
+  out.speed = 1.0;
   out.neighbor_count = 6.0;
   out.dir_change = 0.0;
   out.flock_alignment = 1.0;
