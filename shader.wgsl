@@ -432,7 +432,8 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   let desired_speed = length(new_vel);
   var desired_dir = select(old_dir, new_vel / desired_speed, desired_speed > 0.001);
   let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
-  var final_speed = clamp(mix(old_speed, desired_speed, 0.15), params.min_speed, params.max_speed);
+  let drag_scale_r = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
+  var final_speed = clamp(mix(old_speed, desired_speed, 0.15), params.min_speed * drag_scale_r, params.max_speed * drag_scale_r);
   new_vel = final_dir * final_speed;
 
   var out: Boid;
