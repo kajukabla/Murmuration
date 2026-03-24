@@ -417,27 +417,21 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Early-exit for boundary boids (skip neighbor search)
-  let boid_d2 = dot(boid.pos, boid.pos);
-  let skip_neighbors = boid_d2 > params.sphere_radius * params.sphere_radius * 0.7;
-
-  if (!skip_neighbors) {
-    // Walk linked list for own cell
-    let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
-    var j = atomicLoad(&cell_counts[my_ci]);
-    for (var k = 0u; k < 8u && j != 0xFFFFFFFFu; k++) {
-      if (j != i) {
-        let other_pos = boids_src[j].pos;
-        let diff = boid.pos - other_pos;
-        let d2 = dot(diff, diff);
-        ali += boids_src[j].vel;
-        coh += other_pos;
-        n_align += 1u;
-        let in_sep = f32(d2 < params.separation_dist_sq);
-        sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
-      }
-      j = boid_cells[j];
+  // Walk linked list for own cell (cell_counts used as cell_heads, boid_cells as next pointers)
+  let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
+  var j = atomicLoad(&cell_counts[my_ci]);
+  for (var k = 0u; k < 8u && j != 0xFFFFFFFFu; k++) {
+    if (j != i) {
+      let other_pos = boids_src[j].pos;
+      let diff = boid.pos - other_pos;
+      let d2 = dot(diff, diff);
+      ali += boids_src[j].vel;
+      coh += other_pos;
+      n_align += 1u;
+      let in_sep = f32(d2 < params.separation_dist_sq);
+      sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
     }
+    j = boid_cells[j];
   }
 
   var new_vel = boid.vel;
