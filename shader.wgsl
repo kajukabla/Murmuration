@@ -379,34 +379,31 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
-// Process 2 boids per thread to reduce dispatch overhead
 @compute @workgroup_size(128)
 fn drift(@builtin(global_invocation_id) id: vec3u) {
-  let base = id.x * 2u;
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  let boid = boids_src[i];
+  var vel = boid.vel;
+  // Boundary steering on drift frames prevents boids escaping sphere
+  let center_d2 = dot(boid.pos, boid.pos);
   let r = params.sphere_radius;
   let threshold = r - r * 0.15;
-  let thresh_sq = threshold * threshold;
-  for (var k = 0u; k < 2u; k++) {
-    let i = base + k;
-    if (i >= params.num_boids) { return; }
-    let boid = boids_src[i];
-    var vel = boid.vel;
-    let center_d2 = dot(boid.pos, boid.pos);
-    if (center_d2 > thresh_sq) {
-      let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-      vel -= boid.pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
-    }
-    boids_dst[i].pos = boid.pos + vel * params.dt;
-    boids_dst[i].vel = vel;
-    boids_dst[i].size_factor = boid.size_factor;
-    boids_dst[i].heading = boid.heading;
-    boids_dst[i].speed = boid.speed;
-    boids_dst[i].neighbor_count = boid.neighbor_count;
-    boids_dst[i].dir_change = boid.dir_change;
-    boids_dst[i].flock_alignment = boid.flock_alignment;
-    boids_dst[i].sep_pressure = boid.sep_pressure;
-    boids_dst[i].density = boid.density;
+  if (center_d2 > threshold * threshold) {
+    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
+    vel -= boid.pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
   }
+  boids_dst[i].pos = boid.pos + vel * params.dt;
+  boids_dst[i].vel = vel;
+  boids_dst[i].size_factor = boid.size_factor;
+  // Copy heading + viz from src (drift frames skip recomputation)
+  boids_dst[i].heading = boid.heading;
+  boids_dst[i].speed = boid.speed;
+  boids_dst[i].neighbor_count = boid.neighbor_count;
+  boids_dst[i].dir_change = boid.dir_change;
+  boids_dst[i].flock_alignment = boid.flock_alignment;
+  boids_dst[i].sep_pressure = boid.sep_pressure;
+  boids_dst[i].density = boid.density;
 }
 
 // === Auto-range stats ===
