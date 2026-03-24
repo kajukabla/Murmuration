@@ -648,7 +648,7 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
 
   // Only every 3rd boid contributes to counting and other stats
   // This effectively triples the vc average (sum/count ratio)
-  let counted = (i % 50u) == 0u;
+  let counted = (i % 200u) == 0u;
   if (counted) {
     if (boid.neighbor_count >= 5.0) {
       atomicAdd(&metrics[0], 1u);
