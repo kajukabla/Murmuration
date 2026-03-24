@@ -510,8 +510,9 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   if (i >= params.num_boids) { return; }
   let boid = boids_src[i];
   var vel = boid.vel;
-  // Gravity on drift frames too (flattens flock shape)
+  // Gravity + Y-damping on drift frames (flattens flock into oblate shape)
   vel.y -= 0.03;
+  vel.y *= 0.92;
   // Boundary steering on drift frames prevents boids escaping sphere
   let center_d2 = dot(boid.pos, boid.pos);
   let r = params.sphere_radius;
