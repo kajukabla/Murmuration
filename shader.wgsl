@@ -439,19 +439,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
-  // Ellipsoidal boundary — oblate (Y compressed 2x) for higher aspect ratio
-  let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
-  let center_d2 = dot(scaled_pos, scaled_pos);
-  let r = params.sphere_radius;
-  let threshold = r - r * 0.15;
-  if (center_d2 > threshold * threshold) {
-    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-    let dist = center_d2 * inv_dist;
-    let penetration = (dist - threshold) / (r * 0.15);
-    new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
-  }
-
-  // Speed clamp (no turn rate limiter — saves 2x length + normalize + mix)
+  // Speed clamp (boundary handled by drift kernel)
   let spd_sq = dot(new_vel, new_vel);
   let max_spd = params.max_speed;
   if (spd_sq > max_spd * max_spd) {
