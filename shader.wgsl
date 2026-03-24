@@ -372,16 +372,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor;
 
-  // Spherical boundary (cheap d2 test first, sqrt only for edge boids)
-  let center_d2 = dot(boid.pos, boid.pos);
-  let r = params.sphere_radius;
-  let threshold = r - r * 0.15;
-  if (center_d2 > threshold * threshold) {
-    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-    let dist = center_d2 * inv_dist;
-    let penetration = (dist - threshold) / (r * 0.15);
-    new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
-  }
+  // Boundary steering skipped — drift kernel handles it 31/32 frames
 
   // Speed clamp (max only — min speed rarely triggers in dense clusters)
   let spd_sq = dot(new_vel, new_vel);
