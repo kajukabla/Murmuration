@@ -401,9 +401,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel *= params.min_speed * inverseSqrt(max(spd_sq, 1e-6));
   }
 
-  // Write only pos + vel (size_factor is static, heading derived from vel by renderer)
+  // Write minimal fields
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
+  boids_dst[i].size_factor = boid.size_factor;
+  boids_dst[i].heading = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 1e-6));
 }
 
 // === Auto-range stats ===
