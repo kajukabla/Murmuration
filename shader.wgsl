@@ -429,26 +429,44 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var n_align = 0u;
 
   let mg = vec3i(get_cell(boid.pos));
-  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
+  let gs = i32(params.grid_size);
 
-  // Walk linked list — prefetch next pointer before reading data
+  // Walk linked lists: own cell + one random neighbor cell
   var sep = vec3f(0.0);
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
-  var j = atomicLoad(&cell_counts[my_ci]);
-  for (var iter = 0u; iter < 4u; iter++) {
-    if (j == 0xFFFFFFFFu) { break; }
-    let next = boid_cells[j];
-    if (j != i) {
-      let opos = boids_src[j].pos;
-      let diff = boid.pos - opos;
-      let d2 = dot(diff, diff);
-      if (d2 < params.visual_range_sq) {
-        coh += opos; ali += boids_src[j].vel; n_align += 1u;
-        let in_sep = f32(d2 < params.separation_dist_sq);
-        sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+
+  // Hash to pick a neighbor direction
+  let dir_hash = (i * 2654435761u + params.frame_count * 2246822519u) % 6u;
+  let offsets = array<vec3i, 6>(
+    vec3i(1, 0, 0), vec3i(-1, 0, 0),
+    vec3i(0, 1, 0), vec3i(0, -1, 0),
+    vec3i(0, 0, 1), vec3i(0, 0, -1)
+  );
+  let neighbor_cell = clamp(mg + offsets[dir_hash], vec3i(0), vec3i(gs - 1));
+
+  // Search own cell and one neighbor
+  for (var cell_idx = 0u; cell_idx < 2u; cell_idx++) {
+    let ci = select(
+      cell_index(vec3u(neighbor_cell)),
+      u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size,
+      cell_idx == 0u
+    );
+    var j = atomicLoad(&cell_counts[ci]);
+    for (var iter = 0u; iter < 2u; iter++) {
+      if (j == 0xFFFFFFFFu) { break; }
+      let next = boid_cells[j];
+      if (j != i) {
+        let opos = boids_src[j].pos;
+        let diff = boid.pos - opos;
+        let d2 = dot(diff, diff);
+        if (d2 < params.visual_range_sq) {
+          coh += opos; ali += boids_src[j].vel; n_align += 1u;
+          let in_sep = f32(d2 < params.separation_dist_sq);
+          sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+        }
       }
+      j = next;
     }
-    j = next;
   }
 
   // Combined alignment + cohesion + separation in single pass
