@@ -250,8 +250,8 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
 
-      // Odd frames: drift-only (skip grid+flock, halve compute cost)
-      if (frameCount % 2 === 0) {
+      // Drift-only on 2 of every 3 frames (1/3 compute cost)
+      if (frameCount % 3 !== 0) {
         const p = encoder.beginComputePass();
         p.setPipeline(driftPipe);
         p.setBindGroup(0, bg);
