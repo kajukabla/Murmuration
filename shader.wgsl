@@ -500,8 +500,8 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   let boid = boids_src[i];
   var vel = boid.vel;
   // Gravity + Y-spring on drift frames (flattens flock shape)
-  vel.y -= 0.05;
-  vel.y -= boid.pos.y * 0.04;
+  vel.y -= 0.03;
+  vel.y -= boid.pos.y * 0.03;
   // Horizontal wind in drift (matches flock)
   let drift_wind_angle = f32(params.frame_count) * 0.005;
   vel.x += sin(drift_wind_angle) * 0.5;
