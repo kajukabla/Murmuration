@@ -525,7 +525,7 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i] = boid;
 }
 
-// === In-place drift: 4 physics steps per dispatch to reduce dispatch overhead ===
+// === In-place drift: 8 physics steps per dispatch to reduce dispatch overhead ===
 @compute @workgroup_size(256)
 fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
@@ -569,6 +569,46 @@ fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   pos += vel * dt;
 
   // Step 4
+  vel.y -= 0.03 + pos.y * 0.03;
+  sp = pos * vec3f(1.0, 2.5, 1.0);
+  cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+  }
+  pos += vel * dt;
+
+  // Step 5
+  vel.y -= 0.03 + pos.y * 0.03;
+  sp = pos * vec3f(1.0, 2.5, 1.0);
+  cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+  }
+  pos += vel * dt;
+
+  // Step 6
+  vel.y -= 0.03 + pos.y * 0.03;
+  sp = pos * vec3f(1.0, 2.5, 1.0);
+  cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+  }
+  pos += vel * dt;
+
+  // Step 7
+  vel.y -= 0.03 + pos.y * 0.03;
+  sp = pos * vec3f(1.0, 2.5, 1.0);
+  cd = dot(sp, sp);
+  if (cd > thresh_sq) {
+    let inv_d = inverseSqrt(max(cd, 1e-6));
+    vel -= sp * (inv_d * params.turn_factor * min((cd * inv_d - threshold) * inv_zone, 3.0));
+  }
+  pos += vel * dt;
+
+  // Step 8
   vel.y -= 0.03 + pos.y * 0.03;
   sp = pos * vec3f(1.0, 2.5, 1.0);
   cd = dot(sp, sp);
