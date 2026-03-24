@@ -180,6 +180,7 @@ export async function createSimulation(device, {
   const scatterPipe = pipe('scatter');
   const flockPipe   = pipe('flock');         // topological K-nearest
   const flockRadiusPipe = pipe('flock_radius'); // classic radius-based
+  const driftPipe = pipe('drift');              // drift-only (odd frames)
 
   const gridWG = Math.ceil(GRID_CELLS / WORKGROUP_SIZE);
   const boidWG = Math.ceil(numBoids / WORKGROUP_SIZE);
@@ -248,20 +249,30 @@ export async function createSimulation(device, {
       }
 
       const bg = step % 2 === 0 ? bgA : bgB;
-      const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
-      const passes = [
-        [clearPipe,   gridWG],
-        [assignPipe,  boidWG],
-        [prefixPipe,  1],
-        [scatterPipe, boidWG],
-        [activeFlock, boidWG],
-      ];
-      for (const [pipeline, wg] of passes) {
+
+      // Odd frames: drift-only (skip grid+flock, halve compute cost)
+      if (frameCount % 2 === 0) {
         const p = encoder.beginComputePass();
-        p.setPipeline(pipeline);
+        p.setPipeline(driftPipe);
         p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(wg);
+        p.dispatchWorkgroups(boidWG);
         p.end();
+      } else {
+        const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
+        const passes = [
+          [clearPipe,   gridWG],
+          [assignPipe,  boidWG],
+          [prefixPipe,  1],
+          [scatterPipe, boidWG],
+          [activeFlock, boidWG],
+        ];
+        for (const [pipeline, wg] of passes) {
+          const p = encoder.beginComputePass();
+          p.setPipeline(pipeline);
+          p.setBindGroup(0, bg);
+          p.dispatchWorkgroups(wg);
+          p.end();
+        }
       }
 
       // Only compute stats on the last step of the frame (avoids races with multi-step)
