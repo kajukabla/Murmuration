@@ -525,23 +525,39 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   boids_dst[i] = boid;
 }
 
-// === In-place drift: only update pos+vel, skip full struct copy ===
+// === In-place drift: 2 physics steps per dispatch to halve memory traffic ===
 @compute @workgroup_size(256)
 fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
   var pos = boids_src[i].pos;
   var vel = boids_src[i].vel;
-  vel.y -= 0.03 + pos.y * 0.03;
-  let drift_scaled_pos = pos * vec3f(1.0, 2.5, 1.0);
-  let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
+  let dt = params.dt;
   let r = params.sphere_radius;
   let threshold = r - r * 0.15;
-  if (center_d2 > threshold * threshold) {
-    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-    vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
+  let inv_zone = 1.0 / (r * 0.15);
+
+  // Step 1
+  vel.y -= 0.03 + pos.y * 0.03;
+  let sp1 = pos * vec3f(1.0, 2.5, 1.0);
+  let cd1 = dot(sp1, sp1);
+  if (cd1 > threshold * threshold) {
+    let inv_d = inverseSqrt(max(cd1, 1e-6));
+    vel -= sp1 * (inv_d * params.turn_factor * min((cd1 * inv_d - threshold) * inv_zone, 3.0));
   }
-  boids_src[i].pos = pos + vel * params.dt;
+  pos += vel * dt;
+
+  // Step 2
+  vel.y -= 0.03 + pos.y * 0.03;
+  let sp2 = pos * vec3f(1.0, 2.5, 1.0);
+  let cd2 = dot(sp2, sp2);
+  if (cd2 > threshold * threshold) {
+    let inv_d = inverseSqrt(max(cd2, 1e-6));
+    vel -= sp2 * (inv_d * params.turn_factor * min((cd2 * inv_d - threshold) * inv_zone, 3.0));
+  }
+  pos += vel * dt;
+
+  boids_src[i].pos = pos;
   boids_src[i].vel = vel;
 }
 
