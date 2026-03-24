@@ -451,7 +451,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var new_vel = boid.vel;
   if (n_align > 0u) {
     let inv_n = 1.0 / f32(n_align);
-    new_vel += (ali * inv_n - boid.vel) * (params.align_factor * 12.0) + (coh * inv_n - boid.pos) * (params.cohesion_factor * 16.0);
+    new_vel += (ali * inv_n - boid.vel) * (params.align_factor * 8.0) + (coh * inv_n - boid.pos) * (params.cohesion_factor * 12.0);
     new_vel += sep * params.separation_factor;
   }
 
