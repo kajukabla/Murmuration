@@ -440,8 +440,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor;
 
-  // Gentle gravity — flattens flock into oblate shape (increases aspect ratio)
-  new_vel.y -= 0.03;
+  // Strong gravity — flattens flock into oblate shape (increases aspect ratio)
+  new_vel.y -= 0.25;
 
   // Rare perturbation (~7% of boids) — drives dynamics and shape change
   let linked_perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
@@ -510,6 +510,8 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   if (i >= params.num_boids) { return; }
   let boid = boids_src[i];
   var vel = boid.vel;
+  // Gravity on drift frames too (flattens flock shape)
+  vel.y -= 0.03;
   // Boundary steering on drift frames prevents boids escaping sphere
   let center_d2 = dot(boid.pos, boid.pos);
   let r = params.sphere_radius;
