@@ -450,6 +450,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   // Iteration 6
   if (j != 0xFFFFFFFFu) {
     if (j != i) { let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq); }
+    j = boid_cells[j];
+  }
+  // Iteration 7
+  if (j != 0xFFFFFFFFu) {
+    if (j != i) { let op = boids_src[j].pos; let df = boid.pos - op; let d = dot(df, df); ali += boids_src[j].vel; coh += op; n_align += 1u; sep += df * (1.0 - d * inv_sep_d2) * f32(d < params.separation_dist_sq); }
   }
 
   var new_vel = boid.vel;
@@ -515,7 +520,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     real_align = raw_corr / max(norm, 0.001);
     // Boost by neighbor density: more neighbors = higher confidence
     real_align = max(real_align, 0.0);
-    real_align *= (1.0 + f32(n_align) * 23.0);
+    real_align *= (1.0 + f32(n_align) * 19.0);
     let ra2 = real_align * real_align;
     let ra4 = ra2 * ra2;
     let ra8 = ra4 * ra4;
