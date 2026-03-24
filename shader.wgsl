@@ -255,6 +255,12 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     let avg_pos = coh / nf;
     new_vel += (avg_vel - boid.vel) * params.align_factor;
     new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
+    // Slight perpendicular push from nearest neighbor creates swirling
+    if (n_found >= 2u) {
+      let to_nearest = nearest_pos[closest_k] - boid.pos;
+      let perp = cross(normalize(boid.vel + vec3f(0.001, 0.0, 0.0)), to_nearest);
+      new_vel += normalize(perp + vec3f(0.001, 0.0, 0.0)) * 0.1;
+    }
   }
 
   // === Emergent murmuration forces ===
