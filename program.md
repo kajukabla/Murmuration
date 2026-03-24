@@ -9,7 +9,7 @@ Current baseline: **291,000 boids** (browser-measured, clustered steady state).
 2. Pick ONE compute optimization
 3. Edit the file(s)
 4. `git add shader.wgsl simulation.js && git commit -m "experiment: <description>"`
-5. Run: `python3 evaluate.py`
+5. Run: `python3 evaluate.py 2>/dev/null`
 6. Parse the last line for `max_boids: NNNNN`
 7. If max_boids > previous best → KEEP, append to `results_perf.tsv`
 8. If max_boids ≤ previous best → `git revert --no-edit HEAD`, append to `results_perf.tsv`
