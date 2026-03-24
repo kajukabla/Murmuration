@@ -257,9 +257,9 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
 
-      // 2-tier: grid+flock 1/16, drift 15/16
-      const mod16 = frameCount % 16;
-      if (mod16 === 0) {
+      // 2-tier: grid+flock 1/32, drift 31/32
+      const mod32 = frameCount % 32;
+      if (mod32 === 0) {
         // Full frame: rebuild grid + flock
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
         const flockDispatch = neighborMode === 1 ? flockRadiusWG : flockWG;
