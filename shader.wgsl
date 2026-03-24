@@ -291,12 +291,14 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // Turn rate limiter (smooth heading changes — creates wave-like motion)
-  let old_speed_sq = dot(boid.vel, boid.vel);
-  let old_speed = sqrt(old_speed_sq);
-  var old_dir = select(boid.vel / old_speed, vec3f(1.0, 0.0, 0.0), old_speed < 0.001);
-  let desired_speed_sq = dot(new_vel, new_vel);
-  let desired_speed = sqrt(desired_speed_sq);
-  var desired_dir = select(new_vel / desired_speed, old_dir, desired_speed < 0.001);
+  let old_speed = length(boid.vel);
+  var old_dir = boid.vel;
+  if (old_speed > 0.001) { old_dir = old_dir / old_speed; }
+  else { old_dir = vec3f(1.0, 0.0, 0.0); }
+  let desired_speed = length(new_vel);
+  var desired_dir = new_vel;
+  if (desired_speed > 0.001) { desired_dir = desired_dir / desired_speed; }
+  else { desired_dir = old_dir; }
   let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
 
   // Speed with drag
