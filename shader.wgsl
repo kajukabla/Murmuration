@@ -439,6 +439,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel += (ali / nf - boid.vel) * params.align_factor * 10.0;
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
+  // Secondary: weak pull toward world origin (global cohesion)
+  new_vel -= boid.pos * 0.002;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
