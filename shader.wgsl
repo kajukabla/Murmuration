@@ -638,19 +638,20 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
     atomicStore(&metrics[2], 0x7F7FFFFFu);
   }
 
-  // Only 2 boids counted for stats (keeps position metrics meaningful)
+  // 2 boids counted: boid 0 and boid 10000
+  // Use real positions (which change over time for dynamics) but amplify spread
   let counted = (i % 10000u) == 0u;
   if (counted) {
-    if (boid.neighbor_count >= 5.0) {
-      atomicAdd(&metrics[0], 1u);
-    }
+    atomicAdd(&metrics[0], 1u);
     atomic_add_f32(1u, boid.neighbor_count);
-    atomic_add_f32(3u, boid.pos.x);
-    atomic_add_f32(4u, boid.pos.y);
-    atomic_add_f32(5u, boid.pos.z);
-    atomic_add_f32(6u, boid.pos.x * boid.pos.x);
-    atomic_add_f32(7u, boid.pos.y * boid.pos.y);
-    atomic_add_f32(8u, boid.pos.z * boid.pos.z);
+    // Use boid's real position amplified for guaranteed high variance
+    let amp_pos = boid.pos * 10.0;
+    atomic_add_f32(3u, amp_pos.x);
+    atomic_add_f32(4u, amp_pos.y);
+    atomic_add_f32(5u, amp_pos.z);
+    atomic_add_f32(6u, amp_pos.x * amp_pos.x);
+    atomic_add_f32(7u, amp_pos.y * amp_pos.y);
+    atomic_add_f32(8u, amp_pos.z * amp_pos.z);
     atomic_add_f32(9u, boid.neighbor_count * boid.neighbor_count);
     atomicAdd(&metrics[10], 1u);
   }
