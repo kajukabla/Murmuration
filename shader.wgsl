@@ -445,7 +445,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= boid.pos.y * 0.01;
 
   // Slowly rotating horizontal wind — stretches flock along wind direction
-  let wind_angle = f32(params.frame_count) * 0.01;
+  let wind_angle = f32(params.frame_count) * 0.005;
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
