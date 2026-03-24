@@ -188,8 +188,8 @@ function encodeFrame(encoder: GPUCommandEncoder, step: number) {
 
   const bg = step % 2 === 0 ? bgA : bgB;
 
-  // 2-tier schedule: grid+flock_radius 1/8, drift 7/8 (matches simulation.js)
-  if (step % 8 === 0) {
+  // 2-tier schedule: grid+flock_radius 1/12, drift 11/12 (matches simulation.js)
+  if (step % 12 === 0) {
     for (const [pipe, wg] of [[clearPipe, gridWG], [assignPipe, boidWG], [prefixPipe, 1], [scatterPipe, boidWG], [flockRadiusPipe, boidWG]] as [GPUComputePipeline, number][]) {
       const p = encoder.beginComputePass();
       p.setPipeline(pipe);
