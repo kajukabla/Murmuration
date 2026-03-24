@@ -515,10 +515,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let drag = 1.0 / mix(1.0, boid.size_factor, params.drag_factor);
   new_vel *= 0.995 * drag;
 
-  // Rotating horizontal wind — faster rotation for more visual movement
-  let wind_angle = f32(params.frame_count) * 0.01;
-  new_vel.x += sin(wind_angle) * 3.0;
-  new_vel.z += cos(wind_angle) * 3.0;
+  // Dual wind layers: fast primary + slow secondary for complex motion
+  let wa1 = f32(params.frame_count) * 0.01;
+  let wa2 = f32(params.frame_count) * 0.003;
+  new_vel.x += sin(wa1) * 2.5 + sin(wa2) * 1.5;
+  new_vel.z += cos(wa1) * 2.5 + cos(wa2) * 1.5;
 
   // Ellipsoidal boundary (oblate — compressed vertically for flat flock shape)
   let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0); // Y compressed
