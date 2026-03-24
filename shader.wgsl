@@ -411,12 +411,13 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let mg = vec3i(get_cell(boid.pos));
   let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  // Walk linked list — loop with cap 3
+  // Walk linked list — prefetch next pointer before reading data
   var j = atomicLoad(&cell_counts[my_ci]);
   for (var iter = 0u; iter < 3u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
+    let next = boid_cells[j];  // prefetch next before reading boid data
     ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
-    j = boid_cells[j];
+    j = next;
   }
 
   var new_vel = boid.vel;
