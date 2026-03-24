@@ -425,21 +425,13 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
   }
 
+  // Pure alignment only
   var new_vel = boid.vel;
-  let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * 12.0;
-  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  if (n_align > 0u) {
+    new_vel += (ali / f32(n_align) - boid.vel) * params.align_factor * 12.0;
+  }
 
-  // Gravity + Y-spring: compresses flock toward horizontal plane
-  new_vel.y -= 0.25;
-  new_vel.y -= boid.pos.y * 0.03;
-
-  // Slowly rotating horizontal wind — stretches flock along wind direction
-  let wind_angle = f32(params.frame_count) * 0.005;
-  new_vel.x += sin(wind_angle) * 2.0;
-  new_vel.z += cos(wind_angle) * 2.0;
-
-  // Bulk struct write (skip normalize — heading used only for rendering)
+  // Bulk struct write
   var out: Boid;
   out.pos = boid.pos + new_vel * params.dt;
   out.vel = new_vel;
