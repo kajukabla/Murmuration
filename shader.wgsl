@@ -145,7 +145,7 @@ fn scatter(@builtin(global_invocation_id) id: vec3u) {
 
 const K_NEIGHBORS: u32 = 7u;
 
-@compute @workgroup_size(64)
+@compute @workgroup_size(128)
 fn flock(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
@@ -171,8 +171,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   let lo = max(mg - vec3i(1), vec3i(0));
   let hi = min(mg + vec3i(1), vec3i(gs - 1));
 
-  var total_candidates = 0u;
-
   for (var nz = lo.z; nz <= hi.z; nz++) {
     let zoff = u32(nz) * params.grid_size * params.grid_size;
     for (var ny = lo.y; ny <= hi.y; ny++) {
@@ -193,8 +191,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 
           // Pre-filter by visual range before K-nearest sort
           if (d2 > params.visual_range_sq) { continue; }
-
-          total_candidates++;
 
           // Insert into sorted K-nearest if closer than current worst
           if (d2 < nearest_d2[K_NEIGHBORS - 1u]) {
