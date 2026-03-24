@@ -408,8 +408,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var coh = vec3f(0.0);
   var n_align = 0u;
 
-  let mg = vec3i(get_cell(boid.pos));
-  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
+  // Inline cell index (multiply by reciprocal instead of divide)
+  let half = params.world_size * 0.5;
+  let inv_cs = 1.0 / params.cell_size;
+  let gc = clamp(vec3u(vec3i(floor((boid.pos + vec3f(half)) * inv_cs))), vec3u(0u), vec3u(params.grid_size - 1u));
+  let my_ci = gc.x + gc.y * params.grid_size + gc.z * params.grid_size * params.grid_size;
 
   // Walk linked list for own cell — unrolled 3 iterations, no self-check, no separation
   var j = atomicLoad(&cell_counts[my_ci]);
