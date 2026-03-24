@@ -434,10 +434,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= 0.25;
   new_vel.y -= boid.pos.y * 0.03;
 
-  // Horizontal wind (cheap linear ramp instead of sin/cos)
-  let wa = f32(params.frame_count & 255u) * (1.0 / 128.0) - 1.0;
-  new_vel.x += wa * 2.0;
-  new_vel.z += (1.0 - abs(wa)) * 2.0;
+  // Slowly rotating horizontal wind — stretches flock along wind direction
+  let wind_angle = f32(params.frame_count) * 0.005;
+  new_vel.x += sin(wind_angle) * 2.0;
+  new_vel.z += cos(wind_angle) * 2.0;
 
   // Bulk struct write (skip normalize — heading used only for rendering)
   var out: Boid;
