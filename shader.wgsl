@@ -372,26 +372,35 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor;
 
-  // Boundary steering skipped — drift kernel handles it 31/32 frames
+  // Gravity for visual quality
+  new_vel.y -= 0.03;
 
-  // Speed clamp (max only — min speed rarely triggers in dense clusters)
-  let spd_sq = dot(new_vel, new_vel);
-  let max_spd = params.max_speed;
-  if (spd_sq > max_spd * max_spd) {
-    new_vel *= max_spd * inverseSqrt(spd_sq);
+  // Spherical boundary
+  let dist = length(boid.pos);
+  let r = params.sphere_radius;
+  if (dist > r * 0.85 && dist > 0.001) {
+    new_vel -= normalize(boid.pos) * params.turn_factor * min((dist - r * 0.85) / (r * 0.15), 3.0);
   }
 
-  // Bulk struct write: single coalesced store instead of 10+ individual field writes
+  // Turn rate limiter for smooth heading
+  let old_speed = length(boid.vel);
+  var old_dir = select(vec3f(1.0, 0.0, 0.0), boid.vel / old_speed, old_speed > 0.001);
+  let desired_speed = length(new_vel);
+  var desired_dir = select(old_dir, new_vel / desired_speed, desired_speed > 0.001);
+  let final_dir = normalize(mix(old_dir, desired_dir, params.smoothing));
+  var final_speed = clamp(mix(old_speed, desired_speed, 0.15), params.min_speed, params.max_speed);
+  new_vel = final_dir * final_speed;
+
   var out: Boid;
   out.pos = boid.pos + new_vel * params.dt;
   out.vel = new_vel;
   out.size_factor = boid.size_factor;
-  out.heading = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
-  out.speed = max_spd;
+  out.heading = final_dir;
+  out.speed = final_speed;
   out.neighbor_count = f32(n_align);
-  out.dir_change = 0.0;
+  out.dir_change = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
   out.flock_alignment = 1.0;
-  out.sep_pressure = 0.0;
+  out.sep_pressure = length(sep);
   out.density = f32(n_align) * 0.125;
   boids_dst[i] = out;
 }
