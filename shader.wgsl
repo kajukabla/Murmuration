@@ -411,6 +411,13 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= normalize(scaled_pos_r) * vec3f(1.0, 2.5, 1.0) * params.turn_factor * min((dist - r * 0.85) / (r * 0.15), 3.0);
   }
 
+  // Dual wind layers (matching flock_radius_linked)
+  let wa1_r = f32(params.frame_count) * 0.01;
+  let wa2_r = f32(params.frame_count) * 0.003;
+  new_vel.x += sin(wa1_r) * 1.0 + sin(wa2_r) * 0.5;
+  new_vel.y += sin(wa2_r * 1.7) * 0.2;
+  new_vel.z += cos(wa1_r) * 1.0 + cos(wa2_r) * 0.5;
+
   // Turn rate limiter for smooth heading
   let old_speed = length(boid.vel);
   var old_dir = select(vec3f(1.0, 0.0, 0.0), boid.vel / old_speed, old_speed > 0.001);
