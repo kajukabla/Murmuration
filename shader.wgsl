@@ -413,7 +413,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   // Walk linked list — prefetch next pointer before reading data
   var j = atomicLoad(&cell_counts[my_ci]);
-  for (var iter = 0u; iter < 3u; iter++) {
+  for (var iter = 0u; iter < 6u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
     let next = boid_cells[j];  // prefetch next before reading boid data
     ali += boids_src[j].vel; coh += boids_src[j].pos; n_align += 1u;
