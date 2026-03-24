@@ -500,8 +500,17 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
+var<workgroup> drift_wind: vec2f; // shared sin/cos of wind angle
+
 @compute @workgroup_size(128)
-fn drift(@builtin(global_invocation_id) id: vec3u) {
+fn drift(@builtin(global_invocation_id) id: vec3u, @builtin(local_invocation_index) lid: u32) {
+  // Compute wind sin/cos once per workgroup
+  if (lid == 0u) {
+    let drift_wind_angle = f32(params.frame_count) * 0.005;
+    drift_wind = vec2f(sin(drift_wind_angle), cos(drift_wind_angle));
+  }
+  workgroupBarrier();
+
   let i = id.x;
   if (i >= params.num_boids) { return; }
   let boid = boids_src[i];
@@ -510,9 +519,8 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   vel.y -= 0.03;
   vel.y -= boid.pos.y * 0.03;
   // Horizontal wind in drift (matches flock)
-  let drift_wind_angle = f32(params.frame_count) * 0.005;
-  vel.x += sin(drift_wind_angle) * 0.5;
-  vel.z += cos(drift_wind_angle) * 0.5;
+  vel.x += drift_wind.x * 0.5;
+  vel.z += drift_wind.y * 0.5;
   // Ellipsoidal boundary on drift (matches flock_radius_linked)
   let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
