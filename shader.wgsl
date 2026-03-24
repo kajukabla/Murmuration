@@ -435,15 +435,19 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var sep = vec3f(0.0);
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
   var j = atomicLoad(&cell_counts[my_ci]);
-  for (var iter = 0u; iter < 3u; iter++) {
+  for (var iter = 0u; iter < 4u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
     let next = boid_cells[j];
-    let opos = boids_src[j].pos;
-    let diff = boid.pos - opos;
-    let d2 = dot(diff, diff);
-    coh += opos; ali += boids_src[j].vel; n_align += 1u;
-    let in_sep = f32(d2 < params.separation_dist_sq);
-    sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+    if (j != i) {
+      let opos = boids_src[j].pos;
+      let diff = boid.pos - opos;
+      let d2 = dot(diff, diff);
+      if (d2 < params.visual_range_sq) {
+        coh += opos; ali += boids_src[j].vel; n_align += 1u;
+        let in_sep = f32(d2 < params.separation_dist_sq);
+        sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
+      }
+    }
     j = next;
   }
 
