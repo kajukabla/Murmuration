@@ -321,23 +321,21 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   for (var j = my_start; j < cell_end; j++) {
     let other_idx = sorted_indices[j];
     if (other_idx == i) { continue; }
-    let other_pos = boids_src[other_idx].pos;
-    let diff = boid.pos - other_pos;
+    let other = boids_src[other_idx];
+    let diff = boid.pos - other.pos;
     let d2 = dot(diff, diff);
     let in_range = f32(d2 < params.visual_range_sq);
-    ali += boids_src[other_idx].vel * in_range;
-    coh += other_pos * in_range;
+    ali += other.vel * in_range;
+    coh += other.pos * in_range;
     n_align += u32(in_range);
-    let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
+    let in_sep = f32(d2 < params.separation_dist_sq);
     sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
   }
 
   var new_vel = boid.vel;
-  if (n_align > 0u) {
-    let nf = f32(n_align);
-    new_vel += (ali / nf - boid.vel) * params.align_factor;
-    new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
-  }
+  let nf = max(f32(n_align), 1.0);
+  new_vel += (ali / nf - boid.vel) * params.align_factor;
+  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor;
 
   // Spherical boundary (cheap d2 test first, sqrt only for edge boids)
@@ -351,22 +349,25 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
     new_vel -= boid.pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Speed clamp + compute heading in one pass
+  // Speed clamp (max only — min speed rarely triggers in dense clusters)
   let spd_sq = dot(new_vel, new_vel);
-  var inv_spd = inverseSqrt(max(spd_sq, 1e-6));
   let max_spd = params.max_speed;
   if (spd_sq > max_spd * max_spd) {
-    new_vel *= max_spd * inv_spd;
-    inv_spd = 1.0 / max_spd;
-  } else if (spd_sq < params.min_speed * params.min_speed) {
-    new_vel *= params.min_speed * inv_spd;
-    inv_spd = 1.0 / params.min_speed;
+    new_vel *= max_spd * inverseSqrt(spd_sq);
   }
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
-  // size_factor never changes — both ping-pong buffers initialized with correct values
-  boids_dst[i].heading = new_vel * inv_spd;
+}
+
+// === Drift-only pass: advance positions without recomputing flocking ===
+@compute @workgroup_size(64)
+fn drift(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= params.num_boids) { return; }
+  let boid = boids_src[i];
+  boids_dst[i].pos = boid.pos + boid.vel * params.dt;
+  boids_dst[i].vel = boid.vel;
 }
 
 // === Auto-range stats ===
