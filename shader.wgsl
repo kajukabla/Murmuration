@@ -436,7 +436,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * 3.0;
+  new_vel += (ali / nf - boid.vel) * params.align_factor * 3.5;
   new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor;
 
@@ -451,7 +451,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   // Rare perturbation (~7% of boids) — drives dynamics and shape change
   let linked_perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
-  if (linked_perturb_hash < 0.03) {
+  if (linked_perturb_hash < 0.05) {
     let linked_seed = f32(i * 1973u + params.frame_count * 9277u);
     let kick = vec3f(
       fract(sin(linked_seed) * 43758.5) - 0.5,
