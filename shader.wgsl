@@ -365,11 +365,11 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
               sep += diff * max(0.0, 1.0 - d2 / params.separation_dist_sq);
             }
           }
-          if (n_align >= 4u) { break; }
+          if (n_align >= 3u) { break; }
         }
-        if (n_align >= 4u) { break; }
+        if (n_align >= 3u) { break; }
       }
-      if (n_align >= 4u) { break; }
+      if (n_align >= 3u) { break; }
     }
   }
 
