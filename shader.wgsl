@@ -448,10 +448,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   if (linked_perturb_hash < 0.07) {
     let linked_seed = f32(i * 1973u + params.frame_count * 9277u);
     let kick = vec3f(
-      (fract(sin(linked_seed) * 43758.5) - 0.5) * 5.0,
-      (fract(sin(linked_seed * 1.3) * 22578.1) - 0.5) * 1.0,
-      (fract(sin(linked_seed * 0.7) * 31415.9) - 0.5) * 5.0
-    );
+      fract(sin(linked_seed) * 43758.5) - 0.5,
+      fract(sin(linked_seed * 1.3) * 22578.1) - 0.5,
+      fract(sin(linked_seed * 0.7) * 31415.9) - 0.5
+    ) * 3.5;
     new_vel += kick;
   }
 
