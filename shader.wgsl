@@ -444,17 +444,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= 0.25;
   new_vel.y -= boid.pos.y * 0.03;
 
-  // Rotating wind + radial vortex
+  // Slowly rotating horizontal wind — stretches flock along wind direction
   let wind_angle = f32(params.frame_count) * 0.005;
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
-  // Weak vortex around Y axis
-  let vortex_r = length(boid.pos.xz);
-  if (vortex_r > 1.0) {
-    let vortex_strength = 0.1 / max(vortex_r, 5.0);
-    new_vel.x += -boid.pos.z * vortex_strength;
-    new_vel.z += boid.pos.x * vortex_strength;
-  }
 
   // Ellipsoidal boundary — oblate (Y compressed 2x) for higher aspect ratio
   let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
