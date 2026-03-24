@@ -564,7 +564,7 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   vel.y -= 0.03;
   vel.y -= src.pos.y * 0.005;
   vel *= 0.999; // very gentle drag
-  let wa = f32(params.frame_count) * 0.005;
+  let wa = f32(params.frame_count) * 0.01; // match flock_radius_linked wind freq
   vel.x += sin(wa) * 0.3;
   vel.z += cos(wa) * 0.3;
   let dist = length(src.pos);
