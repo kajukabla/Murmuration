@@ -241,18 +241,20 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     new_vel += sep_force * params.separation_factor * 2.0; // stronger since only 1 neighbor
   }
 
-  // Alignment + Cohesion: all K neighbors (uses cached pos+vel)
+  // Alignment + Cohesion: all K neighbors, distance-weighted
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var avg_vel = vec3f(0.0);
+  var total_w = 0.0;
   if (n_found > 0u) {
     for (var k = 0u; k < min(n_found, K_NEIGHBORS); k++) {
-      ali += nearest_vel[k];
-      coh += nearest_pos[k];
+      let w = 1.0 / (nearest_d2[k] + 0.01);
+      ali += nearest_vel[k] * w;
+      coh += nearest_pos[k] * w;
+      total_w += w;
     }
-    let nf = f32(min(n_found, K_NEIGHBORS));
-    avg_vel = ali / nf;
-    let avg_pos = coh / nf;
+    avg_vel = ali / total_w;
+    let avg_pos = coh / total_w;
     new_vel += (avg_vel - boid.vel) * params.align_factor;
     new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
   }
