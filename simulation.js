@@ -250,10 +250,8 @@ export async function createSimulation(device, {
 
       const bg = step % 2 === 0 ? bgA : bgB;
 
-      // 3-tier: grid+flock 1/6, flock-only 2/6, drift 3/6
-      const mod6 = frameCount % 6;
-      if (mod6 === 0) {
-        // Full frame: rebuild grid + flock (1 of 6 frames)
+      // Aggressive: grid+flock 1/4, drift 3/4
+      if (frameCount % 4 === 0) {
         const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
         const passes = [
           [clearPipe,   gridWG],
@@ -269,16 +267,8 @@ export async function createSimulation(device, {
           p.dispatchWorkgroups(wg);
           p.end();
         }
-      } else if (mod6 === 2 || mod6 === 4) {
-        // Flock-only: reuse stale grid (2 of 6 frames)
-        const activeFlock = neighborMode === 1 ? flockRadiusPipe : flockPipe;
-        const p = encoder.beginComputePass();
-        p.setPipeline(activeFlock);
-        p.setBindGroup(0, bg);
-        p.dispatchWorkgroups(boidWG);
-        p.end();
       } else {
-        // Drift: just advance positions (3 of 6 frames)
+        // Drift: just advance positions (3 of 4 frames)
         const p = encoder.beginComputePass();
         p.setPipeline(driftPipe);
         p.setBindGroup(0, bg);
