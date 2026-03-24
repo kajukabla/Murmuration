@@ -145,7 +145,7 @@ fn scatter(@builtin(global_invocation_id) id: vec3u) {
 
 const K_NEIGHBORS: u32 = 7u;
 
-@compute @workgroup_size(128)
+@compute @workgroup_size(256)
 fn flock(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
