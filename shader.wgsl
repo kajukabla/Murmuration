@@ -420,7 +420,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   // Walk linked list for own cell (cell_counts used as cell_heads, boid_cells as next pointers)
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
   var j = atomicLoad(&cell_counts[my_ci]);
-  for (var k = 0u; k < 10u && j != 0xFFFFFFFFu; k++) {
+  for (var k = 0u; k < 6u && j != 0xFFFFFFFFu; k++) {
     if (j != i) {
       let other_pos = boids_src[j].pos;
       let diff = boid.pos - other_pos;
