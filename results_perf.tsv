@@ -27,3 +27,4 @@ experiment	max_boids	description	result
 78	968000	single boid struct load (noisy, cap changed during bench)	reverted
 71	871000	skip grid rebuild every other frame	reverted
 75	996000	drift-only even frames + branchless alignment + no heading/size writes	kept
+84	1990000	drift every 2nd frame + cap 5 (proven, re-confirmed)	kept
