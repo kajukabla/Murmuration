@@ -259,23 +259,11 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
 
   // === Emergent murmuration forces ===
   // NO roost attractor, NO predator orbit — purely local interactions
+  // The complex sweeping motion emerges from topological neighbor rules
+  // + rare perturbations that cascade through the flock
 
   // Gentle gravity (creates oblate/flat flock shape)
   new_vel.y -= 0.03;
-
-  // Speed equalization: boids faster than neighbors slow down, slower speed up
-  if (n_found > 0u) {
-    let my_speed = length(boid.vel);
-    var avg_speed = 0.0;
-    for (var k = 0u; k < min(n_found, K_NEIGHBORS); k++) {
-      avg_speed += length(nearest_vel[k]);
-    }
-    avg_speed /= f32(min(n_found, K_NEIGHBORS));
-    let speed_diff = (avg_speed - my_speed) * 0.02;
-    if (my_speed > 0.001) {
-      new_vel += normalize(boid.vel) * speed_diff;
-    }
-  }
 
   // Rare strong perturbation: only ~3% of birds per frame
   // This is the primary driver of non-repetitive motion —
