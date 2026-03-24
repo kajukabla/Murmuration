@@ -265,11 +265,6 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   // Gentle gravity (creates oblate/flat flock shape)
   new_vel.y -= 0.03;
 
-  // Helical tendency: cross product creates slow corkscrew motion
-  let up = vec3f(0.0, 1.0, 0.0);
-  let tangent = cross(normalize(boid.vel + vec3f(0.001, 0.0, 0.0)), up);
-  new_vel += tangent * 0.05;
-
   // Rare strong perturbation: only ~3% of birds per frame
   // This is the primary driver of non-repetitive motion —
   // a random bird changes direction, neighbors respond via alignment,
