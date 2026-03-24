@@ -505,7 +505,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
       fract(sin(seed * 0.7) * 31415.9) - 0.5
     );
     let kick_dir = select(kick_base, mix(kick_base, normalize(avg_vel_frl + vec3f(0.001)), 0.3), n_align > 0u);
-    new_vel += kick_dir * 3.0;
+    new_vel += kick_dir * 4.0;
   }
 
   // Gravity + Y-spring + drag
