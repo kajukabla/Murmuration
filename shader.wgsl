@@ -321,12 +321,12 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   for (var j = my_start; j < cell_end; j++) {
     let other_idx = sorted_indices[j];
     if (other_idx == i) { continue; }
-    let other_pos = boids_src[other_idx].pos;
-    let diff = boid.pos - other_pos;
+    let other = boids_src[other_idx];
+    let diff = boid.pos - other.pos;
     let d2 = dot(diff, diff);
     let in_range = f32(d2 < params.visual_range_sq);
-    ali += boids_src[other_idx].vel * in_range;
-    coh += other_pos * in_range;
+    ali += other.vel * in_range;
+    coh += other.pos * in_range;
     n_align += u32(in_range);
     let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
     sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
