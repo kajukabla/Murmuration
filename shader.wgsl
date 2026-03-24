@@ -509,10 +509,7 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   // Gravity + Y-spring on drift frames (flattens flock shape)
   vel.y -= 0.03;
   vel.y -= boid.pos.y * 0.03;
-  // Horizontal wind in drift (matches flock)
-  let drift_wind_angle = f32(params.frame_count) * 0.005;
-  vel.x += sin(drift_wind_angle) * 0.5;
-  vel.z += cos(drift_wind_angle) * 0.5;
+  // Wind skipped in drift for perf (flock pass applies full wind)
   // Ellipsoidal boundary on drift (matches flock_radius_linked)
   let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
