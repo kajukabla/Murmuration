@@ -221,8 +221,7 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
   }
 
   // === Apply flocking rules using topological neighbors ===
-  // Light velocity damping prevents speed buildup
-  var new_vel = boid.vel * 0.995;
+  var new_vel = boid.vel;
 
   // Find the closest neighbor (array is unsorted)
   var closest_k = 0u;
