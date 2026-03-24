@@ -57,7 +57,36 @@ def main():
         with open(CSV_FILE) as f:
             iteration = max(0, sum(1 for _ in f) - 1)
 
-    print(f"Browser perf: binary search for max boids @ p99 < {TARGET_MS}ms", file=sys.stderr)
+    print(f"Browser perf: binary search for max boids", file=sys.stderr)
+
+    # Read previous best from results_perf.tsv
+    prev_best = 0
+    perf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results_perf.tsv")
+    if os.path.exists(perf_file):
+        with open(perf_file) as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) >= 4 and parts[3] == 'kept':
+                    try:
+                        val = int(parts[1])
+                        prev_best = max(prev_best, val)
+                    except ValueError:
+                        pass
+
+    # Quick check: test at previous best first. If it fails, skip full search.
+    if prev_best > 0:
+        print(f"  quick check at {prev_best}...", end="", file=sys.stderr, flush=True)
+        qr = run_benchmark(prev_best)
+        if qr and 'error' not in qr:
+            drop = qr.get("drop_rate", 1)
+            fps = qr.get("effective_fps", 0)
+            passed = drop < 0.05 and fps >= 55
+            print(f" drops={drop*100:.0f}% fps={fps:.0f} {'OK' if passed else 'REGRESSED'}", file=sys.stderr)
+            if not passed:
+                print(f"max_boids: 0")
+                return
+        else:
+            print(f" failed", file=sys.stderr)
 
     lo, hi = LO, HI
     best = 0
