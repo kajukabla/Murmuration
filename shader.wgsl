@@ -510,18 +510,14 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   vel.y -= 0.03;
   vel.y -= boid.pos.y * 0.03;
   // Wind skipped in drift for perf (flock pass applies full wind)
-  // Ellipsoidal boundary — cheap spherical pre-test skips ~80% of boids
-  let pos_d2 = dot(boid.pos, boid.pos);
+  // Ellipsoidal boundary on drift (matches flock_radius_linked)
+  let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
+  let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
   let r = params.sphere_radius;
-  let inner_r = (r - r * 0.15) * 0.7; // conservative inner sphere (accounts for Y scaling)
-  if (pos_d2 > inner_r * inner_r) {
-    let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
-    let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
-    let threshold = r - r * 0.15;
-    if (center_d2 > threshold * threshold) {
-      let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-      vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
-    }
+  let threshold = r - r * 0.15;
+  if (center_d2 > threshold * threshold) {
+    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
+    vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
   }
   boids_dst[i].pos = boid.pos + vel * params.dt;
   boids_dst[i].vel = vel;
