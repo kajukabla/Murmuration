@@ -253,10 +253,8 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     let nf = f32(min(n_found, K_NEIGHBORS));
     avg_vel = ali / nf;
     let avg_pos = coh / nf;
-    // Isolated boids (few neighbors) align and cohere more strongly
-    let isolation_boost = 1.0 + max(0.0, 4.0 - nf) * 0.3;
-    new_vel += (avg_vel - boid.vel) * params.align_factor * isolation_boost;
-    new_vel += (avg_pos - boid.pos) * params.cohesion_factor * isolation_boost;
+    new_vel += (avg_vel - boid.vel) * params.align_factor;
+    new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
   }
 
   // === Emergent murmuration forces ===
