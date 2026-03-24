@@ -178,7 +178,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
         let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
         if (start >= end_val) { continue; }
 
-        for (var j = start; j < end_val; j++) {
+        // Cap per-cell scan to 16 boids for performance
+        let cell_end = min(end_val, start + 16u);
+        for (var j = start; j < cell_end; j++) {
           let other_idx = sorted_indices[j];
           if (other_idx == i) { continue; }
 
