@@ -436,12 +436,8 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
 
   var new_vel = boid.vel;
   let nf = max(f32(n_align), 1.0);
-  // Frame-alternating emphasis: alignment/cohesion take turns being dominant
-  let phase = f32(params.frame_count % 2u);
-  let a_mult = mix(12.0, 8.0, phase);
-  let c_mult = mix(0.8, 1.2, phase);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * a_mult;
-  new_vel += (coh / nf - boid.pos) * params.cohesion_factor * c_mult;
+  new_vel += (ali / nf - boid.vel) * params.align_factor * 10.0;
+  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
   new_vel += sep * params.separation_factor * 0.5;
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
