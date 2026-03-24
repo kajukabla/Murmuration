@@ -449,11 +449,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.x += sin(wind_angle) * 2.0;
   new_vel.z += cos(wind_angle) * 2.0;
 
-  // Velocity-perpendicular curl force (creates swirling/banking motion)
-  let curl_str = 0.3;
-  new_vel.x += boid.vel.z * curl_str;
-  new_vel.z -= boid.vel.x * curl_str;
-
   // Ellipsoidal boundary — oblate (Y compressed 2x) for higher aspect ratio
   let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(scaled_pos, scaled_pos);
