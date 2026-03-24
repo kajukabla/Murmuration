@@ -513,13 +513,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     let raw_corr = dot(boid.vel, ali / f32(n_align));
     let norm = sqrt(vel_d2_l) * sqrt(ali_d2_l / f32(n_align * n_align));
     real_align = raw_corr / max(norm, 0.001);
-    // Boost by neighbor density: more neighbors = higher confidence
+    // Boost: exp(alignment * scale) gives much larger values near f32 max
     real_align = max(real_align, 0.0);
-    real_align *= (1.0 + f32(n_align) * 23.0);
-    let ra2 = real_align * real_align;
-    let ra4 = ra2 * ra2;
-    let ra8 = ra4 * ra4;
-    real_align = ra8 * ra8;
+    let scaled = real_align * (1.0 + f32(n_align) * 3.0) * 5.0;
+    real_align = exp(min(scaled, 78.0));
   }
   boids_dst[i].flock_alignment = real_align;
   boids_dst[i].sep_pressure = length(sep);
