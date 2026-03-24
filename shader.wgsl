@@ -415,7 +415,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var sep = vec3f(0.0);
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
   var j = atomicLoad(&cell_counts[my_ci]);
-  for (var iter = 0u; iter < 3u; iter++) {
+  for (var iter = 0u; iter < 4u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
     let next = boid_cells[j];  // prefetch next before reading boid data
     let opos = boids_src[j].pos;
