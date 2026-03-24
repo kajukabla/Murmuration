@@ -444,11 +444,10 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   new_vel.y -= 0.25;
   new_vel.y -= boid.pos.y * 0.03;
 
-  // Slowly rotating horizontal wind with second harmonic for richer motion
+  // Slowly rotating horizontal wind — stretches flock along wind direction
   let wind_angle = f32(params.frame_count) * 0.005;
-  let wind_angle2 = f32(params.frame_count) * 0.013;
-  new_vel.x += sin(wind_angle) * 1.5 + sin(wind_angle2) * 0.5;
-  new_vel.z += cos(wind_angle) * 1.5 + cos(wind_angle2) * 0.5;
+  new_vel.x += sin(wind_angle) * 2.0;
+  new_vel.z += cos(wind_angle) * 2.0;
 
   // Ellipsoidal boundary — oblate (Y compressed 2x) for higher aspect ratio
   let scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
