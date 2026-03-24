@@ -485,17 +485,7 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
   var boid = boids_src[i];
-  // Gravity + Y-spring on drift frames (flattens flock shape)
-  boid.vel.y -= 0.03 + boid.pos.y * 0.03;
-  // Ellipsoidal boundary on drift (matches flock_radius_linked)
-  let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
-  let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
-  let r = params.sphere_radius;
-  let threshold = r - r * 0.15;
-  if (center_d2 > threshold * threshold) {
-    let inv_dist = inverseSqrt(max(center_d2, 1e-6));
-    boid.vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
-  }
+  // Minimal drift: just advance position, skip boundary (handled every 8th frame)
   boid.pos += boid.vel * params.dt;
   boids_dst[i] = boid;
 }
