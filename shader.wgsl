@@ -609,6 +609,7 @@ fn drift_inplace(@builtin(global_invocation_id) id: vec3u) {
   // 16 physics steps in a loop
   for (var step = 0u; step < 16u; step++) {
     vel.y -= 0.03 + pos.y * 0.03;
+    vel *= 0.999; // gentle drag
     // Add wind
     vel.x += sin(wa) * 0.1;
     vel.z += cos(wa) * 0.1;
