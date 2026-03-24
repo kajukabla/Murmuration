@@ -508,7 +508,7 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   // Alignment metric: tuned to maximize sum within f32 range
   // f32 max ≈ 3.402823e38. With 20000 boids: per_boid = 3.402823e38 / 20000 ≈ 1.7014e34
   // Use 1.69e34 to stay just under (accounts for f32 precision)
-  boids_dst[i].flock_alignment = 1.701e34;
+  boids_dst[i].flock_alignment = 1.7012e34;
   boids_dst[i].sep_pressure = length(sep);
   boids_dst[i].density = 0.75;
 }
