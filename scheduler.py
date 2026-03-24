@@ -315,6 +315,19 @@ def run_phase(phase: dict, duration_override: int | None,
                 if time.monotonic() < deadline and _running:
                     proc = start_agent()
                     _agent_pgid = os.getpgid(proc.pid)
+            else:
+                # Agent process is alive but might be hung (context exhausted)
+                # Check if agent.log has grown recently
+                log_path = BASE_DIR / "agent.log"
+                if log_path.exists():
+                    log_age = time.time() - log_path.stat().st_mtime
+                    if log_age > 180:  # No log output in 3 minutes = hung
+                        log(f"Agent hung (no output for {int(log_age)}s), killing and restarting...")
+                        kill_agent(proc)
+                        kill_stray_processes()
+                        if time.monotonic() < deadline and _running:
+                            proc = start_agent()
+                            _agent_pgid = os.getpgid(proc.pid)
     finally:
         log(f"Phase {label} ending, killing agent...")
         kill_agent(proc)
