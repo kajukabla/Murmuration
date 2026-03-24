@@ -214,11 +214,14 @@ def start_agent() -> subprocess.Popen:
         "Read program.md and begin the optimization loop. Do not stop or ask questions.",
     ]
     log(f"Starting agent: {' '.join(cmd)}")
+    log_path = BASE_DIR / "agent.log"
+    log_path.write_text("")  # Clear log for fresh run
+    log_file = open(log_path, "a")
     proc = subprocess.Popen(
         cmd,
         cwd=str(BASE_DIR),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
         preexec_fn=os.setsid,
     )
     log(f"Agent started, pid={proc.pid}, pgid={os.getpgid(proc.pid)}")
