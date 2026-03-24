@@ -318,34 +318,59 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   var coh = vec3f(0.0);
   var n_align = 0u;
 
-  for (var nz = lo.z; nz <= hi.z; nz++) {
-    let zoff = u32(nz) * params.grid_size * params.grid_size;
-    for (var ny = lo.y; ny <= hi.y; ny++) {
-      let yzoff = u32(ny) * params.grid_size + zoff;
-      for (var nx = lo.x; nx <= hi.x; nx++) {
-        let nc = u32(nx) + yzoff;
-        let start = cell_offsets[nc];
-        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
-        if (start >= end_val) { continue; }
-        let cell_end = min(end_val, start + 8u); // cap per-cell iteration
-        for (var j = start; j < cell_end; j++) {
-          let other_idx = sorted_indices[j];
-          if (other_idx == i) { continue; }
-          let other_pos = boids_src[other_idx].pos;
-          let diff = boid.pos - other_pos;
-          let d2 = dot(diff, diff);
-          if (d2 < params.visual_range_sq) {
-            ali += boids_src[other_idx].vel;
-            coh += other_pos;
-            n_align++;
-            sep += diff * max(0.0, 1.0 - d2 / params.separation_dist_sq);
+  // Process own cell first — in dense clusters, avoids searching 26 neighbors
+  let my_ci = cell_index(my_grid);
+  let my_start = cell_offsets[my_ci];
+  let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
+  if (my_start < my_end) {
+    let cell_end = min(my_end, my_start + 8u);
+    for (var j = my_start; j < cell_end; j++) {
+      let other_idx = sorted_indices[j];
+      if (other_idx == i) { continue; }
+      let other_pos = boids_src[other_idx].pos;
+      let diff = boid.pos - other_pos;
+      let d2 = dot(diff, diff);
+      if (d2 < params.visual_range_sq) {
+        ali += boids_src[other_idx].vel;
+        coh += other_pos;
+        n_align++;
+        sep += diff * max(0.0, 1.0 - d2 / params.separation_dist_sq);
+      }
+    }
+  }
+
+  // Only search 26 neighbor cells if own cell didn't provide enough
+  if (n_align < 6u) {
+    for (var nz = lo.z; nz <= hi.z; nz++) {
+      let zoff = u32(nz) * params.grid_size * params.grid_size;
+      for (var ny = lo.y; ny <= hi.y; ny++) {
+        let yzoff = u32(ny) * params.grid_size + zoff;
+        for (var nx = lo.x; nx <= hi.x; nx++) {
+          let nc = u32(nx) + yzoff;
+          if (nc == my_ci) { continue; } // skip own cell (already processed)
+          let start = cell_offsets[nc];
+          let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+          if (start >= end_val) { continue; }
+          let cell_end = min(end_val, start + 8u);
+          for (var j = start; j < cell_end; j++) {
+            let other_idx = sorted_indices[j];
+            if (other_idx == i) { continue; }
+            let other_pos = boids_src[other_idx].pos;
+            let diff = boid.pos - other_pos;
+            let d2 = dot(diff, diff);
+            if (d2 < params.visual_range_sq) {
+              ali += boids_src[other_idx].vel;
+              coh += other_pos;
+              n_align++;
+              sep += diff * max(0.0, 1.0 - d2 / params.separation_dist_sq);
+            }
           }
+          if (n_align >= 6u) { break; }
         }
         if (n_align >= 6u) { break; }
       }
       if (n_align >= 6u) { break; }
     }
-    if (n_align >= 6u) { break; }
   }
 
   var new_vel = boid.vel;
