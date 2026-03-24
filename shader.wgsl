@@ -365,7 +365,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
-  boids_dst[i].size_factor = boid.size_factor;
+  // size_factor never changes — both ping-pong buffers initialized with correct values
   boids_dst[i].heading = new_vel * inv_spd;
 }
 
