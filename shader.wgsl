@@ -438,7 +438,6 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   var out: Boid;
   out.pos = boid.pos + new_vel * params.dt;
   out.vel = new_vel;
-  out.size_factor = boid.size_factor;
   boids_dst[i] = out;
 }
 
