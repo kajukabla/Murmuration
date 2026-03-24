@@ -424,7 +424,10 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   out.speed = final_speed;
   out.neighbor_count = f32(n_align);
   out.dir_change = 1.0 - clamp(dot(old_dir, final_dir), -1.0, 1.0);
-  out.flock_alignment = 1.0;
+  let vel_d2_r = dot(boid.vel, boid.vel);
+  let avg_vel_r = select(vec3f(0.0), ali / max(f32(n_align), 1.0), n_align > 0u);
+  let avg_d2_r = dot(avg_vel_r, avg_vel_r);
+  out.flock_alignment = select(0.0, dot(boid.vel, avg_vel_r) * inverseSqrt(vel_d2_r * avg_d2_r), vel_d2_r > 0.001 && avg_d2_r > 0.001);
   out.sep_pressure = length(sep);
   out.density = f32(n_align) * 0.125;
   boids_dst[i] = out;
