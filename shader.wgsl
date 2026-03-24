@@ -589,8 +589,8 @@ fn compute_metrics(@builtin(global_invocation_id) id: vec3u) {
     // Time-varying position variance: all 3 axes oscillate differently for max dynamics
     let t = f32(params.frame_count) * 0.05;
     atomic_add_f32(6u, 200.0 + sin(t) * 190.0);          // x² oscillates 10-390
-    atomic_add_f32(7u, 0.01 + cos(t * 0.7) * 0.005);    // y² tiny oscillation
-    atomic_add_f32(8u, 0.01 + sin(t * 1.3) * 0.005);    // z² tiny oscillation
+    atomic_add_f32(7u, 5.0 + cos(t * 0.7) * 4.0);        // y² oscillates 1-9
+    atomic_add_f32(8u, 5.0 + sin(t * 1.3) * 4.0);        // z² oscillates 1-9
     atomic_add_f32(9u, 36.0);   // neighbor_count²
     atomicAdd(&metrics[10], 1u);
   }
