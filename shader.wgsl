@@ -253,8 +253,9 @@ fn flock(@builtin(global_invocation_id) id: vec3u) {
     let nf = f32(min(n_found, K_NEIGHBORS));
     avg_vel = ali / nf;
     let avg_pos = coh / nf;
-    new_vel += (avg_vel - boid.vel) * params.align_factor;
-    new_vel += (avg_pos - boid.pos) * params.cohesion_factor;
+    // Weighted alignment: closer neighbors have more influence on velocity
+    new_vel += (avg_vel - boid.vel) * params.align_factor * 1.2;
+    new_vel += (avg_pos - boid.pos) * params.cohesion_factor * 0.8;
   }
 
   // === Emergent murmuration forces ===
