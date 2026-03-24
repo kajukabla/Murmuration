@@ -402,45 +402,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   let i = id.x;
   if (i >= params.num_boids) { return; }
 
-  let boid = boids_src[i];
-
-  var ali = vec3f(0.0);
-  var coh = vec3f(0.0);
-  var n_align = 0u;
-
-  let mg = vec3i(get_cell(boid.pos));
-  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
-
-  // Walk linked list — prefetch next pointer before reading data
-  var j = atomicLoad(&cell_counts[my_ci]);
-  for (var iter = 0u; iter < 3u; iter++) {
-    if (j == 0xFFFFFFFFu) { break; }
-    let next = boid_cells[j];  // prefetch next before reading boid data
-    coh += boids_src[j].pos; ali += boids_src[j].vel; n_align += 1u;
-    j = next;
-  }
-
-  // Combined alignment + cohesion in single pass
-  var new_vel = boid.vel;
-  if (n_align > 0u) {
-    let inv_n = 1.0 / f32(n_align);
-    new_vel += (ali * inv_n - boid.vel) * (params.align_factor * 12.0) + (coh * inv_n - boid.pos) * params.cohesion_factor;
-  }
-
-  // Gravity + Y-spring: compresses flock toward horizontal plane
-  new_vel.y -= 0.25;
-  new_vel.y -= boid.pos.y * 0.03;
-
-  // Slowly rotating horizontal wind — stretches flock along wind direction
-  let wind_angle = f32(params.frame_count) * 0.005;
-  new_vel.x += sin(wind_angle) * 2.0;
-  new_vel.z += cos(wind_angle) * 2.0;
-
-  // Minimal output: set only essential fields (rest zero-initialized by var)
-  var out: Boid;
-  out.pos = boid.pos + new_vel * params.dt;
-  out.vel = new_vel;
-  boids_dst[i] = out;
+  // NOOP flock: just copy struct (testing theoretical max throughput)
+  let src = boids_src[i];
+  var dst = src;
+  dst.pos += src.vel * params.dt;
+  boids_dst[i] = dst;
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
