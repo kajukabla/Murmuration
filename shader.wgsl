@@ -522,6 +522,11 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
     let inv_dist = inverseSqrt(max(center_d2, 1e-6));
     vel -= drift_scaled_pos * (inv_dist * params.turn_factor * min((center_d2 * inv_dist - threshold) / (r * 0.15), 3.0));
   }
+  // Mild position-dependent turbulence
+  let turb_seed = dot(floor(boid.pos * 0.1), vec3f(127.1, 311.7, 74.7));
+  let turb = fract(sin(turb_seed + f32(params.frame_count) * 0.1) * 43758.5) - 0.5;
+  vel += normalize(boid.vel + vec3f(0.001)) * turb * 0.2;
+
   boids_dst[i].pos = boid.pos + vel * params.dt;
   boids_dst[i].vel = vel;
   boids_dst[i].size_factor = boid.size_factor;
