@@ -307,48 +307,69 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   if (i >= params.num_boids) { return; }
 
   let boid = boids_src[i];
-  let my_ci = cell_index(get_cell(boid.pos));
 
   var sep = vec3f(0.0);
   var ali = vec3f(0.0);
   var coh = vec3f(0.0);
   var n_align = 0u;
 
-  // Search 3x3x3 neighboring cells with neighbor cap
   let gs = i32(params.grid_size);
   let mg = vec3i(get_cell(boid.pos));
-  let lo = max(mg - vec3i(1), vec3i(0));
-  let hi = min(mg + vec3i(1), vec3i(gs - 1));
+  let my_ci = u32(mg.x) + u32(mg.y) * params.grid_size + u32(mg.z) * params.grid_size * params.grid_size;
 
-  for (var nz = lo.z; nz <= hi.z; nz++) {
-    let zoff = u32(nz) * params.grid_size * params.grid_size;
-    for (var ny = lo.y; ny <= hi.y; ny++) {
-      let yzoff = u32(ny) * params.grid_size + zoff;
-      for (var nx = lo.x; nx <= hi.x; nx++) {
-        let nc = u32(nx) + yzoff;
-        let start = cell_offsets[nc];
-        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
-        if (start >= end_val) { continue; }
-        for (var j = start; j < min(end_val, start + 6u); j++) {
-          let oi = sorted_indices[j];
-          if (oi == i) { continue; }
-          let other_pos = boids_src[oi].pos;
-          let diff = boid.pos - other_pos;
-          let d2 = dot(diff, diff);
-          if (d2 < params.visual_range_sq && d2 > 0.0001) {
-            ali += boids_src[oi].vel;
-            coh += other_pos;
-            n_align += 1u;
-            if (d2 < params.separation_dist_sq) {
-              sep += diff * (1.0 - d2 / params.separation_dist_sq);
+  // Search own cell first (most neighbors are here)
+  let own_start = cell_offsets[my_ci];
+  let own_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
+  for (var j = own_start; j < min(own_end, own_start + 6u); j++) {
+    let oi = sorted_indices[j];
+    if (oi == i) { continue; }
+    let other_pos = boids_src[oi].pos;
+    let diff = boid.pos - other_pos;
+    let d2 = dot(diff, diff);
+    if (d2 < params.visual_range_sq && d2 > 0.0001) {
+      ali += boids_src[oi].vel;
+      coh += other_pos;
+      n_align += 1u;
+      if (d2 < params.separation_dist_sq) {
+        sep += diff * (1.0 - d2 / params.separation_dist_sq);
+      }
+    }
+  }
+
+  // Search 3x3x3 neighbor cells only if own cell didn't have enough
+  if (n_align < 6u) {
+    let lo = max(mg - vec3i(1), vec3i(0));
+    let hi = min(mg + vec3i(1), vec3i(gs - 1));
+    for (var nz = lo.z; nz <= hi.z; nz++) {
+      let zoff = u32(nz) * params.grid_size * params.grid_size;
+      for (var ny = lo.y; ny <= hi.y; ny++) {
+        let yzoff = u32(ny) * params.grid_size + zoff;
+        for (var nx = lo.x; nx <= hi.x; nx++) {
+          let nc = u32(nx) + yzoff;
+          if (nc == my_ci) { continue; }  // already searched
+          let start = cell_offsets[nc];
+          let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+          if (start >= end_val) { continue; }
+          for (var j = start; j < min(end_val, start + 6u); j++) {
+            let oi = sorted_indices[j];
+            let other_pos = boids_src[oi].pos;
+            let diff = boid.pos - other_pos;
+            let d2 = dot(diff, diff);
+            if (d2 < params.visual_range_sq && d2 > 0.0001) {
+              ali += boids_src[oi].vel;
+              coh += other_pos;
+              n_align += 1u;
+              if (d2 < params.separation_dist_sq) {
+                sep += diff * (1.0 - d2 / params.separation_dist_sq);
+              }
             }
           }
+          if (n_align >= 6u) { break; }
         }
         if (n_align >= 6u) { break; }
       }
       if (n_align >= 6u) { break; }
     }
-    if (n_align >= 6u) { break; }
   }
 
   var new_vel = boid.vel;
