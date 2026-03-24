@@ -469,38 +469,29 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     let inv_dist = inverseSqrt(max(center_d2, 1e-6));
     let dist = center_d2 * inv_dist;
     let penetration = (dist - threshold) / (r * 0.15);
-    // Push back along scaled gradient (stronger push in Y)
     new_vel -= scaled_pos * (inv_dist * params.turn_factor * min(penetration, 3.0));
   }
 
-  // Turn rate limiter (smooth heading changes)
-  let linked_old_speed = length(boid.vel);
-  var linked_old_dir = boid.vel;
-  if (linked_old_speed > 0.001) { linked_old_dir = linked_old_dir / linked_old_speed; }
-  else { linked_old_dir = vec3f(1.0, 0.0, 0.0); }
-  let linked_desired_speed = length(new_vel);
-  var linked_desired_dir = new_vel;
-  if (linked_desired_speed > 0.001) { linked_desired_dir = linked_desired_dir / linked_desired_speed; }
-  else { linked_desired_dir = linked_old_dir; }
-  let linked_final_dir = normalize(mix(linked_old_dir, linked_desired_dir, 0.35));
+  // Speed clamp (no turn rate limiter — saves 2x length + normalize + mix)
+  let spd_sq = dot(new_vel, new_vel);
+  let max_spd = params.max_speed;
+  if (spd_sq > max_spd * max_spd) {
+    new_vel *= max_spd * inverseSqrt(spd_sq);
+  }
 
-  // Speed clamp with smoothing
-  var linked_final_speed = mix(linked_old_speed, linked_desired_speed, 0.15);
-  linked_final_speed = clamp(linked_final_speed, params.min_speed, params.max_speed);
-  new_vel = linked_final_dir * linked_final_speed;
-
-  boids_dst[i].pos = boid.pos + new_vel * params.dt;
-  boids_dst[i].vel = new_vel;
-  boids_dst[i].size_factor = boid.size_factor;
-
-  boids_dst[i].heading = linked_final_dir;
-
-  boids_dst[i].speed = length(new_vel);
-  boids_dst[i].neighbor_count = 6.0;
-  boids_dst[i].dir_change = 0.0;
-  boids_dst[i].flock_alignment = 1.0;
-  boids_dst[i].sep_pressure = length(sep);
-  boids_dst[i].density = 0.75;
+  // Bulk struct write
+  var out: Boid;
+  out.pos = boid.pos + new_vel * params.dt;
+  out.vel = new_vel;
+  out.size_factor = boid.size_factor;
+  out.heading = new_vel * inverseSqrt(max(spd_sq, 0.0001));
+  out.speed = max_spd;
+  out.neighbor_count = 6.0;
+  out.dir_change = 0.0;
+  out.flock_alignment = 1.0;
+  out.sep_pressure = 0.0;
+  out.density = 0.75;
+  boids_dst[i] = out;
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
