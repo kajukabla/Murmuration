@@ -443,6 +443,11 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
   // Strong gravity — flattens flock into oblate shape (increases aspect ratio)
   new_vel.y -= 0.25;
 
+  // Slowly rotating horizontal wind — stretches flock along wind direction
+  let wind_angle = f32(params.frame_count) * 0.005;
+  new_vel.x += sin(wind_angle) * 0.8;
+  new_vel.z += cos(wind_angle) * 0.8;
+
   // Rare perturbation (~7% of boids) — drives dynamics and shape change
   let linked_perturb_hash = fract(sin(f32(i * 7919u + params.frame_count * 104729u)) * 43758.5);
   if (linked_perturb_hash < 0.07) {
@@ -514,6 +519,10 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   var vel = boid.vel;
   // Gravity on drift frames too (flattens flock shape)
   vel.y -= 0.03;
+  // Horizontal wind in drift (matches flock)
+  let drift_wind_angle = f32(params.frame_count) * 0.005;
+  vel.x += sin(drift_wind_angle) * 0.1;
+  vel.z += cos(drift_wind_angle) * 0.1;
   // Ellipsoidal boundary on drift (matches flock_radius_linked)
   let drift_scaled_pos = boid.pos * vec3f(1.0, 2.5, 1.0);
   let center_d2 = dot(drift_scaled_pos, drift_scaled_pos);
