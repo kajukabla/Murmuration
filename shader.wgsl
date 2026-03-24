@@ -350,7 +350,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   // Walk linked list for own cell (cap 4 neighbors)
   let inv_sep_d2 = 1.0 / max(params.separation_dist_sq, 0.0001);
   var j = atomicLoad(&cell_counts[my_ci]);
-  for (var iter = 0u; iter < 5u; iter++) {
+  for (var iter = 0u; iter < 3u; iter++) {
     if (j == 0xFFFFFFFFu) { break; }
     if (j != i) {
       let other = boids_src[j];
@@ -361,7 +361,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
       n_align += 1u;
       let in_sep = f32(d2 < params.separation_dist_sq);
       sep += diff * (1.0 - d2 * inv_sep_d2) * in_sep;
-      if (n_align >= 4u) { break; }
+      if (n_align >= 3u) { break; }
     }
     j = boid_cells[j];
   }
