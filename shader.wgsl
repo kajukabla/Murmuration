@@ -314,20 +314,39 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
   var coh = vec3f(0.0);
   var n_align = 0u;
 
-  // Own-cell-only: 3 neighbors max (no 27-cell search = lower register pressure)
-  let my_start = cell_offsets[my_ci];
-  let my_end = select(cell_offsets[my_ci + 1u], params.num_boids, my_ci + 1u >= params.grid_cells);
-  let cell_end = min(my_end, my_start + 5u);
-  for (var j = my_start; j < cell_end; j++) {
-    let other = boids_src[sorted_indices[j]];
-    let diff = boid.pos - other.pos;
-    let d2 = dot(diff, diff);
-    let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
-    ali += other.vel * in_range;
-    coh += other.pos * in_range;
-    n_align += u32(in_range);
-    let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
-    sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
+  // Search 3x3x3 neighboring cells with neighbor cap
+  let gs = i32(params.grid_size);
+  let mg = vec3i(get_cell(boid.pos));
+  let lo = max(mg - vec3i(1), vec3i(0));
+  let hi = min(mg + vec3i(1), vec3i(gs - 1));
+
+  for (var nz = lo.z; nz <= hi.z; nz++) {
+    let zoff = u32(nz) * params.grid_size * params.grid_size;
+    for (var ny = lo.y; ny <= hi.y; ny++) {
+      let yzoff = u32(ny) * params.grid_size + zoff;
+      for (var nx = lo.x; nx <= hi.x; nx++) {
+        let nc = u32(nx) + yzoff;
+        let start = cell_offsets[nc];
+        let end_val = select(cell_offsets[nc + 1u], params.num_boids, nc + 1u >= params.grid_cells);
+        if (start >= end_val) { continue; }
+        for (var j = start; j < min(end_val, start + 8u); j++) {
+          let oi = sorted_indices[j];
+          if (oi == i) { continue; }
+          let other = boids_src[oi];
+          let diff = boid.pos - other.pos;
+          let d2 = dot(diff, diff);
+          let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
+          ali += other.vel * in_range;
+          coh += other.pos * in_range;
+          n_align += u32(in_range);
+          let in_sep = f32(d2 < params.separation_dist_sq) * in_range;
+          sep += diff * (1.0 - d2 / params.separation_dist_sq) * in_sep;
+        }
+        if (n_align >= 8u) { break; }
+      }
+      if (n_align >= 8u) { break; }
+    }
+    if (n_align >= 8u) { break; }
   }
 
   var new_vel = boid.vel;
@@ -356,6 +375,22 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
 
   boids_dst[i].pos = boid.pos + new_vel * params.dt;
   boids_dst[i].vel = new_vel;
+  boids_dst[i].size_factor = boid.size_factor;
+
+  // Update heading for rendering (smooth tracking of velocity direction)
+  let vel_dir = new_vel * inverseSqrt(max(dot(new_vel, new_vel), 0.0001));
+  var old_h = boid.heading;
+  let hl = dot(old_h, old_h);
+  if (hl < 0.25) { old_h = vel_dir; } else { old_h = old_h * inverseSqrt(hl); }
+  boids_dst[i].heading = normalize(mix(old_h, vel_dir, 0.12));
+
+  // Viz metrics
+  boids_dst[i].speed = sqrt(max(dot(new_vel, new_vel), 0.0));
+  boids_dst[i].neighbor_count = f32(n_align);
+  boids_dst[i].dir_change = 0.0;
+  boids_dst[i].flock_alignment = 0.0;
+  boids_dst[i].sep_pressure = 0.0;
+  boids_dst[i].density = f32(n_align) * 0.125;
 }
 
 // === Drift pass: advance positions + boundary steering (no neighbor search) ===
@@ -375,6 +410,19 @@ fn drift(@builtin(global_invocation_id) id: vec3u) {
   }
   boids_dst[i].pos = boid.pos + vel * params.dt;
   boids_dst[i].vel = vel;
+  boids_dst[i].size_factor = boid.size_factor;
+  // Update heading on drift frames too
+  let vd = vel * inverseSqrt(max(dot(vel, vel), 0.0001));
+  var oh = boid.heading;
+  let hlen = dot(oh, oh);
+  if (hlen < 0.25) { oh = vd; } else { oh = oh * inverseSqrt(hlen); }
+  boids_dst[i].heading = normalize(mix(oh, vd, 0.08));
+  boids_dst[i].speed = sqrt(max(dot(vel, vel), 0.0));
+  boids_dst[i].neighbor_count = boid.neighbor_count;
+  boids_dst[i].dir_change = boid.dir_change;
+  boids_dst[i].flock_alignment = boid.flock_alignment;
+  boids_dst[i].sep_pressure = boid.sep_pressure;
+  boids_dst[i].density = boid.density;
 }
 
 // === Auto-range stats ===

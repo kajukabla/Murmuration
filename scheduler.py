@@ -130,6 +130,21 @@ Do NOT rename, rewrite, reorder, or touch any line inside `{locked}`.
 - Boid struct: 64 bytes (16 floats) -- don't change the layout
 - Billboard additive + radius neighbor mode is what's benchmarked
 - Do NOT modify `{locked}` under any circumstances
+
+## MANDATORY: Flocking Correctness Checks
+Before committing ANY experiment, verify these are preserved:
+1. **Heading update**: boids_dst[i].heading MUST be written with a smoothly
+   tracked direction based on velocity. Without this, boids face the wrong way.
+2. **size_factor copy**: boids_dst[i].size_factor = boid.size_factor MUST be written.
+3. **27-cell neighbor search**: The flock function MUST search neighboring grid cells
+   (3x3x3), not just the own cell. Own-cell-only breaks flocking.
+4. **Separation + Alignment + Cohesion**: All three forces must be computed.
+   Removing any one breaks the flocking behavior.
+5. **If a drift() pass exists**: It MUST copy heading, size_factor, and all viz
+   metrics (speed, neighbor_count, etc.) from src to dst.
+
+If you remove any of these for performance, the experiment WILL be reverted
+because the visual result will be broken even if the benchmark passes.
 """
 
 
