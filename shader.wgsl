@@ -420,10 +420,13 @@ fn flock_radius_linked(@builtin(global_invocation_id) id: vec3u) {
     j = next;
   }
 
+  // Skip force computation if no neighbors (avoids division + multiply for isolated boids)
   var new_vel = boid.vel;
-  let nf = max(f32(n_align), 1.0);
-  new_vel += (ali / nf - boid.vel) * params.align_factor * 12.0;
-  new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  if (n_align > 0u) {
+    let nf = f32(n_align);
+    new_vel += (ali / nf - boid.vel) * params.align_factor * 12.0;
+    new_vel += (coh / nf - boid.pos) * params.cohesion_factor;
+  }
 
   // Gravity + Y-spring: compresses flock toward horizontal plane
   new_vel.y -= 0.25;
