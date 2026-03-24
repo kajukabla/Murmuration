@@ -330,7 +330,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
       let other_pos = boids_src[other_idx].pos;
       let diff = boid.pos - other_pos;
       let d2 = dot(diff, diff);
-      let in_range = f32(d2 < params.visual_range_sq);
+      let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
       ali += boids_src[other_idx].vel * in_range;
       coh += other_pos * in_range;
       n_align += u32(in_range);
@@ -358,7 +358,7 @@ fn flock_radius(@builtin(global_invocation_id) id: vec3u) {
             let other_pos = boids_src[other_idx].pos;
             let diff = boid.pos - other_pos;
             let d2 = dot(diff, diff);
-            let in_range = f32(d2 < params.visual_range_sq);
+            let in_range = f32(d2 < params.visual_range_sq && d2 > 0.0001);
             ali += boids_src[other_idx].vel * in_range;
             coh += other_pos * in_range;
             n_align += u32(in_range);
